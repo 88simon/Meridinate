@@ -79,12 +79,14 @@ C:\Meridinate\
 - ✅ **AutoHotkey** - Desktop automation action wheel functional
 - ✅ **Database** - SQLite with 5 tables, all data preserved
 - ✅ **WebSocket** - Real-time notifications working
-- ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services
+- ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services with automatic process cleanup
+- ✅ **Market Cap Refresh** - "Refresh all visible market caps" button fully functional
+- ✅ **Multi-Token Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues
+- ✅ **Git Repository** - Pushed to https://github.com/88simon/Meridinate.git
 
 ### What Needs Cleanup ⚠️
 
 - ⚠️ **Old directory structure** - `backend/` and `frontend/` folders at root still exist (safe to delete after testing)
-- ⚠️ **Git repository** - Not yet pushed to unified GitHub repo
 - ⚠️ **CI/CD workflows** - Still in per-app `.github/` folders, should be moved to root
 
 ---
@@ -521,10 +523,10 @@ pnpm install
 
 ### Soon (This Week)
 
-3. **🔄 Git Repository Setup**
-   - Create new GitHub repo: `meridinate`
-   - Push unified monorepo
-   - Archive old repos (`solscan_hotkey`, `gun-del-sol-web`)
+3. **✅ Git Repository Setup** (COMPLETED)
+   - ✅ Created GitHub repo: https://github.com/88simon/Meridinate.git
+   - ✅ Pushed unified monorepo
+   - ⚠️ Archive old repos (`solscan_hotkey`, `gun-del-sol-web`)
 
 4. **📝 Update README.md**
    - Add startup instructions for monorepo
@@ -578,6 +580,12 @@ pnpm install
   - Updated build system
   - Documentation consolidation
 
+- ✅ **Phase 4.5: Critical Bug Fixes** (Nov 17-18, 2025)
+  - fixed market cap refresh functionality (route ordering, react hooks, database locking)
+  - fixed multi-token wallets nationality dropdown row highlighting
+  - enhanced start scripts with automatic process cleanup
+  - pushed unified repository to github
+
 ### In Progress 🔄
 
 - 🔄 **Phase 5: Production Hardening** (Nov-Dec 2025)
@@ -599,6 +607,47 @@ pnpm install
   - Social sentiment analysis
   - Token holder distribution analysis
   - Contract security scanning
+
+---
+
+## Recent Bug Fixes & Technical Notes
+
+### Market Cap Refresh Fix (Nov 18, 2025)
+
+**Problem:** "Refresh all visible market caps" button in token table wasn't working
+
+**Root Causes:**
+1. **Route ordering bug** - `/api/tokens/refresh-market-caps` endpoint defined after `/api/tokens/{token_id}`, causing FastAPI to treat "refresh-market-caps" as a token_id parameter
+2. **React hook closure issue** - `handleRefreshAllMarketCaps` callback couldn't access `table` instance due to stale closure in memoized columns
+3. **Multiple backend processes** - Old processes running simultaneously on port 5003 prevented code updates from loading
+4. **Database locking** - Mixed async/sync database operations caused SQLite locking conflicts
+
+**Solutions:**
+1. Moved refresh endpoint before parameterized routes in `tokens.py` (line 113)
+2. Added `tableInstance` state with `useCallback` and `useEffect` in `tokens-table.tsx`
+3. Enhanced start scripts to automatically kill old processes on ports 5003/3000
+4. Converted mixed async/sync database calls to pure async operations
+
+**Files Modified:**
+- `apps/backend/src/meridinate/routers/tokens.py` - route reordering, async database fixes
+- `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` - react hook fixes
+- `scripts/start-backend.bat` - process cleanup
+- `scripts/start-frontend.bat` - process cleanup
+- `scripts/start.bat` - process cleanup
+
+### Multi-Token Wallets Nationality Dropdown Fix (Nov 18, 2025)
+
+**Problem:** Clicking nationality dropdown in multi-token wallets table highlighted the entire row
+
+**Root Cause:** Click events bubbling from dropdown to table row's onClick handler
+
+**Solution:** Added `e.stopPropagation()` to:
+- Nationality dropdown `<select>` element
+- PopoverTrigger button
+- PopoverContent wrapper
+
+**Files Modified:**
+- `apps/frontend/src/components/additional-tags.tsx` (lines 122, 127, 183)
 
 ---
 
@@ -781,6 +830,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 17, 2025
+**Document Version:** 1.1
+**Last Updated:** November 18, 2025
 **Next Review:** After production deployment
