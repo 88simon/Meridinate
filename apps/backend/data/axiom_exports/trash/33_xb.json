@@ -1,0 +1,122 @@
+[
+  {
+    "trackedWalletAddress": "HTM87R4mgjDdiF6Yfn8duK9vbDmZxiPCTRbGvm7eCAJY",
+    "name": "(1/10)$818|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "6ESjUGEXABK3tBKYiDe8eRMPxtm3ZGg4Gu6UA9jdcf74",
+    "name": "(2/10)$316|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "6NWRFU9TyN3wQQiYR6uTeEYaEzM6khk7qoYdHihGfv7j",
+    "name": "(3/10)$319|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "beatXW1PmeVVXxebbyLuc3uKy2Vj8mt6vedBhP9AYXo",
+    "name": "(4/10)$410|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "EXCDZXZXiQjbWCEUkbEmjEJnPyvgjvbQZcqgjRdawTYk",
+    "name": "(5/10)$61|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "6mZm8Wuy2ChgGAGoSA5b58rN42hi447641FeVikgXeLx",
+    "name": "(6/10)$106|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "HoujMHnzu3aGaC9kfSaKvo641NzoTizACYTYdFbqPoqz",
+    "name": "(7/10)$842|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "DuWScaMkqLiEAP48wgn3DPKV5MRnozc6sCGQ7vfLqJE",
+    "name": "(8/10)$834|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "BEVyGaQCX6jbXkegkdxZSwhfvem9SoQVBoU6tc1DFKYf",
+    "name": "(9/10)$784|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  },
+  {
+    "trackedWalletAddress": "AM66vz3LaoFqwHJcYve7Vc2WbUYAE4S2iZYY2qimABJz",
+    "name": "(10/10)$828|XB",
+    "emoji": "#\ufe0f\u20e3",
+    "alertsOnToast": true,
+    "alertsOnBubble": true,
+    "alertsOnFeed": true,
+    "groups": [
+      "Main"
+    ],
+    "sound": "bing"
+  }
+]

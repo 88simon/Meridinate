@@ -1,0 +1,8 @@
+{
+  "transactionLimit": 250,
+  "minUsdFilter": 50.0,
+  "walletCount": 50,
+  "apiRateDelay": 100,
+  "maxCreditsPerAnalysis": 1000,
+  "maxRetries": 3
+}

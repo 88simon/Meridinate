@@ -1,0 +1,88 @@
+# Git and version control
+.git
+.gitignore
+.github
+
+# Python cache and build artifacts
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+backend/analyzed_tokens.db*
+
+# Sensitive configuration and data
+backend/config.json
+backend/api_settings.json
+backend/monitored_addresses.json
+backend/analysis_results/
+backend/axiom_exports/
+backend/*.csv
+
+# Documentation and CI
+*.md
+README.md
+LICENSE
+.editorconfig
+docs/
+
+# AutoHotkey and Windows-specific
+*.ahk
+*.bat
+*.ini
+tools/
+userscripts/
+Lib/
+
+# Frontend (separate repo)
+node_modules/
+.next/
+out/
+
+# Miscellaneous
+*.bak
+*.tmp
+nul

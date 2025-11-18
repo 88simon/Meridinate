@@ -1,0 +1,66 @@
+# ============================================================================
+# Solscan Hotkey - Git Ignore File
+# ============================================================================
+# This file tells Git which files to never commit to GitHub
+# ============================================================================
+
+# ============================================================================
+# SENSITIVE DATA - NEVER COMMIT THESE FILES
+# ============================================================================
+# These files contain wallet addresses, transaction data, and personal info
+# Exposing this data could compromise your trading strategies and privacy
+# ============================================================================
+
+# Monitored wallet addresses (contains your tracked addresses)
+monitor/monitored_addresses.json
+
+# Token analysis results (contains early buyer wallets you discovered)
+monitor/analysis_results/
+
+# Axiom wallet tracker exports (contains wallet addresses and metadata)
+monitor/axiom_exports/
+
+# SQLite database (contains all analyzed tokens and wallet data)
+monitor/solscan_monitor.db
+monitor/*.db
+backend/*.db
+*.db
+*_backup_*.db
+
+# API keys and configuration
+monitor/config.json
+backend/config.json
+backend/api_settings.json
+backend/monitored_addresses.json
+
+# Python cache and temp files
+monitor/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments (if you create one later)
+venv/
+env/
+ENV/
+
+# IDE/Editor files
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Future sensitive config files (will remind you when needed)
+# monitor/config.yaml
+# monitor/.env
+# monitor/telegram_config.ini
+# monitor/api_keys.json

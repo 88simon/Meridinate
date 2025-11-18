@@ -1,0 +1,88 @@
+# Dependabot configuration for Gun Del Sol Web (Frontend)
+# Automatically creates PRs for dependency updates
+
+version: 2
+updates:
+  # pnpm dependencies (Node.js packages)
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 10
+    reviewers:
+      - '88simon'
+    labels:
+      - 'dependencies'
+      - 'frontend'
+      - 'javascript'
+    commit-message:
+      prefix: 'deps'
+      prefix-development: 'deps-dev'
+      include: 'scope'
+    # Group updates to reduce PR noise
+    groups:
+      # Group all non-major development dependencies together
+      development-dependencies:
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Group React and React-related packages
+      react:
+        patterns:
+          - 'react*'
+          - '@types/react*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Group Next.js related packages
+      nextjs:
+        patterns:
+          - 'next'
+          - 'eslint-config-next'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Group UI component libraries
+      ui-libraries:
+        patterns:
+          - '@radix-ui/*'
+          - '@tabler/*'
+          - 'lucide-react'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Group Tailwind and styling
+      styling:
+        patterns:
+          - 'tailwind*'
+          - 'postcss*'
+          - 'prettier*'
+        update-types:
+          - 'minor'
+          - 'patch'
+    # Ignore specific packages if needed
+    ignore:
+      # Example: ignore major version bumps for specific packages
+      # - dependency-name: "eslint"
+      #   update-types: ["version-update:semver-major"]
+
+  # GitHub Actions updates
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 3
+    reviewers:
+      - '88simon'
+    labels:
+      - 'dependencies'
+      - 'github-actions'
+      - 'ci'
+    commit-message:
+      prefix: 'ci'
+      include: 'scope'

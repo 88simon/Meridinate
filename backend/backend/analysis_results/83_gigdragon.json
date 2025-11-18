@@ -1,0 +1,104 @@
+{
+  "token_address": "PfU2bpmQMq7wqrfWiXfCJUZi5FHBpsBAWfwhD3xpump",
+  "token_info": {
+    "onChainMetadata": {
+      "metadata": {
+        "name": "GIGDRAGON",
+        "symbol": "GIGDRAGON"
+      }
+    },
+    "legacyMetadata": {
+      "description": " GIGDRAGON, an ancient crypto beast fueling traders' liquidity and weakness, has burst from the bottom.",
+      "name": "GIGDRAGON",
+      "symbol": "GIGDRAGON",
+      "token_standard": "Fungible"
+    }
+  },
+  "first_transaction_time": "2025-11-11T09:50:33",
+  "analysis_window_end": "2139-12-11T00:50:33",
+  "early_bidders": [
+    {
+      "wallet_address": "5K3WBE9cMVNUc3Qyc3v3u4Ytqjsy3bYt6PahrvrdAVzW",
+      "first_buy_time": "2025-11-11T09:50:33",
+      "total_usd": 87.17854299999999,
+      "transaction_count": 1,
+      "average_buy_usd": 87.17854299999999,
+      "wallet_balance_usd": 899.4838804000001
+    },
+    {
+      "wallet_address": "2hdfpKc38xBbRgDe5fWmGjBpqq3iYidVW5qrEMcVGjTM",
+      "first_buy_time": "2025-11-11T09:50:33",
+      "total_usd": 992.6594465999999,
+      "transaction_count": 1,
+      "average_buy_usd": 992.6594465999999,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "9x2rAvzgBs4ASTSQ8iqpGbCk2oox4dqoZwa8Hky9pzhm",
+      "first_buy_time": "2025-11-11T09:50:33",
+      "total_usd": 955.8044931999999,
+      "transaction_count": 1,
+      "average_buy_usd": 955.8044931999999,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "6SmtJxr1dFQGmoStdXs2pmKCXpUvb5oV4izLvFGDcPN2",
+      "first_buy_time": "2025-11-11T09:50:33",
+      "total_usd": 922.3920350000001,
+      "transaction_count": 1,
+      "average_buy_usd": 922.3920350000001,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "JCq99VtLCdmHmQdXZ1FD1ddaeatWpQrxLanm9KzRhdQD",
+      "first_buy_time": "2025-11-11T09:50:33",
+      "total_usd": 904.7745778,
+      "transaction_count": 1,
+      "average_buy_usd": 904.7745778,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "HCAJnW1U6LG1pE4GdnQSLDFbMEMAzZfJJ3QkFkY57PNP",
+      "first_buy_time": "2025-11-11T09:50:36",
+      "total_usd": 371.1306522,
+      "transaction_count": 1,
+      "average_buy_usd": 371.1306522,
+      "wallet_balance_usd": 448.9023552
+    },
+    {
+      "wallet_address": "96XiRMTL7kkQpKXf5JL33wA8dMZFegSLcbRTkFkwqcSW",
+      "first_buy_time": "2025-11-11T09:50:39",
+      "total_usd": 304.1116682,
+      "transaction_count": 2,
+      "average_buy_usd": 152.0558341,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "SEky2NxQEJ8bu5yNJ49xBMCfPcjzrMJfaqWZMo8DdB2",
+      "first_buy_time": "2025-11-11T09:50:43",
+      "total_usd": 14067.138132000002,
+      "transaction_count": 34,
+      "average_buy_usd": 413.7393568235295,
+      "wallet_balance_usd": 0.388368
+    },
+    {
+      "wallet_address": "3CK5EbmuYJziQM8FKPSpfeE1sgdEK1BRZMMMniKu57Ac",
+      "first_buy_time": "2025-11-11T09:50:45",
+      "total_usd": 237.745856,
+      "transaction_count": 2,
+      "average_buy_usd": 118.872928,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "4bZ9zJe2iozjczL1PAEhALzsgjPtMPhYNcUcaCDY9YnC",
+      "first_buy_time": "2025-11-11T09:50:47",
+      "total_usd": 51.68688099999999,
+      "transaction_count": 1,
+      "average_buy_usd": 51.68688099999999,
+      "wallet_balance_usd": 205.1355124
+    }
+  ],
+  "total_unique_buyers": 10,
+  "total_transactions_analyzed": 500,
+  "api_credits_used": 511
+}

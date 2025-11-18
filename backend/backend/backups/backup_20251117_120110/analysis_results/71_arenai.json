@@ -1,0 +1,104 @@
+{
+  "token_address": "3LDnynhRmVvSsdcMr4WXW8hVL5jtBpFEzTCdXotgpump",
+  "token_info": {
+    "onChainMetadata": {
+      "metadata": {
+        "name": "ArenAI",
+        "symbol": "ArenAI"
+      }
+    },
+    "legacyMetadata": {
+      "description": "ArenAi is a ground breaking blockchain integrated fighting game, where 20 unique AI fighters battle for supremacy. Each robot is powered by advanced neural networks trained through thousands of combat simulations, creating unpredictable and exciting battles that fans can bet on using Solana.",
+      "name": "ArenAI",
+      "symbol": "ArenAI",
+      "token_standard": "Fungible"
+    }
+  },
+  "first_transaction_time": "2025-11-10T11:06:44",
+  "analysis_window_end": "2139-12-10T02:06:44",
+  "early_bidders": [
+    {
+      "wallet_address": "zuSBtGb4NC6DYa7NHQzJ3VfihAfjgi7c9gRXSLcdqdB",
+      "first_buy_time": "2025-11-10 11:06:44",
+      "total_usd": 308.8367478,
+      "transaction_count": 1,
+      "average_buy_usd": 308.8367478,
+      "wallet_balance_usd": 2366.0732922
+    },
+    {
+      "wallet_address": "7vADqvvAcoB884UisLcW6wBDTRCNvVBwiZdNctzyE1Wt",
+      "first_buy_time": "2025-11-10 11:06:44",
+      "total_usd": 428.5977328,
+      "transaction_count": 1,
+      "average_buy_usd": 428.5977328,
+      "wallet_balance_usd": 316.922038
+    },
+    {
+      "wallet_address": "3uUNxp9MEzHUSjrkdNBPVSWYnAt3wzQtV5zewSr7iPF9",
+      "first_buy_time": "2025-11-10 11:06:44",
+      "total_usd": 531.1418688,
+      "transaction_count": 1,
+      "average_buy_usd": 531.1418688,
+      "wallet_balance_usd": 680.7065814
+    },
+    {
+      "wallet_address": "VDYNx2YuFw18T6Byzy74HSJxzefkscuSQWPQRAzehF6",
+      "first_buy_time": "2025-11-10 11:06:44",
+      "total_usd": 429.18460100000004,
+      "transaction_count": 1,
+      "average_buy_usd": 429.18460100000004,
+      "wallet_balance_usd": 32.8384144
+    },
+    {
+      "wallet_address": "DLQC7ts2HsWnvDwUxVerYLiwudDzK8mYsKNBGAptXi6E",
+      "first_buy_time": "2025-11-10 11:06:47",
+      "total_usd": 773.4524902,
+      "transaction_count": 3,
+      "average_buy_usd": 257.81749673333337,
+      "wallet_balance_usd": 6576.634059
+    },
+    {
+      "wallet_address": "4xxBGBnXqfCyUpsKRix1VaWm15uND2P83ForEzYDngbD",
+      "first_buy_time": "2025-11-10 11:06:47",
+      "total_usd": 862.3692224,
+      "transaction_count": 3,
+      "average_buy_usd": 287.4564074666667,
+      "wallet_balance_usd": 20865.969517600002
+    },
+    {
+      "wallet_address": "A3DfTiGLmAGSz4GudwG6cTs96ZkgSsxMWXcPV6HcaNkt",
+      "first_buy_time": "2025-11-10 11:06:51",
+      "total_usd": 22835.6242552,
+      "transaction_count": 20,
+      "average_buy_usd": 1141.78121276,
+      "wallet_balance_usd": 0.388368
+    },
+    {
+      "wallet_address": "CL7BP2ctFzy3S3xekJQeLkVuPgKujUmMsxMPDpMN2Hpp",
+      "first_buy_time": "2025-11-10 11:06:55",
+      "total_usd": 314.2609708,
+      "transaction_count": 2,
+      "average_buy_usd": 157.1304854,
+      "wallet_balance_usd": 1208.0576156
+    },
+    {
+      "wallet_address": "RR5pmYSqFPXJbc3mAykCkpPCX8Tp5Kmu1Kqxgj7iSbK",
+      "first_buy_time": "2025-11-10 11:06:55",
+      "total_usd": 291.35874160000003,
+      "transaction_count": 2,
+      "average_buy_usd": 145.67937080000002,
+      "wallet_balance_usd": 1335.9572986
+    },
+    {
+      "wallet_address": "634G3Y3WFvRLSWDAAzwqbJ9A9FiPCADdSBGwcRNWzLzy",
+      "first_buy_time": "2025-11-10 11:07:02",
+      "total_usd": 184.475821,
+      "transaction_count": 1,
+      "average_buy_usd": 184.475821,
+      "wallet_balance_usd": 3284.031615
+    }
+  ],
+  "total_unique_buyers": 10,
+  "total_transactions_analyzed": 500,
+  "api_credits_used": 511
+}

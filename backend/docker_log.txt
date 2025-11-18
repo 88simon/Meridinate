@@ -1,0 +1,779 @@
+Build Docker Image	Set up job	﻿2025-11-13T03:42:49.5304604Z Current runner version: '2.329.0'
+Build Docker Image	Set up job	2025-11-13T03:42:49.5338392Z ##[group]Runner Image Provisioner
+Build Docker Image	Set up job	2025-11-13T03:42:49.5339747Z Hosted Compute Agent
+Build Docker Image	Set up job	2025-11-13T03:42:49.5340637Z Version: 20251016.436
+Build Docker Image	Set up job	2025-11-13T03:42:49.5341647Z Commit: 8ab8ac8bfd662a3739dab9fe09456aba92132568
+Build Docker Image	Set up job	2025-11-13T03:42:49.5342859Z Build Date: 2025-10-15T20:44:12Z
+Build Docker Image	Set up job	2025-11-13T03:42:49.5343919Z ##[endgroup]
+Build Docker Image	Set up job	2025-11-13T03:42:49.5344809Z ##[group]Operating System
+Build Docker Image	Set up job	2025-11-13T03:42:49.5345788Z Ubuntu
+Build Docker Image	Set up job	2025-11-13T03:42:49.5346550Z 24.04.3
+Build Docker Image	Set up job	2025-11-13T03:42:49.5347516Z LTS
+Build Docker Image	Set up job	2025-11-13T03:42:49.5348387Z ##[endgroup]
+Build Docker Image	Set up job	2025-11-13T03:42:49.5349248Z ##[group]Runner Image
+Build Docker Image	Set up job	2025-11-13T03:42:49.5350249Z Image: ubuntu-24.04
+Build Docker Image	Set up job	2025-11-13T03:42:49.5351151Z Version: 20251102.99.1
+Build Docker Image	Set up job	2025-11-13T03:42:49.5352945Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251102.99/images/ubuntu/Ubuntu2404-Readme.md
+Build Docker Image	Set up job	2025-11-13T03:42:49.5355300Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251102.99
+Build Docker Image	Set up job	2025-11-13T03:42:49.5357547Z ##[endgroup]
+Build Docker Image	Set up job	2025-11-13T03:42:49.5359779Z ##[group]GITHUB_TOKEN Permissions
+Build Docker Image	Set up job	2025-11-13T03:42:49.5362769Z Contents: read
+Build Docker Image	Set up job	2025-11-13T03:42:49.5363694Z Metadata: read
+Build Docker Image	Set up job	2025-11-13T03:42:49.5365314Z Packages: write
+Build Docker Image	Set up job	2025-11-13T03:42:49.5366270Z SecurityEvents: write
+Build Docker Image	Set up job	2025-11-13T03:42:49.5367380Z ##[endgroup]
+Build Docker Image	Set up job	2025-11-13T03:42:49.5370182Z Secret source: Actions
+Build Docker Image	Set up job	2025-11-13T03:42:49.5371356Z Prepare workflow directory
+Build Docker Image	Set up job	2025-11-13T03:42:49.5897327Z Prepare all required actions
+Build Docker Image	Set up job	2025-11-13T03:42:49.5953310Z Getting action download info
+Build Docker Image	Set up job	2025-11-13T03:42:50.0275952Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+Build Docker Image	Set up job	2025-11-13T03:42:50.1194352Z Download action repository 'docker/setup-buildx-action@v3' (SHA:e468171a9de216ec08956ac3ada2f0791b6bd435)
+Build Docker Image	Set up job	2025-11-13T03:42:50.4141222Z Download action repository 'docker/login-action@v3' (SHA:5e57cd118135c172c3672efd75eb46360885c0ef)
+Build Docker Image	Set up job	2025-11-13T03:42:50.7132185Z Download action repository 'docker/metadata-action@v5' (SHA:318604b99e75e41977312d83839a89be02ca4893)
+Build Docker Image	Set up job	2025-11-13T03:42:51.0205493Z Download action repository 'docker/build-push-action@v5' (SHA:ca052bb54ab0790a636c9b5f226502c73d547a25)
+Build Docker Image	Set up job	2025-11-13T03:42:51.3093855Z Download action repository 'anchore/sbom-action@v0' (SHA:8e94d75ddd33f69f691467e42275782e4bfefe84)
+Build Docker Image	Set up job	2025-11-13T03:42:51.7091570Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+Build Docker Image	Set up job	2025-11-13T03:42:51.8618242Z Download action repository 'aquasecurity/trivy-action@master' (SHA:b6643a29fecd7f34b3597bc6acb0a98b03d33ff8)
+Build Docker Image	Set up job	2025-11-13T03:42:52.0233869Z Download action repository 'github/codeql-action@v3' (SHA:5d5cd550d3e189c569da8f16ea8de2d821c9bf7a)
+Build Docker Image	Set up job	2025-11-13T03:42:52.6546043Z Getting action download info
+Build Docker Image	Set up job	2025-11-13T03:42:52.7693870Z Download action repository 'aquasecurity/setup-trivy@e6c2c5e321ed9123bda567646e2f96565e34abe1' (SHA:e6c2c5e321ed9123bda567646e2f96565e34abe1)
+Build Docker Image	Set up job	2025-11-13T03:42:52.8873981Z Download action repository 'actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809' (SHA:0400d5f644dc74513175e3cd8d07132dd4860809)
+Build Docker Image	Set up job	2025-11-13T03:42:52.9907439Z Getting action download info
+Build Docker Image	Set up job	2025-11-13T03:42:53.1174840Z Download action repository 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8' (SHA:08c6903cd8c0fde910a37f88322edcfb5dd907a8)
+Build Docker Image	Set up job	2025-11-13T03:42:53.1905271Z Complete job name: Build Docker Image
+Build Docker Image	Checkout code	﻿2025-11-13T03:42:53.2521516Z ##[group]Run actions/checkout@v4
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2522093Z with:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2522300Z   repository: 88simon/gun_del_sol
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2522687Z   token: ***
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2522866Z   ssh-strict: true
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2523049Z   ssh-user: git
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2523235Z   persist-credentials: true
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2523454Z   clean: true
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2523646Z   sparse-checkout-cone-mode: true
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2523896Z   fetch-depth: 1
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2524083Z   fetch-tags: false
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2524266Z   show-progress: true
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2524452Z   lfs: false
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2524612Z   submodules: false
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2525039Z   set-safe-directory: true
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2525477Z env:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2525669Z   IMAGE_NAME: gun-del-sol-backend
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2525892Z   REGISTRY: ghcr.io
+Build Docker Image	Checkout code	2025-11-13T03:42:53.2526073Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3637261Z Syncing repository: 88simon/gun_del_sol
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3638736Z ##[group]Getting Git version info
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3639211Z Working directory is '/home/runner/work/gun_del_sol/gun_del_sol'
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3639735Z [command]/usr/bin/git version
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3707352Z git version 2.51.2
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3732149Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3745263Z Temporarily overriding HOME='/home/runner/work/_temp/e05bf6ac-209e-4b6e-8c51-8ca338f5de74' before making global git config changes
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3746242Z Adding repository directory to the temporary git global config as a safe directory
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3750491Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/gun_del_sol/gun_del_sol
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3785449Z Deleting the contents of '/home/runner/work/gun_del_sol/gun_del_sol'
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3789272Z ##[group]Initializing the repository
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3793017Z [command]/usr/bin/git init /home/runner/work/gun_del_sol/gun_del_sol
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3893508Z hint: Using 'master' as the name for the initial branch. This default branch name
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3894662Z hint: is subject to change. To configure the initial branch name to use in all
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3895731Z hint: of your new repositories, which will suppress this warning, call:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3896546Z hint:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3897311Z hint: 	git config --global init.defaultBranch <name>
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3898058Z hint:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3898746Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3899958Z hint: 'development'. The just-created branch can be renamed via this command:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3900822Z hint:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3901167Z hint: 	git branch -m <name>
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3901476Z hint:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3901819Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3902460Z Initialized empty Git repository in /home/runner/work/gun_del_sol/gun_del_sol/.git/
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3910382Z [command]/usr/bin/git remote add origin https://github.com/88simon/gun_del_sol
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3942742Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3943203Z ##[group]Disabling automatic garbage collection
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3946867Z [command]/usr/bin/git config --local gc.auto 0
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3974513Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3974892Z ##[group]Setting up auth
+Build Docker Image	Checkout code	2025-11-13T03:42:53.3981077Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4009599Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4332618Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4361287Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4591422Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4641470Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4642363Z ##[group]Fetching the repository
+Build Docker Image	Checkout code	2025-11-13T03:42:53.4651790Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5683b61d7c094d6eb278589acb9b52587127949a:refs/remotes/pull/2/merge
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6552239Z From https://github.com/88simon/gun_del_sol
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6552876Z  * [new ref]         5683b61d7c094d6eb278589acb9b52587127949a -> pull/2/merge
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6584230Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6584952Z ##[group]Determining the checkout info
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6586865Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6592045Z [command]/usr/bin/git sparse-checkout disable
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6631535Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6659303Z ##[group]Checking out the ref
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6662960Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2/merge
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6840141Z Note: switching to 'refs/remotes/pull/2/merge'.
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6840610Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6840944Z You are in 'detached HEAD' state. You can look around, make experimental
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6841738Z changes and commit them, and you can discard any commits you make in this
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6842696Z state without impacting any branches by switching back to a branch.
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6843164Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6843471Z If you want to create a new branch to retain commits you create, you may
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6844164Z do so (now or later) by using -c with the switch command. Example:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6844590Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6844767Z   git switch -c <new-branch-name>
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6845056Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6845212Z Or undo this operation with:
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6845488Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6845622Z   git switch -
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6845810Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6846167Z Turn off this advice by setting config variable advice.detachedHead to false
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6846513Z 
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6846846Z HEAD is now at 5683b61 Merge 2c97174f54444e63a0dd2a028a40265804eef0d6 into 0432ab744e83eb90ee124e3bfca022a87aaf2a4c
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6850100Z ##[endgroup]
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6882158Z [command]/usr/bin/git log -1 --format=%H
+Build Docker Image	Checkout code	2025-11-13T03:42:53.6902965Z 5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Set up Docker Buildx	﻿2025-11-13T03:42:53.7123832Z ##[group]Run docker/setup-buildx-action@v3
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7124143Z with:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7124324Z   driver: docker-container
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7124541Z   install: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7124725Z   use: true
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7124893Z   keep-state: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7125077Z   cache-binary: true
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7125256Z   cleanup: true
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7125425Z env:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7125592Z   IMAGE_NAME: gun-del-sol-backend
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7125815Z   REGISTRY: ghcr.io
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.7125992Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:53.9975311Z ##[group]Docker info
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0002232Z [command]/usr/bin/docker version
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0805751Z Client: Docker Engine - Community
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0806340Z  Version:           28.0.4
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0806738Z  API version:       1.48
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0807325Z  Go version:        go1.23.7
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0807729Z  Git commit:        b8034c0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0808144Z  Built:             Tue Mar 25 15:07:16 2025
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0808652Z  OS/Arch:           linux/amd64
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0809044Z  Context:           default
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0809270Z 
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0809431Z Server: Docker Engine - Community
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0809824Z  Engine:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0810104Z   Version:          28.0.4
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0810506Z   API version:      1.48 (minimum version 1.24)
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0810940Z   Go version:       go1.23.7
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0811303Z   Git commit:       6430e49
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0811684Z   Built:            Tue Mar 25 15:07:16 2025
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0812097Z   OS/Arch:          linux/amd64
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0812424Z   Experimental:     false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0812625Z  containerd:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0812805Z   Version:          v1.7.28
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0813080Z   GitCommit:        b98a3aace656320842a23f4a392a33f46af97866
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0813376Z  runc:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0813546Z   Version:          1.3.0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0813782Z   GitCommit:        v1.3.0-0-g4ca628d1
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0814097Z  docker-init:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0814284Z   Version:          0.19.0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0814480Z   GitCommit:        de40ad0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.0860319Z [command]/usr/bin/docker info
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2771773Z Client: Docker Engine - Community
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2772348Z  Version:    28.0.4
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2772714Z  Context:    default
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2773064Z  Debug Mode: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2773382Z  Plugins:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2773722Z   buildx: Docker Buildx (Docker Inc.)
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2774154Z     Version:  v0.29.1
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2774631Z     Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2775187Z   compose: Docker Compose (Docker Inc.)
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2775630Z     Version:  v2.38.2
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2776033Z     Path:     /usr/libexec/docker/cli-plugins/docker-compose
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2776319Z 
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2776401Z Server:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2776592Z  Containers: 0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2776812Z   Running: 0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2777230Z   Paused: 0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2777448Z   Stopped: 0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2777661Z  Images: 0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2777872Z  Server Version: 28.0.4
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2778149Z  Storage Driver: overlay2
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2778420Z   Backing Filesystem: extfs
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2778695Z   Supports d_type: true
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2778943Z   Using metacopy: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2779199Z   Native Overlay Diff: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2779467Z   userxattr: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2779714Z  Logging Driver: json-file
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2779984Z  Cgroup Driver: systemd
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2780222Z  Cgroup Version: 2
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2780453Z  Plugins:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2780665Z   Volume: local
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2780945Z   Network: bridge host ipvlan macvlan null overlay
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2781432Z   Log: awslogs fluentd gcplogs gelf journald json-file local splunk syslog
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2781923Z  Swarm: inactive
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2782179Z  Runtimes: io.containerd.runc.v2 runc
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2783047Z  Default Runtime: runc
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2783317Z  Init Binary: docker-init
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2783677Z  containerd version: b98a3aace656320842a23f4a392a33f46af97866
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2784096Z  runc version: v1.3.0-0-g4ca628d1
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2784389Z  init version: de40ad0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2784641Z  Security Options:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2784864Z   apparmor
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2785069Z   seccomp
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2785277Z    Profile: builtin
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2785504Z   cgroupns
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2785723Z  Kernel Version: 6.11.0-1018-azure
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2786036Z  Operating System: Ubuntu 24.04.3 LTS
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2786339Z  OSType: linux
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2786575Z  Architecture: x86_64
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2786815Z  CPUs: 4
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2787454Z  Total Memory: 15.62GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2787787Z  Name: runnervmw9dnm
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2788182Z  ID: 4751e198-18be-4eca-a5bc-37dabc96021d
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2788594Z  Docker Root Dir: /var/lib/docker
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2788813Z  Debug Mode: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2789006Z  Username: githubactions
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2789208Z  Experimental: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2789414Z  Insecure Registries:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2793160Z   ::1/128
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2793501Z   127.0.0.0/8
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2793745Z  Live Restore Enabled: false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2793914Z 
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.2794650Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.3448665Z ##[group]Buildx version
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.3469638Z [command]/usr/bin/docker buildx version
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.3991341Z github.com/docker/buildx v0.29.1 a32761aeb3debd39be1eca514af3693af0db334b
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4023093Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4171977Z ##[group]Inspecting default docker context
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4309261Z [
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4309649Z   {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4309962Z     "Name": "default",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4310365Z     "Metadata": {},
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4310719Z     "Endpoints": {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4311077Z       "docker": {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4311460Z         "Host": "unix:///var/run/docker.sock",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4311952Z         "SkipTLSVerify": false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4312818Z       }
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4313126Z     },
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4313443Z     "TLSMaterial": {},
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4313835Z     "Storage": {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4314209Z       "MetadataPath": "<IN MEMORY>",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4314687Z       "TLSPath": "<IN MEMORY>"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4315084Z     }
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4315386Z   }
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4315662Z ]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4316299Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.4316985Z ##[group]Creating a new builder instance
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.5569085Z [command]/usr/bin/docker buildx create --name builder-8830cef4-5050-4079-8717-c1049d4301ed --driver docker-container --buildkitd-flags --allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host --use
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.6215313Z builder-8830cef4-5050-4079-8717-c1049d4301ed
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.6258503Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.6259211Z ##[group]Booting builder
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.6296176Z [command]/usr/bin/docker buildx inspect --bootstrap --builder builder-8830cef4-5050-4079-8717-c1049d4301ed
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.6823758Z #1 [internal] booting buildkit
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:54.8326226Z #1 pulling image moby/buildkit:buildx-stable-1
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.1708376Z #1 pulling image moby/buildkit:buildx-stable-1 2.5s done
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.3217336Z #1 creating container buildx_buildkit_builder-8830cef4-5050-4079-8717-c1049d4301ed0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4256859Z #1 creating container buildx_buildkit_builder-8830cef4-5050-4079-8717-c1049d4301ed0 0.3s done
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4279440Z #1 DONE 2.7s
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4577411Z Name:          builder-8830cef4-5050-4079-8717-c1049d4301ed
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4578220Z Driver:        docker-container
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4578640Z Last Activity: 2025-11-13 03:42:54 +0000 UTC
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4578952Z 
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4579125Z Nodes:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4588679Z Name:                  builder-8830cef4-5050-4079-8717-c1049d4301ed0
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4589620Z Endpoint:              unix:///var/run/docker.sock
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4590148Z Status:                running
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4590995Z BuildKit daemon flags: --allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4591849Z BuildKit version:      v0.25.1
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4592359Z Platforms:             linux/amd64, linux/amd64/v2, linux/amd64/v3, linux/386
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4592908Z Labels:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4593286Z  org.mobyproject.buildkit.worker.executor:         oci
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4593935Z  org.mobyproject.buildkit.worker.hostname:         7f591ebbc74e
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4594584Z  org.mobyproject.buildkit.worker.network:          host
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4595227Z  org.mobyproject.buildkit.worker.oci.process-mode: sandbox
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4595827Z  org.mobyproject.buildkit.worker.selinux.enabled:  false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4596234Z  org.mobyproject.buildkit.worker.snapshotter:      overlayfs
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4596557Z GC Policy rule#0:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4596742Z  All:            false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4597396Z  Filters:        type==source.local,type==exec.cachemount,type==source.git.checkout
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4597816Z  Keep Duration:  48h0m0s
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4598034Z  Max Used Space: 488.3MiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4598251Z GC Policy rule#1:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4598455Z  All:            false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4598731Z  Keep Duration:  1440h0m0s
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4598940Z  Reserved Space: 7.451GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4599146Z  Max Used Space: 54.02GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4599337Z  Min Free Space: 13.97GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4599533Z GC Policy rule#2:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4599783Z  All:            false
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4599977Z  Reserved Space: 7.451GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4600171Z  Max Used Space: 54.02GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4600368Z  Min Free Space: 13.97GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4600556Z GC Policy rule#3:
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4600740Z  All:            true
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4600929Z  Reserved Space: 7.451GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4601126Z  Max Used Space: 54.02GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4601596Z  Min Free Space: 13.97GiB
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.4638955Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5546122Z ##[group]Inspect builder
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5551408Z {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5551755Z   "nodes": [
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5552074Z     {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5552486Z       "name": "builder-8830cef4-5050-4079-8717-c1049d4301ed0",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5555332Z       "endpoint": "unix:///var/run/docker.sock",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5555857Z       "status": "running",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5556779Z       "buildkitd-flags": "--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5559795Z       "buildkit": "v0.25.1",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5560306Z       "platforms": "linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/386",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5560803Z       "features": {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5561272Z         "Automatically load images to the Docker Engine image store": true,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5561843Z         "Cache export": true,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5562196Z         "Direct push": true,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5562568Z         "Docker exporter": true,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5562963Z         "Multi-platform build": true,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5563345Z         "OCI exporter": true
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5563645Z       },
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5563879Z       "labels": {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5564240Z         "org.mobyproject.buildkit.worker.executor": "oci",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5564801Z         "org.mobyproject.buildkit.worker.hostname": "7f591ebbc74e",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5565418Z         "org.mobyproject.buildkit.worker.network": "host",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5566054Z         "org.mobyproject.buildkit.worker.oci.process-mode": "sandbox",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5566766Z         "org.mobyproject.buildkit.worker.selinux.enabled": "false",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5567647Z         "org.mobyproject.buildkit.worker.snapshotter": "overlayfs"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5568484Z       },
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5568761Z       "gcPolicy": [
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5569047Z         {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5569315Z           "all": false,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5569633Z           "filter": [
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5569957Z             "type==source.local",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5570340Z             "type==exec.cachemount",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5570750Z             "type==source.git.checkout"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5571115Z           ],
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5571415Z           "keepDuration": "48h0m0s",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5571794Z           "maxUsedSpace": "488.3MiB"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5572151Z         },
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5572410Z         {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5572668Z           "all": false,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5572994Z           "keepDuration": "1440h0m0s",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5573395Z           "reservedSpace": "7.451GiB",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5573795Z           "maxUsedSpace": "54.02GiB",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5574171Z           "minFreeSpace": "13.97GiB"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5574545Z         },
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5574794Z         {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5575053Z           "all": false,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5575375Z           "reservedSpace": "7.451GiB",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5575780Z           "maxUsedSpace": "54.02GiB",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5576173Z           "minFreeSpace": "13.97GiB"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5576524Z         },
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5576788Z         {
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5577192Z           "all": true,
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5577527Z           "reservedSpace": "7.451GiB",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5577911Z           "maxUsedSpace": "54.02GiB",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5578302Z           "minFreeSpace": "13.97GiB"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5578652Z         }
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5578903Z       ]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5579138Z     }
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5579378Z   ],
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5579723Z   "name": "builder-8830cef4-5050-4079-8717-c1049d4301ed",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5580189Z   "driver": "docker-container",
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5580575Z   "lastActivity": "2025-11-13T03:42:54.000Z"
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5580975Z }
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5581608Z ##[endgroup]
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5582128Z ##[group]BuildKit version
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5582541Z builder-8830cef4-5050-4079-8717-c1049d4301ed0: v0.25.1
+Build Docker Image	Set up Docker Buildx	2025-11-13T03:42:57.5583693Z ##[endgroup]
+Build Docker Image	Extract metadata	﻿2025-11-13T03:42:57.5756277Z ##[group]Run docker/metadata-action@v5
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5756552Z with:
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5756767Z   images: ghcr.io/88simon/gun-del-sol-backend
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5758099Z   tags: # Set latest tag for main branch
+Build Docker Image	Extract metadata	type=raw,value=latest,enable={{is_default_branch}}
+Build Docker Image	Extract metadata	# Tag with branch name
+Build Docker Image	Extract metadata	type=ref,event=branch
+Build Docker Image	Extract metadata	# Tag with PR number
+Build Docker Image	Extract metadata	type=ref,event=pr
+Build Docker Image	Extract metadata	# Tag with semantic version
+Build Docker Image	Extract metadata	type=semver,pattern={{version}}
+Build Docker Image	Extract metadata	type=semver,pattern={{major}}.{{minor}}
+Build Docker Image	Extract metadata	# Tag with commit SHA
+Build Docker Image	Extract metadata	type=sha,prefix={{branch}}-
+Build Docker Image	Extract metadata	
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5759114Z   context: workflow
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5759430Z   github-token: ***
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5759604Z env:
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5759786Z   IMAGE_NAME: gun-del-sol-backend
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5760010Z   REGISTRY: ghcr.io
+Build Docker Image	Extract metadata	2025-11-13T03:42:57.5760195Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3312236Z ##[group]Context info
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3312917Z eventName: pull_request
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3313714Z sha: 5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3314304Z ref: refs/pull/2/merge
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3314854Z workflow: Docker Build
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3315304Z action: meta
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3315690Z actor: 88simon
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3316135Z runNumber: 7
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3316463Z runId: 19319773402
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3317428Z commitDate: Thu Nov 13 2025 03:42:44 GMT+0000 (Coordinated Universal Time)
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3321553Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3324156Z ##[group]Processing images input
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3324575Z name=ghcr.io/88simon/gun-del-sol-backend,enable=true
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3325395Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3341108Z ##[group]Processing tags input
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3341717Z type=semver,pattern={{version}},value=,match=,enable=true,priority=900
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3342582Z type=semver,pattern={{major}}.{{minor}},value=,match=,enable=true,priority=900
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3343325Z type=ref,event=branch,enable=true,priority=600
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3343980Z type=ref,event=pr,prefix=pr-,enable=true,priority=600
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3344722Z type=raw,value=latest,enable={{is_default_branch}},priority=200
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3345482Z type=sha,prefix={{branch}}-,format=short,enable=true,priority=100
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3346461Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3347389Z ##[group]Processing flavor input
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3347886Z latest=auto
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3348234Z prefix=
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3348581Z prefixLatest=false
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3348944Z suffix=
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3349294Z suffixLatest=false
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3349978Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3422309Z ##[group]Docker image version
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3422794Z pr-2
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3423326Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3427847Z ##[group]Docker tags
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3428525Z ghcr.io/88simon/gun-del-sol-backend:pr-2
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3429219Z ghcr.io/88simon/gun-del-sol-backend:-5683b61
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3430069Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3509903Z ##[group]Docker labels
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3510434Z org.opencontainers.image.created=2025-11-13T03:42:58.334Z
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3510917Z org.opencontainers.image.description=
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3511202Z org.opencontainers.image.licenses=
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3511592Z org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3512356Z org.opencontainers.image.source=https://github.com/88simon/gun_del_sol
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3512892Z org.opencontainers.image.title=gun_del_sol
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3513486Z org.opencontainers.image.url=https://github.com/88simon/gun_del_sol
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3514090Z org.opencontainers.image.version=pr-2
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3514758Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3515378Z ##[group]Annotations
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3515739Z manifest:org.opencontainers.image.created=2025-11-13T03:42:58.334Z
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3516161Z manifest:org.opencontainers.image.description=
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3516494Z manifest:org.opencontainers.image.licenses=
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3517692Z manifest:org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3518655Z manifest:org.opencontainers.image.source=https://github.com/88simon/gun_del_sol
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3519133Z manifest:org.opencontainers.image.title=gun_del_sol
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3519598Z manifest:org.opencontainers.image.url=https://github.com/88simon/gun_del_sol
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3520050Z manifest:org.opencontainers.image.version=pr-2
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3520585Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3521674Z ##[group]JSON output
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3522211Z {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3522481Z   "tags": [
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3522813Z     "ghcr.io/88simon/gun-del-sol-backend:pr-2",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3523239Z     "ghcr.io/88simon/gun-del-sol-backend:-5683b61"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3523527Z   ],
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3523699Z   "tag-names": [
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3523889Z     "pr-2",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3524102Z     "-5683b61"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3524379Z   ],
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3524624Z   "labels": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3525053Z     "org.opencontainers.image.created": "2025-11-13T03:42:58.334Z",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3525484Z     "org.opencontainers.image.description": "",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3525775Z     "org.opencontainers.image.licenses": "",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3526151Z     "org.opencontainers.image.revision": "5683b61d7c094d6eb278589acb9b52587127949a",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3526640Z     "org.opencontainers.image.source": "https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3527258Z     "org.opencontainers.image.title": "gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3527700Z     "org.opencontainers.image.url": "https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3528087Z     "org.opencontainers.image.version": "pr-2"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3528451Z   },
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3528722Z   "annotations": [
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3529187Z     "manifest:org.opencontainers.image.created=2025-11-13T03:42:58.334Z",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3529692Z     "manifest:org.opencontainers.image.description=",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3530241Z     "manifest:org.opencontainers.image.licenses=",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3530887Z     "manifest:org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3531423Z     "manifest:org.opencontainers.image.source=https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3531865Z     "manifest:org.opencontainers.image.title=gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3532392Z     "manifest:org.opencontainers.image.url=https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3533102Z     "manifest:org.opencontainers.image.version=pr-2"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3533453Z   ]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3533603Z }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3533954Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3534269Z ##[group]Bake file definition (tags)
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3534493Z {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3534634Z   "target": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3534817Z     "docker-metadata-action": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3535164Z       "tags": [
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3535525Z         "ghcr.io/88simon/gun-del-sol-backend:pr-2",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3536028Z         "ghcr.io/88simon/gun-del-sol-backend:-5683b61"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3536458Z       ],
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3536708Z       "args": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3537285Z         "DOCKER_META_IMAGES": "ghcr.io/88simon/gun-del-sol-backend",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3537832Z         "DOCKER_META_VERSION": "pr-2"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3538199Z       }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3538363Z     }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3538505Z   }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3538650Z }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3538993Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3539296Z ##[group]Bake file definition (labels)
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3539676Z {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3539917Z   "target": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3540221Z     "docker-metadata-action": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3540577Z       "labels": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3541007Z         "org.opencontainers.image.created": "2025-11-13T03:42:58.334Z",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3541575Z         "org.opencontainers.image.description": "",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3541869Z         "org.opencontainers.image.licenses": "",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3542459Z         "org.opencontainers.image.revision": "5683b61d7c094d6eb278589acb9b52587127949a",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3543463Z         "org.opencontainers.image.source": "https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3543958Z         "org.opencontainers.image.title": "gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3544336Z         "org.opencontainers.image.url": "https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3544709Z         "org.opencontainers.image.version": "pr-2"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3544966Z       }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3545107Z     }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3545250Z   }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3545389Z }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3545756Z ##[endgroup]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3546081Z ##[group]Bake file definition (annotations)
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3546313Z {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3546453Z   "target": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3546636Z     "docker-metadata-action": {
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3546846Z       "annotations": [
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3547334Z         "manifest:org.opencontainers.image.created=2025-11-13T03:42:58.334Z",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3547746Z         "manifest:org.opencontainers.image.description=",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3548203Z         "manifest:org.opencontainers.image.licenses=",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3548646Z         "manifest:org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3549167Z         "manifest:org.opencontainers.image.source=https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3549602Z         "manifest:org.opencontainers.image.title=gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3550018Z         "manifest:org.opencontainers.image.url=https://github.com/88simon/gun_del_sol",
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3550431Z         "manifest:org.opencontainers.image.version=pr-2"
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3550694Z       ]
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3550837Z     }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3550985Z   }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3551121Z }
+Build Docker Image	Extract metadata	2025-11-13T03:42:58.3551488Z ##[endgroup]
+Build Docker Image	Build and push Docker image	﻿2025-11-13T03:42:58.3760723Z ##[group]Run docker/build-push-action@v5
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3761013Z with:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3761195Z   context: .
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3761360Z   file: ./Dockerfile
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3761554Z   push: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3761710Z   load: true
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3762066Z   tags: ghcr.io/88simon/gun-del-sol-backend:pr-2
+Build Docker Image	Build and push Docker image	ghcr.io/88simon/gun-del-sol-backend:-5683b61
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3763770Z   labels: org.opencontainers.image.created=2025-11-13T03:42:58.334Z
+Build Docker Image	Build and push Docker image	org.opencontainers.image.description=
+Build Docker Image	Build and push Docker image	org.opencontainers.image.licenses=
+Build Docker Image	Build and push Docker image	org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Build and push Docker image	org.opencontainers.image.source=https://github.com/88simon/gun_del_sol
+Build Docker Image	Build and push Docker image	org.opencontainers.image.title=gun_del_sol
+Build Docker Image	Build and push Docker image	org.opencontainers.image.url=https://github.com/88simon/gun_del_sol
+Build Docker Image	Build and push Docker image	org.opencontainers.image.version=pr-2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3765289Z   cache-from: type=gha
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3765501Z   cache-to: type=gha,mode=max
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3765722Z   platforms: linux/amd64
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3765967Z   no-cache: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3766143Z   pull: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3766447Z   github-token: ***
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3766623Z env:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3766799Z   IMAGE_NAME: gun-del-sol-backend
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3767290Z   REGISTRY: ghcr.io
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3767523Z   DOCKER_METADATA_OUTPUT_VERSION: pr-2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3768014Z   DOCKER_METADATA_OUTPUT_TAGS: ghcr.io/88simon/gun-del-sol-backend:pr-2
+Build Docker Image	Build and push Docker image	ghcr.io/88simon/gun-del-sol-backend:-5683b61
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3768538Z   DOCKER_METADATA_OUTPUT_TAG_NAMES: pr-2
+Build Docker Image	Build and push Docker image	-5683b61
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3770189Z   DOCKER_METADATA_OUTPUT_LABELS: org.opencontainers.image.created=2025-11-13T03:42:58.334Z
+Build Docker Image	Build and push Docker image	org.opencontainers.image.description=
+Build Docker Image	Build and push Docker image	org.opencontainers.image.licenses=
+Build Docker Image	Build and push Docker image	org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Build and push Docker image	org.opencontainers.image.source=https://github.com/88simon/gun_del_sol
+Build Docker Image	Build and push Docker image	org.opencontainers.image.title=gun_del_sol
+Build Docker Image	Build and push Docker image	org.opencontainers.image.url=https://github.com/88simon/gun_del_sol
+Build Docker Image	Build and push Docker image	org.opencontainers.image.version=pr-2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3773402Z   DOCKER_METADATA_OUTPUT_ANNOTATIONS: manifest:org.opencontainers.image.created=2025-11-13T03:42:58.334Z
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.description=
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.licenses=
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.source=https://github.com/88simon/gun_del_sol
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.title=gun_del_sol
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.url=https://github.com/88simon/gun_del_sol
+Build Docker Image	Build and push Docker image	manifest:org.opencontainers.image.version=pr-2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3778970Z   DOCKER_METADATA_OUTPUT_JSON: {"tags":["ghcr.io/88simon/gun-del-sol-backend:pr-2","ghcr.io/88simon/gun-del-sol-backend:-5683b61"],"tag-names":["pr-2","-5683b61"],"labels":{"org.opencontainers.image.created":"2025-11-13T03:42:58.334Z","org.opencontainers.image.description":"","org.opencontainers.image.licenses":"","org.opencontainers.image.revision":"5683b61d7c094d6eb278589acb9b52587127949a","org.opencontainers.image.source":"https://github.com/88simon/gun_del_sol","org.opencontainers.image.title":"gun_del_sol","org.opencontainers.image.url":"https://github.com/88simon/gun_del_sol","org.opencontainers.image.version":"pr-2"},"annotations":["manifest:org.opencontainers.image.created=2025-11-13T03:42:58.334Z","manifest:org.opencontainers.image.description=","manifest:org.opencontainers.image.licenses=","manifest:org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a","manifest:org.opencontainers.image.source=https://github.com/88simon/gun_del_sol","manifest:org.opencontainers.image.title=gun_del_sol","manifest:org.opencontainers.image.url=https://github.com/88simon/gun_del_sol","manifest:org.opencontainers.image.version=pr-2"]}
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3783098Z   DOCKER_METADATA_OUTPUT_BAKE_FILE_TAGS: /home/runner/work/_temp/docker-actions-toolkit-1lrRQw/docker-metadata-action-bake-tags.json
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3783938Z   DOCKER_METADATA_OUTPUT_BAKE_FILE_LABELS: /home/runner/work/_temp/docker-actions-toolkit-1lrRQw/docker-metadata-action-bake-labels.json
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3785024Z   DOCKER_METADATA_OUTPUT_BAKE_FILE_ANNOTATIONS: /home/runner/work/_temp/docker-actions-toolkit-1lrRQw/docker-metadata-action-bake-annotations.json
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3785883Z   DOCKER_METADATA_OUTPUT_BAKE_FILE: /home/runner/work/_temp/docker-actions-toolkit-1lrRQw/docker-metadata-action-bake.json
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.3799021Z ##[endgroup]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6035788Z ##[group]GitHub Actions runtime token ACs
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6045991Z refs/pull/2/merge: read/write
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6046700Z refs/heads/main: read
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6048207Z ##[endgroup]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6049079Z ##[group]Docker info
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6093827Z [command]/usr/bin/docker version
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6305706Z Client: Docker Engine - Community
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6306118Z  Version:           28.0.4
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6306355Z  API version:       1.48
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6306583Z  Go version:        go1.23.7
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6306834Z  Git commit:        b8034c0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6307354Z  Built:             Tue Mar 25 15:07:16 2025
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6307678Z  OS/Arch:           linux/amd64
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6307919Z  Context:           default
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6308063Z 
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6308158Z Server: Docker Engine - Community
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6308403Z  Engine:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6308581Z   Version:          28.0.4
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6308830Z   API version:      1.48 (minimum version 1.24)
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6309115Z   Go version:       go1.23.7
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6309334Z   Git commit:       6430e49
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6309574Z   Built:            Tue Mar 25 15:07:16 2025
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6309813Z   OS/Arch:          linux/amd64
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6310033Z   Experimental:     false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6310229Z  containerd:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6310401Z   Version:          v1.7.28
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6310668Z   GitCommit:        b98a3aace656320842a23f4a392a33f46af97866
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6310962Z  runc:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6311205Z   Version:          1.3.0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6311566Z   GitCommit:        v1.3.0-0-g4ca628d1
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6312185Z  docker-init:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6312362Z   Version:          0.19.0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6312571Z   GitCommit:        de40ad0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6348616Z [command]/usr/bin/docker info
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6765324Z Client: Docker Engine - Community
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6765862Z  Version:    28.0.4
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6766188Z  Context:    default
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6766846Z  Debug Mode: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6767407Z  Plugins:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6767723Z   buildx: Docker Buildx (Docker Inc.)
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6768120Z     Version:  v0.29.1
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6768538Z     Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6769042Z   compose: Docker Compose (Docker Inc.)
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6769442Z     Version:  v2.38.2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6769837Z     Path:     /usr/libexec/docker/cli-plugins/docker-compose
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6770225Z 
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6770332Z Server:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6770592Z  Containers: 1
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6770787Z   Running: 1
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6770959Z   Paused: 0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6771132Z   Stopped: 0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6771306Z  Images: 1
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6771482Z  Server Version: 28.0.4
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6771693Z  Storage Driver: overlay2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6771905Z   Backing Filesystem: extfs
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6772126Z   Supports d_type: true
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6772321Z   Using metacopy: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6772526Z   Native Overlay Diff: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6772741Z   userxattr: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6772930Z  Logging Driver: json-file
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6773144Z  Cgroup Driver: systemd
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6773355Z  Cgroup Version: 2
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6773537Z  Plugins:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6773701Z   Volume: local
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6773929Z   Network: bridge host ipvlan macvlan null overlay
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6774326Z   Log: awslogs fluentd gcplogs gelf journald json-file local splunk syslog
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6775031Z  Swarm: inactive
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6775251Z  Runtimes: io.containerd.runc.v2 runc
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6775501Z  Default Runtime: runc
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6775708Z  Init Binary: docker-init
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6775984Z  containerd version: b98a3aace656320842a23f4a392a33f46af97866
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6776307Z  runc version: v1.3.0-0-g4ca628d1
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6776535Z  init version: de40ad0
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6776731Z  Security Options:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6776907Z   apparmor
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6777394Z   seccomp
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6777663Z    Profile: builtin
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6777984Z   cgroupns
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6778215Z  Kernel Version: 6.11.0-1018-azure
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6778461Z  Operating System: Ubuntu 24.04.3 LTS
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6778709Z  OSType: linux
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6778887Z  Architecture: x86_64
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6779075Z  CPUs: 4
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6779239Z  Total Memory: 15.62GiB
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6779436Z  Name: runnervmw9dnm
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6779664Z  ID: 4751e198-18be-4eca-a5bc-37dabc96021d
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6779933Z  Docker Root Dir: /var/lib/docker
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6780147Z  Debug Mode: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6780326Z  Username: githubactions
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6780513Z  Experimental: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6780693Z  Insecure Registries:
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6780902Z   ::1/128
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6781052Z   127.0.0.0/8
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6781234Z  Live Restore Enabled: false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6781369Z 
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6782791Z ##[endgroup]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6783187Z ##[group]Proxy configuration
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6786600Z No proxy configuration found
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.6788010Z ##[endgroup]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.7391325Z ##[group]Buildx version
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.7420463Z [command]/usr/bin/docker buildx version
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8018654Z github.com/docker/buildx v0.29.1 a32761aeb3debd39be1eca514af3693af0db334b
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8055879Z ##[endgroup]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8056434Z ##[group]Builder info
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8985842Z {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8986212Z   "nodes": [
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8986905Z     {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8987502Z       "name": "builder-8830cef4-5050-4079-8717-c1049d4301ed0",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8988070Z       "endpoint": "unix:///var/run/docker.sock",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8988540Z       "status": "running",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8989384Z       "buildkitd-flags": "--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8990286Z       "buildkit": "v0.25.1",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8990847Z       "platforms": "linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/386",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8991373Z       "features": {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8991881Z         "Automatically load images to the Docker Engine image store": true,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8992490Z         "Cache export": true,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8992876Z         "Direct push": true,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8993262Z         "Docker exporter": true,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8993684Z         "Multi-platform build": true,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8994140Z         "OCI exporter": true
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8994531Z       },
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8994807Z       "labels": {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8995215Z         "org.mobyproject.buildkit.worker.executor": "oci",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8995836Z         "org.mobyproject.buildkit.worker.hostname": "7f591ebbc74e",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8996506Z         "org.mobyproject.buildkit.worker.network": "host",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8997517Z         "org.mobyproject.buildkit.worker.oci.process-mode": "sandbox",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8998298Z         "org.mobyproject.buildkit.worker.selinux.enabled": "false",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8999038Z         "org.mobyproject.buildkit.worker.snapshotter": "overlayfs"
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8999587Z       },
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.8999851Z       "gcPolicy": [
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9000156Z         {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9000440Z           "all": false,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9000760Z           "filter": [
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9001097Z             "type==source.local",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9001779Z             "type==exec.cachemount",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9002217Z             "type==source.git.checkout"
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9002625Z           ],
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9002951Z           "keepDuration": "48h0m0s"
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9003346Z         },
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9003632Z         {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9003912Z           "all": false,
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9004291Z           "keepDuration": "1440h0m0s"
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9004697Z         },
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9004966Z         {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9005253Z           "all": false
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9005568Z         },
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9005837Z         {
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9006110Z           "all": true
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9006423Z         }
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9006683Z       ]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9006952Z     }
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9007487Z   ],
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9007867Z   "name": "builder-8830cef4-5050-4079-8717-c1049d4301ed",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9008401Z   "driver": "docker-container",
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9008847Z   "lastActivity": "2025-11-13T03:42:54.000Z"
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9009270Z }
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:58.9009830Z ##[endgroup]
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:59.0610303Z [command]/usr/bin/docker buildx build --cache-from type=gha --cache-to type=gha,mode=max --file ./Dockerfile --iidfile /home/runner/work/_temp/docker-actions-toolkit-JO0yCZ/build-iidfile-636d67213f.txt --label org.opencontainers.image.created=2025-11-13T03:42:58.334Z --label org.opencontainers.image.description= --label org.opencontainers.image.licenses= --label org.opencontainers.image.revision=5683b61d7c094d6eb278589acb9b52587127949a --label org.opencontainers.image.source=https://github.com/88simon/gun_del_sol --label org.opencontainers.image.title=gun_del_sol --label org.opencontainers.image.url=https://github.com/88simon/gun_del_sol --label org.opencontainers.image.version=pr-2 --platform linux/amd64 --tag ghcr.io/88simon/gun-del-sol-backend:pr-2 --tag ghcr.io/88simon/gun-del-sol-backend:-5683b61 --load --metadata-file /home/runner/work/_temp/docker-actions-toolkit-JO0yCZ/build-metadata-05390bf1ec.json .
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:59.1580910Z ERROR: failed to build: invalid tag "ghcr.io/88simon/gun-del-sol-backend:-5683b61": invalid reference format
+Build Docker Image	Build and push Docker image	2025-11-13T03:42:59.1642861Z ##[error]buildx failed with: ERROR: failed to build: invalid tag "ghcr.io/88simon/gun-del-sol-backend:-5683b61": invalid reference format
+Build Docker Image	Post Build and push Docker image	﻿2025-11-13T03:42:59.1774828Z Post job cleanup.
+Build Docker Image	Post Build and push Docker image	2025-11-13T03:42:59.3944735Z ##[group]Removing temp folder /home/runner/work/_temp/docker-actions-toolkit-JO0yCZ
+Build Docker Image	Post Build and push Docker image	2025-11-13T03:42:59.3954003Z ##[endgroup]
+Build Docker Image	Post Build and push Docker image	2025-11-13T03:42:59.3954606Z ##[group]Post cache
+Build Docker Image	Post Build and push Docker image	2025-11-13T03:42:59.3956327Z State not set
+Build Docker Image	Post Build and push Docker image	2025-11-13T03:42:59.3956883Z ##[endgroup]
+Build Docker Image	Post Set up Docker Buildx	﻿2025-11-13T03:42:59.4097688Z Post job cleanup.
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.6890691Z ##[group]Removing builder
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.7788031Z [command]/usr/bin/docker buildx rm builder-8830cef4-5050-4079-8717-c1049d4301ed
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9143577Z builder-8830cef4-5050-4079-8717-c1049d4301ed removed
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9176726Z ##[endgroup]
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9178770Z ##[group]Cleaning up certificates
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9184921Z ##[endgroup]
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9185832Z ##[group]Post cache
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9188411Z State not set
+Build Docker Image	Post Set up Docker Buildx	2025-11-13T03:42:59.9189077Z ##[endgroup]
+Build Docker Image	Post Checkout code	﻿2025-11-13T03:42:59.9311522Z Post job cleanup.
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0263856Z [command]/usr/bin/git version
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0300083Z git version 2.51.2
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0349057Z Temporarily overriding HOME='/home/runner/work/_temp/bb84f5a0-7e06-4dae-8097-4034fb70c47c' before making global git config changes
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0350394Z Adding repository directory to the temporary git global config as a safe directory
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0355135Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/gun_del_sol/gun_del_sol
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0389061Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0421101Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0647800Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0667361Z http.https://github.com/.extraheader
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0679391Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Build Docker Image	Post Checkout code	2025-11-13T03:43:00.0708630Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build Docker Image	Complete job	﻿2025-11-13T03:43:00.1025155Z Cleaning up orphan processes

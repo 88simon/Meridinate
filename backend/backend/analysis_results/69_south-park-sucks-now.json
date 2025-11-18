@@ -1,0 +1,424 @@
+{
+  "token_address": "Sg4k4iFaEeqhv5866cQmsFTMhRx8sVCPAq2j8Xcpump",
+  "token_info": {
+    "onChainMetadata": {
+      "metadata": {
+        "name": "South Park Sucks Now",
+        "symbol": "SPSN"
+      }
+    },
+    "legacyMetadata": {
+      "description": "test",
+      "name": "South Park Sucks Now",
+      "symbol": "SPSN",
+      "token_standard": "Fungible"
+    }
+  },
+  "first_transaction_time": "2025-10-31T21:19:33",
+  "analysis_window_end": "2139-11-30T12:19:33",
+  "early_bidders": [
+    {
+      "wallet_address": "7JULSQyxhhTBzKjbAuDuxYYvcM4QgbkxErTRA5oz6pVg",
+      "first_buy_time": "2025-10-31T21:19:33",
+      "total_usd": 207.47012800000002,
+      "transaction_count": 1,
+      "average_buy_usd": 207.47012800000002,
+      "wallet_balance_usd": 3264.7096668000004
+    },
+    {
+      "wallet_address": "FMgjydXPm3FJmZzfTt7QJKN8bUUdB2g8d3VkyYwvAJzX",
+      "first_buy_time": "2025-10-31T21:19:35",
+      "total_usd": 317.3480568,
+      "transaction_count": 1,
+      "average_buy_usd": 317.3480568,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "GvjbkYmyw8Kf5hPKLuJZsbrxnDrvmj8a94AHym3QrbmV",
+      "first_buy_time": "2025-10-31T21:19:35",
+      "total_usd": 288.2696554,
+      "transaction_count": 1,
+      "average_buy_usd": 288.2696554,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "6NEXtmLfLk5F7BxRk2gQKwPvJaYmJa4Yz5FRxzu8iy9i",
+      "first_buy_time": "2025-10-31T21:19:37",
+      "total_usd": 408.40885599999996,
+      "transaction_count": 1,
+      "average_buy_usd": 408.40885599999996,
+      "wallet_balance_usd": 18246.8359436
+    },
+    {
+      "wallet_address": "DzeoqYPL54knSwuHThyUR1E41N85kE4pi7FViCqwswBm",
+      "first_buy_time": "2025-10-31T21:19:38",
+      "total_usd": 7768.807137000001,
+      "transaction_count": 30,
+      "average_buy_usd": 258.96023790000004,
+      "wallet_balance_usd": 0.386976
+    },
+    {
+      "wallet_address": "5B79fMkcFeRTiwm7ehsZsFiKsC7m7n1Bgv9yLxPp9q2X",
+      "first_buy_time": "2025-10-31T21:19:39",
+      "total_usd": 308.1460128,
+      "transaction_count": 1,
+      "average_buy_usd": 308.1460128,
+      "wallet_balance_usd": 16196.151947999999
+    },
+    {
+      "wallet_address": "5E93W79ibJ1LukJecWr4oAQijWjD3Rqb4516L6oqg6Lp",
+      "first_buy_time": "2025-10-31T21:19:39",
+      "total_usd": 293.4716994,
+      "transaction_count": 1,
+      "average_buy_usd": 293.4716994,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "EoRR7ZSPsWRDTYxCVwG2DVBAJwVyoCSA6EK2hgEHw2R8",
+      "first_buy_time": "2025-10-31T21:19:39",
+      "total_usd": 158.43731640000001,
+      "transaction_count": 1,
+      "average_buy_usd": 158.43731640000001,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "DDDD2zvzaPMLuZiC2Vos2i6TLFjJJ3bi1pN7kXQc3R5R",
+      "first_buy_time": "2025-10-31T21:19:39",
+      "total_usd": 127.10445299999999,
+      "transaction_count": 1,
+      "average_buy_usd": 127.10445299999999,
+      "wallet_balance_usd": 10395.435136400001
+    },
+    {
+      "wallet_address": "A2MHtZpbWhMB38gqY7oqddCuiJj8S7zqoLxW9qLacntY",
+      "first_buy_time": "2025-10-31T21:19:39",
+      "total_usd": 125.8483448,
+      "transaction_count": 1,
+      "average_buy_usd": 125.8483448,
+      "wallet_balance_usd": 796.8351356000001
+    },
+    {
+      "wallet_address": "56S29mZ3wqvw8hATuUUFqKhGcSGYFASRRFNT38W8q7G3",
+      "first_buy_time": "2025-10-31T21:19:39",
+      "total_usd": 52.5206662,
+      "transaction_count": 1,
+      "average_buy_usd": 52.5206662,
+      "wallet_balance_usd": 17328.3631026
+    },
+    {
+      "wallet_address": "46JxeqKMiECxqAshoAQoxehLqcY6yh4XSig5qD4mfKeH",
+      "first_buy_time": "2025-10-31T21:19:40",
+      "total_usd": 102.408856,
+      "transaction_count": 1,
+      "average_buy_usd": 102.408856,
+      "wallet_balance_usd": 1388.3776074
+    },
+    {
+      "wallet_address": "5X4S3AMgTGUSXnt4jeBrZVU6Ldbdrq389zGy3DcsJnri",
+      "first_buy_time": "2025-10-31T21:19:40",
+      "total_usd": 607.6088558,
+      "transaction_count": 1,
+      "average_buy_usd": 607.6088558,
+      "wallet_balance_usd": 583.1969222
+    },
+    {
+      "wallet_address": "FgFTiFPTnLmhYzNc6dPGkpyihkZgz9hJBfLWXNYwBKnq",
+      "first_buy_time": "2025-10-31T21:19:41",
+      "total_usd": 221.9568102,
+      "transaction_count": 1,
+      "average_buy_usd": 221.9568102,
+      "wallet_balance_usd": 18.912573799999997
+    },
+    {
+      "wallet_address": "8k9Eh6RTVyxbtaZJpNDfSUjAcwiLsCNRsm5bkd2KtAGN",
+      "first_buy_time": "2025-10-31T21:19:41",
+      "total_usd": 186.8609018,
+      "transaction_count": 1,
+      "average_buy_usd": 186.8609018,
+      "wallet_balance_usd": 2.8221352
+    },
+    {
+      "wallet_address": "5nd3xV2gP23LJQE5ZBcjJNs6Pc3bVPBvXk4e9XJDaTj8",
+      "first_buy_time": "2025-10-31T21:19:45",
+      "total_usd": 1228.409856,
+      "transaction_count": 2,
+      "average_buy_usd": 614.204928,
+      "wallet_balance_usd": 8027.3661242
+    },
+    {
+      "wallet_address": "8iGgHvYDqRgS1vXfDooqV2xecbTTTsYg1kKbATZQo6TU",
+      "first_buy_time": "2025-10-31T21:19:45",
+      "total_usd": 101.9720628,
+      "transaction_count": 1,
+      "average_buy_usd": 101.9720628,
+      "wallet_balance_usd": 606.090208
+    },
+    {
+      "wallet_address": "38Vva1Ev3C8Xte1qrbv1iqCPzBuEiKEDckAVU3qgVceA",
+      "first_buy_time": "2025-10-31T21:19:46",
+      "total_usd": 225.0098242,
+      "transaction_count": 1,
+      "average_buy_usd": 225.0098242,
+      "wallet_balance_usd": 539.0396478
+    },
+    {
+      "wallet_address": "Ez2jp3rwXUbaTx7XwiHGaWVgTPFdzJoSg8TopqbxfaJN",
+      "first_buy_time": "2025-10-31T21:19:46",
+      "total_usd": 1010.0098559999999,
+      "transaction_count": 2,
+      "average_buy_usd": 505.00492799999995,
+      "wallet_balance_usd": 75038.1165778
+    },
+    {
+      "wallet_address": "GUAQNumLPnmWNr5FutUGruuKuaVgifDPqj78d8QcfHd9",
+      "first_buy_time": "2025-10-31T21:19:47",
+      "total_usd": 406.409856,
+      "transaction_count": 2,
+      "average_buy_usd": 203.204928,
+      "wallet_balance_usd": 10353.1189674
+    },
+    {
+      "wallet_address": "8jaqh2QvQ4zdP969HEp5bbYDSwB9BRchDsoWzQ5dqHnG",
+      "first_buy_time": "2025-10-31T21:19:51",
+      "total_usd": 423.154926,
+      "transaction_count": 2,
+      "average_buy_usd": 211.577463,
+      "wallet_balance_usd": 21885.726052
+    },
+    {
+      "wallet_address": "FbX45XbZZHCdBXWpjbaabjDuXiAZUSnWbaLmNQvYQhZd",
+      "first_buy_time": "2025-10-31T21:19:51",
+      "total_usd": 442.5518304,
+      "transaction_count": 2,
+      "average_buy_usd": 221.2759152,
+      "wallet_balance_usd": 24094.292912200002
+    },
+    {
+      "wallet_address": "DE3zsvHFi2u5sEbbdjG49a7dxRWuTghb1MZgQHpnXQVQ",
+      "first_buy_time": "2025-10-31T21:19:51",
+      "total_usd": 478.322812,
+      "transaction_count": 2,
+      "average_buy_usd": 239.161406,
+      "wallet_balance_usd": 35270.8848648
+    },
+    {
+      "wallet_address": "DDyWeGBYsSe34zTRfcS93rUDEXWgdfPJkmKz9Wc1JdJV",
+      "first_buy_time": "2025-10-31T21:19:52",
+      "total_usd": 101.208856,
+      "transaction_count": 1,
+      "average_buy_usd": 101.208856,
+      "wallet_balance_usd": 767.0257283999999
+    },
+    {
+      "wallet_address": "HvNqQBTfoiksyvzGR5rrNAv46DjeNgGNMTB5YZpYh16W",
+      "first_buy_time": "2025-10-31T21:19:53",
+      "total_usd": 200.48985599999997,
+      "transaction_count": 2,
+      "average_buy_usd": 100.24492799999999,
+      "wallet_balance_usd": 4.8971506
+    },
+    {
+      "wallet_address": "92XEuaWSjXWBsHHYWgEsHweozYqFNKMyYFyMh58qdeej",
+      "first_buy_time": "2025-10-31T21:19:54",
+      "total_usd": 301.808856,
+      "transaction_count": 1,
+      "average_buy_usd": 301.808856,
+      "wallet_balance_usd": 2714.6436432
+    },
+    {
+      "wallet_address": "5TaPtQ9DE1YMUfiyLv7CCNx1CEh88nWx3sPmNRz9zL75",
+      "first_buy_time": "2025-10-31T21:19:54",
+      "total_usd": 1200.414256,
+      "transaction_count": 2,
+      "average_buy_usd": 600.207128,
+      "wallet_balance_usd": 16169.784032800002
+    },
+    {
+      "wallet_address": "3CDsCpffLahCfJVnvDPTGqc1KkBawKbb74cNfhw9pskL",
+      "first_buy_time": "2025-10-31T21:19:54",
+      "total_usd": 201.708856,
+      "transaction_count": 1,
+      "average_buy_usd": 201.708856,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "2ph2suw1EWU1wtH9tWsiWpQX9BvuYQXdPkEEN7fS4G2o",
+      "first_buy_time": "2025-10-31T21:19:55",
+      "total_usd": 524.1036506,
+      "transaction_count": 1,
+      "average_buy_usd": 524.1036506,
+      "wallet_balance_usd": 3800.3297842
+    },
+    {
+      "wallet_address": "3yBEe6vLJv3kgvTNdiPVpKGgTvpsQbbjBJ9vtwNAr1Rz",
+      "first_buy_time": "2025-10-31T21:19:55",
+      "total_usd": 477.7140616,
+      "transaction_count": 1,
+      "average_buy_usd": 477.7140616,
+      "wallet_balance_usd": 4253.6348658
+    },
+    {
+      "wallet_address": "2UpG5uM1MXGbQG6d57ofaRCG3r9KQYxKtqqWCNJuKifb",
+      "first_buy_time": "2025-10-31T21:19:55",
+      "total_usd": 301.608856,
+      "transaction_count": 1,
+      "average_buy_usd": 301.608856,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "nVkeC7mpVSvLGYp5DGPxTod77nEFT3BjdPFJV2u9kWD",
+      "first_buy_time": "2025-10-31T21:19:56",
+      "total_usd": 60.808856,
+      "transaction_count": 1,
+      "average_buy_usd": 60.808856,
+      "wallet_balance_usd": 355.3264074
+    },
+    {
+      "wallet_address": "5d3jQcuUvsuHyZkhdp78FFqc7WogrzZpTtec1X9VNkuE",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 1442.4088562,
+      "transaction_count": 1,
+      "average_buy_usd": 1442.4088562,
+      "wallet_balance_usd": 44003.7805774
+    },
+    {
+      "wallet_address": "3LaYLEmF6vuVsu2of2jT8RY7Mt7ULiB3qWu2opur2HcK",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 400.808856,
+      "transaction_count": 1,
+      "average_buy_usd": 400.808856,
+      "wallet_balance_usd": 392.2056548
+    },
+    {
+      "wallet_address": "EjTLN2auYh4PVwZdUEPuoE2Te8gj51TtVZra6gw5SUK9",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 614.370857,
+      "transaction_count": 1,
+      "average_buy_usd": 614.370857,
+      "wallet_balance_usd": 5653.4664
+    },
+    {
+      "wallet_address": "JDd3hy3gQn2V982mi1zqhNqUw1GfV2UL6g76STojCJPN",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 614.3708564,
+      "transaction_count": 1,
+      "average_buy_usd": 614.3708564,
+      "wallet_balance_usd": 7467.5232174
+    },
+    {
+      "wallet_address": "BnR2f6oT38HmcKTr89YHK2yFUz4XzSDrYiaqHLShgxAG",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 255.1226524,
+      "transaction_count": 1,
+      "average_buy_usd": 255.1226524,
+      "wallet_balance_usd": 131.049536
+    },
+    {
+      "wallet_address": "GpyyeNWPv17vHzFYAnuP5twLLm7WAzeKoMRGpKfwHFJL",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 123.507856,
+      "transaction_count": 1,
+      "average_buy_usd": 123.507856,
+      "wallet_balance_usd": 646.1472658
+    },
+    {
+      "wallet_address": "LEH5a7hUUjKdpguk5KQqRQP5R4HJz2D8VoK5eeuecKP",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 217.29874260000003,
+      "transaction_count": 1,
+      "average_buy_usd": 217.29874260000003,
+      "wallet_balance_usd": 1829.8998084
+    },
+    {
+      "wallet_address": "7EQSTAYpoBaGC9uGsCVpgKEYqbRhX7LmLSGADLHPrsFV",
+      "first_buy_time": "2025-10-31T21:19:57",
+      "total_usd": 203.51896960000002,
+      "transaction_count": 1,
+      "average_buy_usd": 203.51896960000002,
+      "wallet_balance_usd": 1.6333806
+    },
+    {
+      "wallet_address": "2fzybgpfuqg1xAHRsxELA1PXA9sAc8E4gvfmb4zoLVxK",
+      "first_buy_time": "2025-10-31T21:19:58",
+      "total_usd": 101.2739056,
+      "transaction_count": 1,
+      "average_buy_usd": 101.2739056,
+      "wallet_balance_usd": 4053.2412557999996
+    },
+    {
+      "wallet_address": "5uXofDHvrAPrtw684sDZopfkD7zEProYC3QPMVKbxTpn",
+      "first_buy_time": "2025-10-31T21:19:58",
+      "total_usd": 611.2142898,
+      "transaction_count": 2,
+      "average_buy_usd": 305.6071449,
+      "wallet_balance_usd": 17898.3503458
+    },
+    {
+      "wallet_address": "2dTEwmxwbXqCiVJkkgoiwb75LparsScVoH75cgY9gjks",
+      "first_buy_time": "2025-10-31T21:19:58",
+      "total_usd": 611.2142904,
+      "transaction_count": 2,
+      "average_buy_usd": 305.6071452,
+      "wallet_balance_usd": 68751.0611586
+    },
+    {
+      "wallet_address": "Bb3cbhXKyHuMv1QQ34SMfhT7QBiZM7ET8udpEcpZGWdR",
+      "first_buy_time": "2025-10-31T21:19:58",
+      "total_usd": 401.66128280000004,
+      "transaction_count": 1,
+      "average_buy_usd": 401.66128280000004,
+      "wallet_balance_usd": 937.5465252
+    },
+    {
+      "wallet_address": "CsPxVPKUKrw3R3wcZoYZiU5hBN1hR7ttNnvQ3etk6LD3",
+      "first_buy_time": "2025-10-31T21:19:58",
+      "total_usd": 1282.5591404000002,
+      "transaction_count": 13,
+      "average_buy_usd": 98.65839541538463,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "8iwAUn746kWn4HEM36duThBmFwaXyK86FAVgnkd1PnPr",
+      "first_buy_time": "2025-10-31T21:19:58",
+      "total_usd": 1349.4825738000002,
+      "transaction_count": 13,
+      "average_buy_usd": 103.80635183076924,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "5R82nUSXVvVfVxrAKAYym9CoFwurK6GmRyHZbxaBTYAp",
+      "first_buy_time": "2025-10-31T21:19:59",
+      "total_usd": 806.7331756000001,
+      "transaction_count": 4,
+      "average_buy_usd": 201.68329390000002,
+      "wallet_balance_usd": 27935.9095342
+    },
+    {
+      "wallet_address": "2FTQdnYnt3kfTrDEV2AAma6QzFvKqBj5NaDnoJaYLcbg",
+      "first_buy_time": "2025-10-31T21:19:59",
+      "total_usd": 813.1161286,
+      "transaction_count": 4,
+      "average_buy_usd": 203.27903215,
+      "wallet_balance_usd": 18212.3702824
+    },
+    {
+      "wallet_address": "CnnhbeP8hnQyBpd1pkgLtcZtB1Lu37KgFF19hQfbNP8M",
+      "first_buy_time": "2025-10-31T21:19:59",
+      "total_usd": 829.3862646000001,
+      "transaction_count": 4,
+      "average_buy_usd": 207.34656615000003,
+      "wallet_balance_usd": 17669.2079916
+    },
+    {
+      "wallet_address": "n6WTsP1HijS7CjDrQM7sErFzUXwZdWsJKR5BzS5zL4E",
+      "first_buy_time": "2025-10-31T21:19:59",
+      "total_usd": 50.408856,
+      "transaction_count": 1,
+      "average_buy_usd": 50.408856,
+      "wallet_balance_usd": 507.17739259999996
+    }
+  ],
+  "total_unique_buyers": 50,
+  "total_transactions_analyzed": 200,
+  "api_credits_used": 251
+}

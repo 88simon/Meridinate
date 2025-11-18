@@ -1,0 +1,104 @@
+{
+  "token_address": "5xL15htnLsMN44DyUQyztEYSFBn6pgF41cngBkKMpump",
+  "token_info": {
+    "onChainMetadata": {
+      "metadata": {
+        "name": "Bellscoin",
+        "symbol": "BEL"
+      }
+    },
+    "legacyMetadata": {
+      "description": "BELLS was the first meme created, and later abandoned by Shibetoshi Nakamoto, the founder of Dogecoin.",
+      "name": "Bellscoin",
+      "symbol": "BEL",
+      "token_standard": "Fungible"
+    }
+  },
+  "first_transaction_time": "2025-11-02T08:04:03",
+  "analysis_window_end": "2139-12-01T23:04:03",
+  "early_bidders": [
+    {
+      "wallet_address": "nyuxTArKCVmEdywEd2V7PhM9waA2KTuKH1pkddRz4mL",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 285.37611200000003,
+      "transaction_count": 1,
+      "average_buy_usd": 285.37611200000003,
+      "wallet_balance_usd": 225.0891632
+    },
+    {
+      "wallet_address": "2ezv4U5HmPpkt2xLsKnw1FyyGmjFBeW7c166p99Hw2xB",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 298.2468742,
+      "transaction_count": 1,
+      "average_buy_usd": 298.2468742,
+      "wallet_balance_usd": 3243.8218082
+    },
+    {
+      "wallet_address": "MXb9LGPy5zgYCuXF2WkyYtX7JgPTu12XmhTTQ3VhUip",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 113.1850458,
+      "transaction_count": 1,
+      "average_buy_usd": 113.1850458,
+      "wallet_balance_usd": 124.5504716
+    },
+    {
+      "wallet_address": "5TeibrGC46yJQzx1wUMxFbbMTkfRD6cBNJzh2n2nNvrM",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 230.1391676,
+      "transaction_count": 1,
+      "average_buy_usd": 230.1391676,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "9szy3cy5wDxZNic191itFv6SB9zCtK93uc6P644WGTVS",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 54.4500208,
+      "transaction_count": 1,
+      "average_buy_usd": 54.4500208,
+      "wallet_balance_usd": 2136.1054822
+    },
+    {
+      "wallet_address": "8VcD46yyFQQjmh3Rt1guXUuzGLPfjwnDP577tbWizRVJ",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 52.1272056,
+      "transaction_count": 1,
+      "average_buy_usd": 52.1272056,
+      "wallet_balance_usd": 0.0
+    },
+    {
+      "wallet_address": "9qgNfpiLcpgUnojWMQfTQkZ1fgxfeA86Z9EyTYcCGbWj",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 11989.221336999995,
+      "transaction_count": 87,
+      "average_buy_usd": 137.80714180459765,
+      "wallet_balance_usd": 0.388368
+    },
+    {
+      "wallet_address": "33GtNAQzmdq4jELpHxXYqW3vDy7fux89zevVU4hP7BTX",
+      "first_buy_time": "2025-11-02T08:04:03",
+      "total_usd": 57.0338098,
+      "transaction_count": 1,
+      "average_buy_usd": 57.0338098,
+      "wallet_balance_usd": 11063.5683514
+    },
+    {
+      "wallet_address": "EbSTx3kPovWgA6ZhCwX6RmyAd6vq2MNCFhfbUEqWzf3b",
+      "first_buy_time": "2025-11-02T08:04:04",
+      "total_usd": 403.40885599999996,
+      "transaction_count": 1,
+      "average_buy_usd": 403.40885599999996,
+      "wallet_balance_usd": 623.4765778
+    },
+    {
+      "wallet_address": "25PuSE1RVeeau3XhVLY4Wrhu1D5osFf5DZkYqVqKHmDf",
+      "first_buy_time": "2025-11-02T08:04:04",
+      "total_usd": 93.0530486,
+      "transaction_count": 1,
+      "average_buy_usd": 93.0530486,
+      "wallet_balance_usd": 620.9382158000001
+    }
+  ],
+  "total_unique_buyers": 10,
+  "total_transactions_analyzed": 500,
+  "api_credits_used": 511
+}
