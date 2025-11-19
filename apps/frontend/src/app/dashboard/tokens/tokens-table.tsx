@@ -8,6 +8,7 @@ import {
   getFilteredRowModel,
   useReactTable
 } from '@tanstack/react-table';
+import type { Row } from '@tanstack/react-table';
 import {
   Token,
   TokenDetail,
@@ -47,21 +48,382 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  memo,
+  useRef,
+  startTransition
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { TokenDetailsModal } from './token-details-modal';
 import { useCodex } from '@/contexts/codex-context';
 import { cn } from '@/lib/utils';
-import dynamic from 'next/dynamic';
 
-// Lazy load framer-motion for selection animations
-const MotionTr = dynamic(
-  () => import('framer-motion').then((mod) => ({ default: mod.motion.tr })),
-  {
-    ssr: false,
-    loading: () => <tr className='border-b opacity-50'></tr>
-  }
+const MemoizedTableRow = memo(
+  ({
+    row,
+    isSelected,
+    handleRowClick,
+    isCompactMode
+  }: {
+    row: Row<Token>;
+    isSelected: boolean;
+    handleRowClick: (id: number, event: React.MouseEvent) => void;
+    isCompactMode: boolean;
+  }) => (
+    <tr
+      className={cn(
+        'cursor-pointer border-b transition-all duration-200 ease-out',
+        'hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]',
+        isSelected && [
+          'bg-primary/20',
+          'shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3),0_0_10px_rgba(59,130,246,0.2)]',
+          'hover:bg-primary/25',
+          'hover:shadow-[inset_0_0_0_2px_rgba(59,130,246,0.4),0_0_15px_rgba(59,130,246,0.3)]',
+          'active:bg-primary/30'
+        ],
+        !isSelected && [
+          'hover:bg-muted/50',
+          'active:bg-muted/70'
+        ]
+      )}
+      onClick={(e) => handleRowClick(row.original.id, e)}
+    >
+      {row.getVisibleCells().map((cell) => (
+        <TableCell
+          key={cell.id}
+          className={cn(
+            'transition-all duration-200',
+            isCompactMode ? 'px-2 py-2' : 'px-3 py-3'
+          )}
+        >
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      ))}
+    </tr>
+  ),
+  (prev, next) =>
+    prev.isSelected === next.isSelected &&
+    prev.row.original === next.row.original &&
+    prev.row.id === next.row.id &&
+    prev.isCompactMode === next.isCompactMode
 );
+MemoizedTableRow.displayName = 'MemoizedTableRow';
+
+// Memoized market cap cell to avoid recalculating formatting
+const MarketCapCell = memo(
+  ({
+    token,
+    isRefreshing,
+    isCompact,
+    onRefresh
+  }: {
+    token: Token;
+    isRefreshing: boolean;
+    isCompact: boolean;
+    onRefresh: (e: React.MouseEvent) => void;
+  }) => {
+    const marketCapOriginal = token.market_cap_usd;
+    const marketCapCurrent = token.market_cap_usd_current;
+    const marketCapPrevious = token.market_cap_usd_previous;
+    const marketCapUpdatedAt = token.market_cap_updated_at;
+    const marketCapAth = token.market_cap_ath;
+    const marketCapAthTimestamp = token.market_cap_ath_timestamp;
+
+    // Determine comparison baseline: only use Previous (from last refresh)
+    const comparisonBase = marketCapPrevious;
+    const hasComparison = comparisonBase && marketCapCurrent;
+
+    // Check if current is at ATH (all-time high)
+    const isAtAth =
+      marketCapAth && marketCapCurrent && marketCapCurrent >= marketCapAth;
+
+    // Format market cap (e.g., $1.2M, $340K, $5.6B)
+    const formatMarketCap = useCallback((value: number): string => {
+      if (value >= 1_000_000_000) {
+        return `$${(value / 1_000_000_000).toFixed(2)}B`;
+      } else if (value >= 1_000_000) {
+        return `$${(value / 1_000_000).toFixed(2)}M`;
+      } else if (value >= 1_000) {
+        return `$${(value / 1_000).toFixed(1)}K`;
+      }
+      return `$${value.toFixed(2)}`;
+    }, []);
+
+    // Format time since last refresh
+    const formatTimeSinceRefresh = useCallback((timestamp: string): string => {
+      // SQLite timestamp format: "YYYY-MM-DD HH:MM:SS"
+      // Convert to ISO format by replacing space with T and adding Z for UTC
+      const isoTimestamp = timestamp.replace(' ', 'T') + 'Z';
+      const date = new Date(isoTimestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      let timeAgo = '';
+      if (diffDays > 0) {
+        timeAgo = `${diffDays}d ${diffHours % 24}h`;
+      } else if (diffHours > 0) {
+        timeAgo = `${diffHours}h ${diffMins % 60}m`;
+      } else {
+        timeAgo = `${diffMins}m`;
+      }
+
+      const dateStr = date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+
+      return `${dateStr}, ${timeAgo} from last refresh`;
+    }, []);
+
+    // No market cap data at all
+    if (
+      (!marketCapOriginal || marketCapOriginal === 0) &&
+      (!marketCapCurrent || marketCapCurrent === 0)
+    ) {
+      return (
+        <div className='flex items-center gap-1'>
+          <div
+            className={cn(
+              'text-muted-foreground',
+              isCompact ? 'text-xs' : 'text-sm'
+            )}
+          >
+            -
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-5 w-5 p-0'
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw
+                    className={cn('h-1 w-1', isRefreshing && 'animate-spin')}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh market cap</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      );
+    }
+
+    // Display both original and current market caps
+    return (
+      <div className='flex flex-col gap-0.5'>
+        {/* Original Market Cap from Analysis */}
+        {marketCapOriginal && marketCapOriginal > 0 && (
+          <div className='flex items-center gap-1'>
+            <div
+              className={cn(
+                'text-muted-foreground',
+                isCompact ? 'text-[9px]' : 'text-[10px]'
+              )}
+            >
+              At Analysis:
+            </div>
+            <div
+              className={cn(
+                'font-medium tabular-nums',
+                isCompact ? 'text-xs' : 'text-sm'
+              )}
+            >
+              {formatMarketCap(marketCapOriginal)}
+            </div>
+          </div>
+        )}
+
+        {/* Current/Refreshed Market Cap */}
+        {marketCapCurrent && marketCapCurrent > 0 && (
+          <div className='flex items-center gap-1'>
+            <div
+              className={cn(
+                'text-muted-foreground',
+                isCompact ? 'text-[9px]' : 'text-[10px]'
+              )}
+            >
+              Current:
+            </div>
+            <div
+              className={cn(
+                'font-semibold tabular-nums flex items-center gap-0.5',
+                isCompact ? 'text-xs' : 'text-sm',
+                (hasComparison && marketCapCurrent > comparisonBase!) || isAtAth
+                  ? 'text-green-600'
+                  : hasComparison && marketCapCurrent < comparisonBase!
+                    ? 'text-red-600'
+                    : 'text-muted-foreground'
+              )}
+            >
+              {((hasComparison && marketCapCurrent > comparisonBase!) ||
+                isAtAth) && <span>▲</span>}
+              {hasComparison && marketCapCurrent < comparisonBase! && (
+                <span>▼</span>
+              )}
+              {formatMarketCap(marketCapCurrent)}
+            </div>
+            {marketCapUpdatedAt && (
+              <div
+                className={cn(
+                  'text-muted-foreground',
+                  isCompact ? 'text-[9px]' : 'text-[10px]'
+                )}
+              >
+                ({formatTimeSinceRefresh(marketCapUpdatedAt)})
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Highest Market Cap Observed */}
+        {marketCapAth && marketCapAth > 0 && (
+          <div className='flex items-center gap-1'>
+            <div className='flex items-center gap-0.5'>
+              <div
+                className={cn(
+                  'text-muted-foreground',
+                  isCompact ? 'text-[9px]' : 'text-[10px]'
+                )}
+              >
+                Highest:
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className='text-muted-foreground h-3 w-3 cursor-help' />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className='max-w-xs text-xs'>
+                      Highest market cap observed through our scans.
+                      <br />
+                      Not the true all-time high (requires historical data).
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div
+              className={cn(
+                'font-semibold text-blue-600 tabular-nums',
+                isCompact ? 'text-xs' : 'text-sm'
+              )}
+            >
+              {formatMarketCap(marketCapAth)}
+            </div>
+            {marketCapAthTimestamp && (
+              <div
+                className={cn(
+                  'text-muted-foreground',
+                  isCompact ? 'text-[9px]' : 'text-[10px]'
+                )}
+              >
+                ({formatTimestamp(marketCapAthTimestamp)})
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Refresh Icon */}
+        <div className='flex items-center gap-1'>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-4 w-4 p-0'
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw
+                    className={cn('h-1 w-1', isRefreshing && 'animate-spin')}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh market cap</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.token.id === next.token.id &&
+    prev.token.market_cap_usd === next.token.market_cap_usd &&
+    prev.token.market_cap_usd_current === next.token.market_cap_usd_current &&
+    prev.token.market_cap_usd_previous === next.token.market_cap_usd_previous &&
+    prev.token.market_cap_updated_at === next.token.market_cap_updated_at &&
+    prev.token.market_cap_ath === next.token.market_cap_ath &&
+    prev.token.market_cap_ath_timestamp === next.token.market_cap_ath_timestamp &&
+    prev.isRefreshing === next.isRefreshing &&
+    prev.isCompact === next.isCompact
+);
+MarketCapCell.displayName = 'MarketCapCell';
+
+// Memoized actions cell to avoid recreating callbacks
+const ActionsCell = memo(
+  ({
+    isCompact,
+    onViewDetails,
+    onDownload,
+    onDelete
+  }: {
+    isCompact: boolean;
+    onViewDetails: () => void;
+    onDownload: () => void;
+    onDelete: () => void;
+  }) => {
+    const btnSize = isCompact ? 'h-7 w-7' : 'h-8 w-8';
+    const iconSize = isCompact ? 'h-3 w-3' : 'h-4 w-4';
+
+    return (
+      <div className={cn('flex', isCompact ? 'gap-1' : 'gap-2')}>
+        <Button
+          variant='outline'
+          size='sm'
+          className={cn('p-0', btnSize)}
+          onClick={onViewDetails}
+        >
+          <Eye className={iconSize} />
+        </Button>
+        <Button
+          variant='outline'
+          size='sm'
+          className={cn('p-0', btnSize)}
+          onClick={onDownload}
+        >
+          <Download className={iconSize} />
+        </Button>
+        <Button
+          variant='destructive'
+          size='sm'
+          className={cn('p-0', btnSize)}
+          onClick={onDelete}
+        >
+          <Trash2 className={iconSize} />
+        </Button>
+      </div>
+    );
+  },
+  (prev, next) => prev.isCompact === next.isCompact
+);
+ActionsCell.displayName = 'ActionsCell';
 
 const createColumns = (
   handleViewDetails: (id: number) => void,
@@ -124,250 +486,17 @@ const createColumns = (
         </TooltipProvider>
       </div>
     ),
-    cell: ({ row }) => {
-      const marketCapOriginal = row.original.market_cap_usd;
-      const marketCapCurrent = row.original.market_cap_usd_current;
-      const marketCapPrevious = row.original.market_cap_usd_previous;
-      const marketCapUpdatedAt = row.original.market_cap_updated_at;
-      const marketCapAth = row.original.market_cap_ath;
-      const marketCapAthTimestamp = row.original.market_cap_ath_timestamp;
-      const isRefreshing = refreshingMarketCaps.has(row.original.id);
-
-      // Determine comparison baseline: only use Previous (from last refresh)
-      const comparisonBase = marketCapPrevious;
-      const hasComparison = comparisonBase && marketCapCurrent;
-
-      // Check if current is at ATH (all-time high)
-      const isAtAth = marketCapAth && marketCapCurrent && marketCapCurrent >= marketCapAth;
-
-      // Format market cap (e.g., $1.2M, $340K, $5.6B)
-      const formatMarketCap = (value: number): string => {
-        if (value >= 1_000_000_000) {
-          return `$${(value / 1_000_000_000).toFixed(2)}B`;
-        } else if (value >= 1_000_000) {
-          return `$${(value / 1_000_000).toFixed(2)}M`;
-        } else if (value >= 1_000) {
-          return `$${(value / 1_000).toFixed(1)}K`;
-        }
-        return `$${value.toFixed(2)}`;
-      };
-
-      // Format time since last refresh
-      const formatTimeSinceRefresh = (timestamp: string): string => {
-        // SQLite timestamp format: "YYYY-MM-DD HH:MM:SS"
-        // Convert to ISO format by replacing space with T and adding Z for UTC
-        const isoTimestamp = timestamp.replace(' ', 'T') + 'Z';
-        const date = new Date(isoTimestamp);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        let timeAgo = '';
-        if (diffDays > 0) {
-          timeAgo = `${diffDays}d ${diffHours % 24}h`;
-        } else if (diffHours > 0) {
-          timeAgo = `${diffHours}h ${diffMins % 60}m`;
-        } else {
-          timeAgo = `${diffMins}m`;
-        }
-
-        const dateStr = date.toLocaleString('en-US', {
-          month: '2-digit',
-          day: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        });
-
-        return `${dateStr}, ${timeAgo} from last refresh`;
-      };
-
-      // No market cap data at all
-      if (
-        (!marketCapOriginal || marketCapOriginal === 0) &&
-        (!marketCapCurrent || marketCapCurrent === 0)
-      ) {
-        return (
-          <div className='flex items-center gap-1'>
-            <div
-              className={cn(
-                'text-muted-foreground',
-                isCompact ? 'text-xs' : 'text-sm'
-              )}
-            >
-              -
-            </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    className='h-5 w-5 p-0'
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRefreshMarketCap(row.original.id);
-                    }}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCw
-                      className={cn('h-1 w-1', isRefreshing && 'animate-spin')}
-                    />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Refresh market cap</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        );
-      }
-
-      // Display both original and current market caps
-      return (
-        <div className='flex flex-col gap-0.5'>
-          {/* Original Market Cap from Analysis */}
-          {marketCapOriginal && marketCapOriginal > 0 && (
-            <div className='flex items-center gap-1'>
-              <div
-                className={cn(
-                  'text-muted-foreground',
-                  isCompact ? 'text-[9px]' : 'text-[10px]'
-                )}
-              >
-                At Analysis:
-              </div>
-              <div
-                className={cn(
-                  'font-medium tabular-nums',
-                  isCompact ? 'text-xs' : 'text-sm'
-                )}
-              >
-                {formatMarketCap(marketCapOriginal)}
-              </div>
-            </div>
-          )}
-
-          {/* Current/Refreshed Market Cap */}
-          {marketCapCurrent && marketCapCurrent > 0 && (
-            <div className='flex items-center gap-1'>
-              <div
-                className={cn(
-                  'text-muted-foreground',
-                  isCompact ? 'text-[9px]' : 'text-[10px]'
-                )}
-              >
-                Current:
-              </div>
-              <div
-                className={cn(
-                  'font-semibold tabular-nums flex items-center gap-0.5',
-                  isCompact ? 'text-xs' : 'text-sm',
-                  (hasComparison && marketCapCurrent > comparisonBase!) || isAtAth
-                    ? 'text-green-600'
-                    : hasComparison && marketCapCurrent < comparisonBase!
-                      ? 'text-red-600'
-                      : 'text-muted-foreground'
-                )}
-              >
-                {((hasComparison && marketCapCurrent > comparisonBase!) ||
-                  isAtAth) && <span>▲</span>}
-                {hasComparison && marketCapCurrent < comparisonBase! && (
-                  <span>▼</span>
-                )}
-                {formatMarketCap(marketCapCurrent)}
-              </div>
-              {marketCapUpdatedAt && (
-                <div
-                  className={cn(
-                    'text-muted-foreground',
-                    isCompact ? 'text-[9px]' : 'text-[10px]'
-                  )}
-                >
-                  ({formatTimeSinceRefresh(marketCapUpdatedAt)})
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Highest Market Cap Observed */}
-          {marketCapAth && marketCapAth > 0 && (
-            <div className='flex items-center gap-1'>
-              <div className='flex items-center gap-0.5'>
-                <div
-                  className={cn(
-                    'text-muted-foreground',
-                    isCompact ? 'text-[9px]' : 'text-[10px]'
-                  )}
-                >
-                  Highest:
-                </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className='text-muted-foreground h-3 w-3 cursor-help' />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className='max-w-xs text-xs'>
-                        Highest market cap observed through our scans.
-                        <br />
-                        Not the true all-time high (requires historical data).
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div
-                className={cn(
-                  'font-semibold text-blue-600 tabular-nums',
-                  isCompact ? 'text-xs' : 'text-sm'
-                )}
-              >
-                {formatMarketCap(marketCapAth)}
-              </div>
-              {marketCapAthTimestamp && (
-                <div
-                  className={cn(
-                    'text-muted-foreground',
-                    isCompact ? 'text-[9px]' : 'text-[10px]'
-                  )}
-                >
-                  ({formatTimestamp(marketCapAthTimestamp)})
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Refresh Icon */}
-          <div className='flex items-center gap-1'>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    className='h-4 w-4 p-0'
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRefreshMarketCap(row.original.id);
-                    }}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCw
-                      className={cn('h-1 w-1', isRefreshing && 'animate-spin')}
-                    />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Refresh market cap</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      );
-    }
+    cell: ({ row }) => (
+      <MarketCapCell
+        token={row.original}
+        isRefreshing={refreshingMarketCaps.has(row.original.id)}
+        isCompact={isCompact}
+        onRefresh={(e) => {
+          e.stopPropagation();
+          handleRefreshMarketCap(row.original.id);
+        }}
+      />
+    )
   },
   {
     accessorKey: 'token_address',
@@ -427,43 +556,21 @@ const createColumns = (
     header: 'Actions',
     cell: ({ row }) => {
       const token = row.original;
-      const btnSize = isCompact ? 'h-7 w-7' : 'h-8 w-8';
-      const iconSize = isCompact ? 'h-3 w-3' : 'h-4 w-4';
       return (
-        <div className={cn('flex', isCompact ? 'gap-1' : 'gap-2')}>
-          <Button
-            variant='outline'
-            size='sm'
-            className={cn('p-0', btnSize)}
-            onClick={() => handleViewDetails(token.id)}
-          >
-            <Eye className={iconSize} />
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            className={cn('p-0', btnSize)}
-            onClick={() => downloadAxiomJson(token as any)}
-          >
-            <Download className={iconSize} />
-          </Button>
-          <Button
-            variant='destructive'
-            size='sm'
-            className={cn('p-0', btnSize)}
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Delete token "${token.token_name || 'Unknown'}"?`
-                )
-              ) {
-                handleDelete(token.id);
-              }
-            }}
-          >
-            <Trash2 className={iconSize} />
-          </Button>
-        </div>
+        <ActionsCell
+          isCompact={isCompact}
+          onViewDetails={() => handleViewDetails(token.id)}
+          onDownload={() => downloadAxiomJson(token as any)}
+          onDelete={() => {
+            if (
+              window.confirm(
+                `Delete token "${token.token_name || 'Unknown'}"?`
+              )
+            ) {
+              handleDelete(token.id);
+            }
+          }}
+        />
       );
     }
   },
@@ -569,6 +676,9 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
   );
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [apiSettings, setApiSettings] = useState<AnalysisSettings | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
   // Local state for optimistic market cap updates
   const [marketCapUpdates, setMarketCapUpdates] = useState<
@@ -602,11 +712,32 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
         const settings = await getApiSettings();
         setApiSettings(settings);
       } catch (error) {
-        console.error('Failed to fetch API settings:', error);
-        // Use default values if fetch fails (fallback in tooltip)
+        // Silently fail - Use default values if fetch fails (fallback in tooltip)
       }
     };
     fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const container = tableContainerRef.current;
+    if (!container) return undefined;
+
+    const updateHeight = () => setViewportHeight(container.clientHeight);
+    updateHeight();
+
+    if ('ResizeObserver' in window && typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(updateHeight);
+      observer.observe(container);
+      return () => observer.disconnect();
+    }
+
+    const handleResize = () => updateHeight();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+    return undefined;
   }, []);
 
   const handleViewDetails = async (id: number) => {
@@ -685,7 +816,11 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
     }
   };
 
-  const [tableInstance, setTableInstance] = useState<any>(null);
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(event.currentTarget.scrollTop);
+  }, []);
+
+const [tableInstance, setTableInstance] = useState<any>(null);
 
   const handleRefreshAllMarketCaps = useCallback(async () => {
     if (!tableInstance) {
@@ -783,14 +918,17 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
       return;
     }
 
-    setSelectedTokenIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(tokenId)) {
-        newSet.delete(tokenId);
-      } else {
-        newSet.add(tokenId);
-      }
-      return newSet;
+    // Use startTransition to defer selection updates as low priority
+    startTransition(() => {
+      setSelectedTokenIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(tokenId)) {
+          newSet.delete(tokenId);
+        } else {
+          newSet.add(tokenId);
+        }
+        return newSet;
+      });
     });
   };
 
@@ -920,6 +1058,23 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
     }
   });
 
+  const rows = table.getRowModel().rows;
+  const totalRows = rows.length;
+  const baseRowHeight = isCompactMode ? 52 : 72;
+  const overscan = 6;
+  const visibleCount =
+    viewportHeight > 0
+      ? Math.ceil(viewportHeight / Math.max(baseRowHeight, 1)) + overscan
+      : totalRows;
+  const startIndex = Math.max(
+    0,
+    Math.floor(scrollTop / Math.max(baseRowHeight, 1)) - overscan
+  );
+  const endIndex = Math.min(totalRows, startIndex + visibleCount);
+  const visibleRows = rows.slice(startIndex, endIndex);
+  const paddingTop = startIndex * baseRowHeight;
+  const paddingBottom = Math.max(0, (totalRows - endIndex) * baseRowHeight);
+
   // Update table instance reference when table changes
   useEffect(() => {
     setTableInstance(table);
@@ -990,7 +1145,11 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
         )}
 
         <div className='overflow-hidden rounded-md border'>
-          <div className='max-h-[calc(100vh-300px)] max-w-full overflow-auto'>
+          <div
+            className='max-h-[calc(100vh-300px)] max-w-full overflow-auto'
+            ref={tableContainerRef}
+            onScroll={handleScroll}
+          >
             <Table className='w-full'>
               <TableHeader className='bg-background sticky top-0 z-10 shadow-sm'>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -1017,60 +1176,36 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => {
-                    const isSelected = selectedTokenIds.has(row.original.id);
-                    return (
-                      <MotionTr
+                {totalRows ? (
+                  <>
+                    {paddingTop > 0 && (
+                      <TableRow aria-hidden='true'>
+                        <TableCell
+                          colSpan={columns.length}
+                          className='p-0'
+                          style={{ height: paddingTop }}
+                        />
+                      </TableRow>
+                    )}
+                    {visibleRows.map((row) => (
+                      <MemoizedTableRow
                         key={row.id}
-                        className='cursor-pointer border-b'
-                        onClick={(e) => handleRowClick(row.original.id, e)}
-                        initial={false}
-                        animate={{
-                          backgroundColor: isSelected
-                            ? 'rgba(var(--primary-rgb, 59 130 246) / 0.2)'
-                            : 'transparent',
-                          boxShadow: isSelected
-                            ? 'inset 0 0 0 2px rgba(var(--primary-rgb, 59 130 246) / 0.3), 0 0 10px rgba(var(--primary-rgb, 59 130 246) / 0.2)'
-                            : 'none'
-                        }}
-                        whileHover={{
-                          backgroundColor: isSelected
-                            ? 'rgba(var(--primary-rgb, 59 130 246) / 0.25)'
-                            : 'rgba(var(--muted-rgb, 240 240 240) / 0.5)',
-                          boxShadow: isSelected
-                            ? 'inset 0 0 0 2px rgba(var(--primary-rgb, 59 130 246) / 0.4), 0 0 15px rgba(var(--primary-rgb, 59 130 246) / 0.3)'
-                            : '0 1px 3px rgba(0, 0, 0, 0.05)'
-                        }}
-                        whileTap={{
-                          backgroundColor: isSelected
-                            ? 'rgba(var(--primary-rgb, 59 130 246) / 0.3)'
-                            : 'rgba(var(--muted-rgb, 240 240 240) / 0.7)'
-                        }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 500,
-                          damping: 30,
-                          mass: 0.5
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            className={cn(
-                              'transition-all duration-300',
-                              isCompactMode ? 'px-2 py-2' : 'px-3 py-3'
-                            )}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
-                      </MotionTr>
-                    );
-                  })
+                        row={row}
+                        isCompactMode={isCompactMode}
+                        isSelected={selectedTokenIds.has(row.original.id)}
+                        handleRowClick={handleRowClick}
+                      />
+                    ))}
+                    {paddingBottom > 0 && (
+                      <TableRow aria-hidden='true'>
+                        <TableCell
+                          colSpan={columns.length}
+                          className='p-0'
+                          style={{ height: paddingBottom }}
+                        />
+                      </TableRow>
+                    )}
+                  </>
                 ) : (
                   <TableRow>
                     <TableCell

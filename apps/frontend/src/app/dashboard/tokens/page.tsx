@@ -118,14 +118,7 @@ const Info = dynamic(
   { ssr: false }
 );
 
-// Lazy load framer-motion only when wallet rows are visible
-const MotionTr = dynamic(
-  () => import('framer-motion').then((mod) => ({ default: mod.motion.tr })),
-  {
-    ssr: false,
-    loading: () => <tr className='border-b opacity-50'></tr>
-  }
-);
+// No longer using Framer Motion - replaced with CSS transitions for better performance
 
 // Bulk Tags Popover Component
 function BulkTagsPopover({
@@ -601,6 +594,23 @@ export default function TokensPage() {
     return Math.ceil(multiWallets.wallets.length / walletsPerPage);
   }, [multiWallets]);
 
+  const formatWalletTimestamp = (timestamp?: string | null) => {
+    if (!timestamp) return 'Not refreshed yet';
+    const iso = timestamp.replace(' ', 'T') + 'Z';
+    const date = new Date(iso);
+    return `Updated ${date.toLocaleString()}`;
+  };
+
+  const getWalletTrend = (wallet: MultiTokenWalletsResponse['wallets'][number]) => {
+    const current = wallet.wallet_balance_usd;
+    const previous = wallet.wallet_balance_usd_previous;
+    if (current === null || current === undefined) return 'none';
+    if (previous === null || previous === undefined) return 'none';
+    if (current > previous) return 'up';
+    if (current < previous) return 'down';
+    return 'flat';
+  };
+
   if (loading) {
     return (
       <WalletTagsProvider walletAddresses={allWalletAddresses}>
@@ -923,43 +933,25 @@ export default function TokensPage() {
                     const isSelected = selectedWallets.has(
                       wallet.wallet_address
                     );
+                    const cn = (...classes: (string | boolean)[]) =>
+                      classes.filter(Boolean).join(' ');
                     return (
-                      <MotionTr
+                      <tr
                         key={wallet.wallet_address}
-                        className={`cursor-pointer border-b ${
-                          isSelected ? 'bg-primary/20' : ''
-                        }`}
+                        className={cn(
+                          'cursor-pointer border-b transition-all duration-200 ease-out',
+                          'hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]',
+                          isSelected &&
+                            'bg-primary/20 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3),0_0_10px_rgba(59,130,246,0.2)]',
+                          isSelected &&
+                            'hover:bg-primary/25 hover:shadow-[inset_0_0_0_2px_rgba(59,130,246,0.4),0_0_15px_rgba(59,130,246,0.3)]',
+                          isSelected && 'active:bg-primary/30',
+                          !isSelected && 'hover:bg-muted/50',
+                          !isSelected && 'active:bg-muted/70'
+                        )}
                         onClick={(e) =>
                           handleWalletRowClick(wallet.wallet_address, e)
                         }
-                        initial={false}
-                        animate={{
-                          backgroundColor: isSelected
-                            ? 'rgba(var(--primary-rgb, 59 130 246) / 0.2)'
-                            : 'transparent',
-                          boxShadow: isSelected
-                            ? 'inset 0 0 0 2px rgba(var(--primary-rgb, 59 130 246) / 0.3), 0 0 10px rgba(var(--primary-rgb, 59 130 246) / 0.2)'
-                            : 'none'
-                        }}
-                        whileHover={{
-                          backgroundColor: isSelected
-                            ? 'rgba(var(--primary-rgb, 59 130 246) / 0.25)'
-                            : 'rgba(var(--muted-rgb, 240 240 240) / 0.5)',
-                          boxShadow: isSelected
-                            ? 'inset 0 0 0 2px rgba(var(--primary-rgb, 59 130 246) / 0.4), 0 0 15px rgba(var(--primary-rgb, 59 130 246) / 0.3)'
-                            : '0 1px 3px rgba(0, 0, 0, 0.05)'
-                        }}
-                        whileTap={{
-                          backgroundColor: isSelected
-                            ? 'rgba(var(--primary-rgb, 59 130 246) / 0.3)'
-                            : 'rgba(var(--muted-rgb, 240 240 240) / 0.7)'
-                        }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 500,
-                          damping: 30,
-                          mass: 0.5
-                        }}
                       >
                         <td className='py-3 pr-4'>
                           <div className='flex items-center gap-2'>
@@ -1006,13 +998,39 @@ export default function TokensPage() {
                           </div>
                         </td>
                         <td className='px-4 py-3 text-right font-mono text-sm'>
-                          <div className='flex items-center justify-end gap-2'>
-                            <span>
-                              {wallet.wallet_balance_usd !== null &&
-                              wallet.wallet_balance_usd !== undefined
-                                ? `$${Math.round(wallet.wallet_balance_usd)}`
-                                : 'N/A'}
-                            </span>
+                          <div className='flex flex-col items-end gap-1'>
+                            <div className='flex items-center gap-1'>
+                              {(() => {
+                                const trend = getWalletTrend(wallet);
+                                const current = wallet.wallet_balance_usd;
+                                const formatted =
+                                  current !== null && current !== undefined
+                                    ? `$${Math.round(current).toLocaleString()}`
+                                    : 'N/A';
+                                if (trend === 'up') {
+                                  return (
+                                    <span className='flex items-center gap-1 text-green-600'>
+                                      <span>▲</span>
+                                      <span>{formatted}</span>
+                                    </span>
+                                  );
+                                }
+                                if (trend === 'down') {
+                                  return (
+                                    <span className='flex items-center gap-1 text-red-600'>
+                                      <span>▼</span>
+                                      <span>{formatted}</span>
+                                    </span>
+                                  );
+                                }
+                                return <span>{formatted}</span>;
+                              })()}
+                            </div>
+                            <div className='text-[11px] text-muted-foreground'>
+                              {formatWalletTimestamp(
+                                wallet.wallet_balance_updated_at as string | null
+                              )}
+                            </div>
                             <Button
                               variant='ghost'
                               size='sm'
@@ -1056,7 +1074,7 @@ export default function TokensPage() {
                             ))}
                           </div>
                         </td>
-                      </MotionTr>
+                      </tr>
                     );
                   })}
                 </tbody>

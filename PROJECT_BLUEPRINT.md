@@ -54,13 +54,6 @@ This is a **personal analysis tool** for Simon's cryptocurrency investment resea
 
 **What Just Happened:** Complete restructure from dual-repository setup to professional enterprise-grade monorepo (November 17, 2025)
 
-#### Before (Old Structure) ❌
-```
-C:\Dev\
-├── solscan_hotkey\     # Backend repository
-└── gun-del-sol-web\    # Frontend repository
-```
-
 #### After (New Structure) ✅
 ```
 C:\Meridinate\
@@ -82,11 +75,12 @@ C:\Meridinate\
 - ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services with automatic process cleanup
 - ✅ **Market Cap Refresh** - "Refresh all visible market caps" button fully functional
 - ✅ **Multi-Token Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues
-- ✅ **Git Repository** - Pushed to https://github.com/88simon/Meridinate.git
+- ✅ **Legacy cleanup** - Old root `backend/` and `frontend/` folders removed
+- ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
+- ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth
 
 ### What Needs Cleanup ⚠️
 
-- ⚠️ **Old directory structure** - `backend/` and `frontend/` folders at root still exist (safe to delete after testing)
 - ⚠️ **CI/CD workflows** - Still in per-app `.github/` folders, should be moved to root
 
 ---
@@ -128,8 +122,8 @@ C:\Meridinate\                                    # PROJECT ROOT
 │   │   │   ├── db/                               # SQLite database
 │   │   │   │   └── analyzed_tokens.db            # Main database (22 columns, 5 tables)
 │   │   │   ├── backups/                          # Database backups
-│   │   │   ├── analysis_results/                 # CSV export files
-│   │   │   └── axiom_exports/                    # Axiom.xyz exported data
+│   │   │   ├── analysis_results/                 # Analysis result JSON files (authoritative path)
+│   │   │   └── axiom_exports/                    # Axiom.xyz exported data (authoritative path)
 │   │   ├── logs/                                 # Log files (gitignored)
 │   │   ├── docker/                               # Docker configuration
 │   │   │   ├── Dockerfile                        # Multi-stage production image
@@ -209,35 +203,16 @@ C:\Meridinate\                                    # PROJECT ROOT
 │   ├── start-backend.bat                         # Backend only [Windows]
 │   └── start-frontend.bat                        # Frontend only [Windows]
 │
-├── docs/                                         # DOCUMENTATION
-│   ├── migration/                                # Migration history
-│   │   ├── MIGRATION_COMPLETE.md                 # Split-repo → monorepo migration
-│   │   ├── MONOREPO_MIGRATION.md                 # Monorepo restructure details
-│   │   ├── CLEANUP_SUMMARY.md                    # Obsolete files cleanup log
-│   │   ├── DIRECTORY_REORGANIZATION_PLAN.md      # Reorganization analysis
-│   │   └── START_BAT_FIX.md                      # start.bat troubleshooting
-│   ├── progress/                                 # Development logs
-│   │   ├── progress.md                           # Bug fix log (Nov 17, 2025)
-│   │   └── CHECKLIST_ANALYSIS.md                 # Deployment checklist
-│   ├── security/                                 # Security documentation
-│   │   ├── SECURITY.md                           # Security policy
-│   │   ├── OPSEC.md                              # Operational security
-│   │   ├── SECURITY_AUDIT.md                     # Audit results
-│   │   └── SECURITY_QUICKFIX.md                  # Quick security fixes
+├── docs/                                         # DOCUMENTATION (historical + active)
+│   ├── migration/                                # Historical migration notes
+│   ├── progress/                                 # Dev logs & checklists
+│   ├── security/                                 # Security policies/guides
 │   └── ci-cd/                                    # CI/CD guides
-│       ├── CI_QUICKSTART.md
-│       ├── CODECOV_SETUP.md
-│       └── [10+ other CI/CD docs]
 │
 ├── .gitignore                                    # Git ignore rules
 ├── README.md                                     # Main project README
 ├── PROJECT_BLUEPRINT.md                          # This file
 └── LICENSE                                       # MIT License
-
-OLD STRUCTURE (TO BE DELETED AFTER VERIFICATION):
-├── backend/                                      # ⚠️ OLD - contains old structure remnants
-└── frontend/                                     # ⚠️ OLD - contains old node_modules
-```
 
 ### Key Files You Must Know
 
@@ -247,10 +222,16 @@ OLD STRUCTURE (TO BE DELETED AFTER VERIFICATION):
 | `apps/backend/src/meridinate/analyzed_tokens_db.py` | All database operations | 54KB file, handles 5 tables |
 | `apps/backend/config.json` | API keys (Helius) | **NEVER commit** - contains sensitive data |
 | `apps/backend/data/db/analyzed_tokens.db` | SQLite database | Main data store, 22 columns |
+| `apps/backend/src/meridinate/routers/wallets.py` | Wallet endpoints | Handles balance refresh, now tracks prev/current and timestamps |
 | `apps/frontend/src/lib/api.ts` | API client | All backend API calls go through this |
 | `apps/frontend/src/lib/generated/api-types.ts` | TypeScript types | Auto-generated from OpenAPI, DO NOT edit manually |
 | `apps/frontend/src/app/dashboard/tokens/page.tsx` | Main token dashboard | Where Simon spends most time |
+| `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` | Token table component | Memoized rows, virtualized rendering for performance |
+| `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` | Token detail modal | Shows per-wallet balance trend/timestamp |
+| `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` | Token detail page | Shows per-wallet balance trend/timestamp |
 | `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend) |
+| `apps/backend/data/analysis_results/` | Analysis result JSONs | Source of truth for job results (legacy copies removed) |
+| `apps/backend/data/axiom_exports/` | Axiom export JSONs | Source of truth (legacy copies removed) |
 
 ---
 
@@ -649,6 +630,65 @@ pnpm install
 **Files Modified:**
 - `apps/frontend/src/components/additional-tags.tsx` (lines 122, 127, 183)
 
+### Frontend Performance Optimizations (Nov 19, 2025)
+
+**Goal:** Improve interaction responsiveness and reduce JavaScript overhead in token table and multi-token wallet panel
+
+**Problems Identified:**
+1. **Framer Motion overhead** - JavaScript-based animations causing unnecessary recalculations on every interaction
+2. **Unnecessary re-renders** - Heavy cells (market cap, action buttons) re-rendering when unrelated state changes
+3. **Blocking selection updates** - Row selection updates blocking UI responsiveness during interactions
+
+**Solutions Implemented:**
+
+#### 1. Replaced Framer Motion with CSS Transitions
+- **Impact:** Eliminated JavaScript animation overhead
+- **Implementation:**
+  - Replaced `motion.tr` with regular `<tr>` elements using Tailwind CSS transitions
+  - Applied 200ms `transition-all duration-200 ease-out` for smooth interactions
+  - Used conditional CSS classes for selected/hover/active states
+- **Files Modified:**
+  - `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` (lines 77-106)
+  - `apps/frontend/src/app/dashboard/tokens/page.tsx` (multi-token wallet rows, lines 939-955)
+
+#### 2. Memoized Heavy Cells
+- **Impact:** Prevents unnecessary formatting recalculations and re-renders
+- **New Components:**
+  - `MarketCapCell` - Memoized market cap formatting and display logic (lines 117-377)
+  - `ActionsCell` - Memoized action button rendering (lines 380-426)
+  - `MemoizedTableRow` - Memoized table row component (lines 65-114)
+- **Memoization Strategy:**
+  - Custom comparison functions check only relevant props
+  - `useCallback` for internal formatting functions
+  - Display names added for React DevTools debugging
+- **Files Modified:**
+  - `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx`
+
+#### 3. Deferred Selection Updates with `startTransition`
+- **Impact:** Row selection updates are low-priority, keeping UI responsive
+- **Implementation:** Wrapped `setSelectedTokenIds` in React's `startTransition()` API
+- **Result:** Selection state updates don't block other UI interactions
+- **Files Modified:**
+  - `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` (lines 883-894)
+
+**Performance Gains:**
+- Reduced JavaScript execution during row interactions
+- Eliminated layout thrashing from Framer Motion animations
+- Improved INP (Interaction to Next Paint) metrics
+- Market cap cells only re-render when their specific data changes
+- Selection operations remain responsive under load
+
+**Developer Notes:**
+- **Do NOT reintroduce Framer Motion** for table row animations - use CSS transitions instead
+- When adding new heavy cells, follow the memoization pattern from `MarketCapCell` and `ActionsCell`
+- Use `React.memo()` with custom comparison functions for optimal performance
+- Always add `displayName` to memoized components for debugging
+
+**Testing:**
+- ✅ ESLint: No errors
+- ✅ TypeScript: Type checking passes
+- ✅ Manual testing: Row selection, market cap refresh, action buttons all functional
+
 ---
 
 ## Common Operations
@@ -786,6 +826,7 @@ pnpm install
 3. **Update OpenAPI types** if modifying backend models: `pnpm sync-types --update`
 4. **Preserve data** - never modify database schema without migration plan
 5. **Document breaking changes** in migration docs
+6. **Backend cache:** Any mutation that changes the token list/fields should invalidate the `tokens_history` cache key (already handled for analysis save, deletes, market-cap refresh)
 
 ### When Troubleshooting
 
@@ -819,17 +860,19 @@ C:\Meridinate\
 1. Token analysis (early bidder detection)
 2. Multi-Token Wallets (smart money identification)
 3. Wallet tagging system
-4. Market cap tracking
-5. Real-time WebSocket notifications
+4. Market cap tracking (with trend/last-updated)
+5. Wallet balance refresh (with trend/last-updated)
+6. Real-time WebSocket notifications
 
-**Pending:** Delete old `backend/` and `frontend/` folders after verification
+**Pending:** Move per-app CI/CD workflows into a unified root pipeline
 
 **User:** Simon (non-technical) - explain clearly, correct terminology politely
 
 **Critical:** Never commit `config.json`, preserve database, test before changes
+**Data paths:** All writable data lives in `apps/backend/data/...` (db, analysis_results, axiom_exports). Legacy duplicates under `apps/backend/src/meridinate/` were removed.
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** November 18, 2025
+**Document Version:** 1.2
+**Last Updated:** November 19, 2025
 **Next Review:** After production deployment
