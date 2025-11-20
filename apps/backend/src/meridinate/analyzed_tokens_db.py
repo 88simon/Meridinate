@@ -271,6 +271,10 @@ def update_token_file_paths(token_id: int, analysis_path: str, axiom_path: str) 
 @contextmanager
 def get_db_connection():
     """Context manager for database connections"""
+    # Ensure database directory exists
+    db_dir = os.path.dirname(DATABASE_FILE)
+    os.makedirs(db_dir, exist_ok=True)
+
     conn = sqlite3.connect(DATABASE_FILE)
     conn.row_factory = sqlite3.Row  # Enable dict-like access
     try:
