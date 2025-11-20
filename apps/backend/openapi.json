@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Gun Del Sol API",
+    "title": "Meridinate API",
     "description": "High-performance async API for Solana token analysis (Modular)",
     "version": "2.0.0"
   },
@@ -208,7 +208,7 @@
           "Metrics"
         ],
         "summary": "Get Metrics",
-        "description": "Get application metrics in Prometheus format\n\nReturns metrics including:\n- Application uptime\n- Job queue depth by status\n- Average processing and queue times\n- Job success rate\n- WebSocket connection stats\n- HTTP request stats",
+        "description": "Get application metrics in Prometheus format\n\nReturns metrics including:\n- Application uptime\n- Job queue depth by status\n- Average processing and queue times\n- Job success rate\n- WebSocket connection stats\n- HTTP request stats\n- API usage (Helius, DexScreener, CoinGecko)\n- Cache hit/miss rates\n- Analysis phase timing breakdowns",
         "operationId": "get_metrics_metrics_get",
         "responses": {
           "200": {
@@ -230,8 +230,28 @@
           "Metrics"
         ],
         "summary": "Get Health",
-        "description": "Get health check status\n\nReturns basic health information including queue depth\nand success rate",
+        "description": "Get health check status\n\nReturns basic health information including queue depth\nand success_rate",
         "operationId": "get_health_metrics_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/stats": {
+      "get": {
+        "tags": [
+          "Metrics"
+        ],
+        "summary": "Get Detailed Stats",
+        "description": "Get detailed statistics in JSON format\n\nReturns comprehensive metrics including:\n- Queue and job statistics\n- API usage breakdown\n- Cache performance\n- Analysis phase timing\n- WebSocket stats",
+        "operationId": "get_detailed_stats_metrics_stats_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -539,6 +559,48 @@
         }
       }
     },
+    "/api/tokens/refresh-market-caps": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Refresh Market Caps",
+        "description": "Refresh current market cap for multiple tokens",
+        "operationId": "refresh_market_caps_api_tokens_refresh_market_caps_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshMarketCapsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshMarketCapsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tokens/{token_id}": {
       "get": {
         "tags": [
@@ -752,31 +814,31 @@
         }
       }
     },
-    "/api/tokens/refresh-market-caps": {
+    "/analyze/token/redis": {
       "post": {
         "tags": [
-          "Tokens"
+          "Analysis"
         ],
-        "summary": "Refresh Market Caps",
-        "description": "Refresh current market cap for multiple tokens",
-        "operationId": "refresh_market_caps_api_tokens_refresh_market_caps_post",
+        "summary": "Analyze Token Redis",
+        "description": "Analyze a token using Redis queue (arq worker)\n\nThis endpoint queues analysis jobs in Redis for processing by arq workers.\nRequires Redis to be enabled (REDIS_ENABLED=true).\nReturns immediately with job_id for status tracking.",
+        "operationId": "analyze_token_redis_analyze_token_redis_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RefreshMarketCapsRequest"
+                "$ref": "#/components/schemas/AnalyzeTokenRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RefreshMarketCapsResponse"
+                  "$ref": "#/components/schemas/QueueTokenResponse"
                 }
               }
             }
@@ -800,7 +862,7 @@
           "Analysis"
         ],
         "summary": "Analyze Token",
-        "description": "Analyze a token to find early bidders (queues job)",
+        "description": "Analyze a token to find early bidders (thread pool queue)\n\nThis endpoint uses Python thread pool for background processing.\nFor Redis-backed queue processing, use /analyze/token/redis instead.",
         "operationId": "analyze_token_analyze_token_post",
         "requestBody": {
           "content": {
@@ -1728,6 +1790,7 @@
           "result": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -2282,6 +2345,28 @@
               }
             ],
             "title": "Wallet Balance Usd"
+          },
+          "wallet_balance_usd_previous": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet Balance Usd Previous"
+          },
+          "wallet_balance_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet Balance Updated At"
           }
         },
         "type": "object",
@@ -2331,6 +2416,7 @@
             "title": "Token Address"
           },
           "api_settings": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Api Settings"
           },
@@ -2419,6 +2505,28 @@
               }
             ],
             "title": "Balance Usd"
+          },
+          "previous_balance_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Balance Usd"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
           },
           "success": {
             "type": "boolean",
@@ -3266,6 +3374,28 @@
               }
             ],
             "title": "Wallet Balance Usd"
+          },
+          "wallet_balance_usd_previous": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet Balance Usd Previous"
+          },
+          "wallet_balance_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet Balance Updated At"
           }
         },
         "type": "object",

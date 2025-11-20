@@ -58,20 +58,30 @@ import {
   startTransition
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { TokenDetailsModal } from './token-details-modal';
+import dynamic from 'next/dynamic';
 import { useCodex } from '@/contexts/codex-context';
 import { cn } from '@/lib/utils';
+
+// Lazy-load the token details modal to reduce initial JS bundle size
+const TokenDetailsModal = dynamic(
+  () => import('./token-details-modal').then((mod) => ({
+    default: mod.TokenDetailsModal
+  })),
+  { ssr: false }
+);
 
 const MemoizedTableRow = memo(
   ({
     row,
     isSelected,
     handleRowClick,
+    handleRowHover,
     isCompactMode
   }: {
     row: Row<Token>;
     isSelected: boolean;
     handleRowClick: (id: number, event: React.MouseEvent) => void;
+    handleRowHover: (id: number) => void;
     isCompactMode: boolean;
   }) => (
     <tr
@@ -91,6 +101,7 @@ const MemoizedTableRow = memo(
         ]
       )}
       onClick={(e) => handleRowClick(row.original.id, e)}
+      onMouseEnter={() => handleRowHover(row.original.id)}
     >
       {row.getVisibleCells().map((cell) => (
         <TableCell
@@ -932,6 +943,21 @@ const [tableInstance, setTableInstance] = useState<any>(null);
     });
   };
 
+  // Predictive prefetching: preload token detail page and API data on row hover
+  const handleRowHover = useCallback(
+    (tokenId: number) => {
+      // Prefetch the token detail page route
+      router.prefetch(`/dashboard/tokens/${tokenId}`);
+
+      // Prefetch the API data for token details
+      // This ensures instant modal display when clicked
+      getTokenById(tokenId).catch(() => {
+        // Silently fail - prefetch is optional optimization
+      });
+    },
+    [router]
+  );
+
   const handleBulkDownload = () => {
     if (selectedTokenIds.size === 0) {
       toast.error('No tokens selected');
@@ -1194,6 +1220,7 @@ const [tableInstance, setTableInstance] = useState<any>(null);
                         isCompactMode={isCompactMode}
                         isSelected={selectedTokenIds.has(row.original.id)}
                         handleRowClick={handleRowClick}
+                        handleRowHover={handleRowHover}
                       />
                     ))}
                     {paddingBottom > 0 && (

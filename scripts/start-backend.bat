@@ -38,21 +38,25 @@ if not exist "src\meridinate" (
     exit /b 1
 )
 
-echo Activating virtual environment...
-if exist ".venv\Scripts\activate.bat" (
-    call .venv\Scripts\activate.bat
-    echo ✓ Virtual environment activated
+echo Checking virtual environment...
+if exist ".venv\Scripts\python.exe" (
+    echo ✓ Virtual environment found at .venv
 ) else (
-    echo WARNING: Virtual environment not found at .venv
-    echo Using system Python
+    echo ERROR: Virtual environment not found at .venv
+    echo Please run: python -m venv .venv
+    echo Then: .venv\Scripts\activate.bat
+    echo Then: pip install -r requirements.txt
+    pause
+    exit /b 1
 )
 
 echo.
 echo Starting FastAPI backend...
 echo Working directory: %CD%
+echo Python: %CD%\.venv\Scripts\python.exe
 echo.
 
 cd src
-python -m meridinate.main
+..\.venv\Scripts\python.exe -m meridinate.main
 
 pause

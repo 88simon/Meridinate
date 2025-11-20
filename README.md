@@ -9,7 +9,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Project Structure](#project-structure)
@@ -22,7 +22,7 @@
 
 ---
 
-## 🎯 Overview
+## Overview
 
 Meridinate is a comprehensive Solana token analysis platform that combines:
 
@@ -32,16 +32,16 @@ Meridinate is a comprehensive Solana token analysis platform that combines:
 - **Database** - SQLite for persistent token data with automatic market cap tracking
 
 **Key Features:**
-- ✅ Early bidder detection for new Solana tokens
-- ✅ Wallet watchlist and tagging system
-- ✅ Real-time market cap monitoring with ATH tracking
-- ✅ WebSocket notifications for analysis completion
-- ✅ Docker containerization ready
-- ✅ Full CI/CD with GitHub Actions
+- Early bidder detection for new Solana tokens
+- Wallet watchlist and tagging system
+- Real-time market cap monitoring with ATH tracking
+- WebSocket notifications for analysis completion
+- Docker containerization ready
+- Full CI/CD with GitHub Actions
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Meridinate/
@@ -112,7 +112,7 @@ Meridinate/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -202,16 +202,29 @@ python -m meridinate.main
 - **Port:** 3000
 - **Tech Stack:** Next.js 15, React 18, TypeScript, Tailwind CSS, shadcn/ui
 - **Features:**
-  - Token dashboard with real-time updates
+  - Token dashboard with real-time updates via WebSocket
   - Wallet analysis and tagging
   - Dark mode support
   - Type-safe API client (auto-generated)
+  - Optimized performance with CSS transitions and memoization
 
 **Start individually:**
 ```bash
 cd apps/frontend
 pnpm dev
 ```
+
+**WebSocket Resource Management:**
+
+The frontend uses a singleton WebSocket connection to receive real-time analysis notifications from the backend. To prevent browser resource exhaustion:
+
+- **One connection per tab** - Singleton pattern ensures multiple components share a single WebSocket
+- **Automatic cleanup** - Connections close after 30 seconds when tab is hidden or inactive
+- **Smart reconnection** - Only reconnects when tab is visible, with linear backoff (3s, 6s, 9s, 12s, 15s intervals, max 30s)
+- **Max retry limit** - Stops after 5 failed attempts, shows user notification
+- **Page Visibility API** - Monitors tab state to intelligently manage connection lifecycle
+
+This prevents "insufficient resources" errors when users have multiple tabs open or leave tabs running in the background.
 
 ### AutoHotkey (Desktop Automation)
 

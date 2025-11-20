@@ -19,7 +19,7 @@ import {
   RefreshCw,
   Info
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Tooltip,
@@ -39,7 +39,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WalletTags } from '@/components/wallet-tags';
@@ -66,6 +67,79 @@ export function TokenDetailsModal({
     new Set()
   );
   const [refreshingAll, setRefreshingAll] = useState(false);
+
+  // Virtualization state
+  const currentWalletsContainerRef = useRef<HTMLDivElement>(null);
+  const [currentScrollTop, setCurrentScrollTop] = useState(0);
+  const [currentViewportHeight, setCurrentViewportHeight] = useState(0);
+
+  const formatWalletTimestamp = (timestamp?: string | null) => {
+    if (!timestamp) return 'Not refreshed yet';
+    const iso = timestamp.replace(' ', 'T') + 'Z';
+    const date = new Date(iso);
+    return `Updated ${date.toLocaleString()}`;
+  };
+
+  const getWalletTrend = (
+    wallet: TokenDetail['wallets'][number]
+  ): 'up' | 'down' | 'flat' | 'none' => {
+    const current = wallet.wallet_balance_usd;
+    const previous = wallet.wallet_balance_usd_previous;
+    if (current === null || current === undefined) return 'none';
+    if (previous === null || previous === undefined) return 'none';
+    if (current > previous) return 'up';
+    if (current < previous) return 'down';
+    return 'flat';
+  };
+
+  // Handle scroll for current wallets virtualization
+  const handleCurrentWalletsScroll = useCallback(() => {
+    if (currentWalletsContainerRef.current) {
+      setCurrentScrollTop(currentWalletsContainerRef.current.scrollTop);
+    }
+  }, []);
+
+  // Update viewport height on mount and resize
+  useEffect(() => {
+    if (currentWalletsContainerRef.current) {
+      const updateHeight = () => {
+        setCurrentViewportHeight(currentWalletsContainerRef.current?.clientHeight ?? 0);
+      };
+      updateHeight();
+      window.addEventListener('resize', updateHeight);
+      return () => window.removeEventListener('resize', updateHeight);
+    }
+  }, [open]);
+
+  // Virtualization logic for current wallets
+  const { visibleCurrentWallets, currentPaddingTop, currentPaddingBottom } = useMemo(() => {
+    if (!token?.wallets) {
+      return { visibleCurrentWallets: [], currentPaddingTop: 0, currentPaddingBottom: 0 };
+    }
+
+    const allWallets = token.wallets;
+    const totalWallets = allWallets.length;
+    const baseRowHeight = 60;
+    const overscan = 5;
+    const visibleCount =
+      currentViewportHeight > 0
+        ? Math.ceil(currentViewportHeight / Math.max(baseRowHeight, 1)) + overscan
+        : totalWallets;
+    const startIndex = Math.max(
+      0,
+      Math.floor(currentScrollTop / Math.max(baseRowHeight, 1)) - overscan
+    );
+    const endIndex = Math.min(totalWallets, startIndex + visibleCount);
+    const visibleWallets = allWallets.slice(startIndex, endIndex);
+    const paddingTop = startIndex * baseRowHeight;
+    const paddingBottom = Math.max(0, (totalWallets - endIndex) * baseRowHeight);
+
+    return {
+      visibleCurrentWallets: visibleWallets,
+      currentPaddingTop: paddingTop,
+      currentPaddingBottom: paddingBottom
+    };
+  }, [token, currentScrollTop, currentViewportHeight]);
 
   // Fetch analysis history when modal opens
   useEffect(() => {
@@ -153,6 +227,9 @@ export function TokenDetailsModal({
               <DialogTitle className='text-2xl'>
                 {token.token_name || 'Unknown Token'}
               </DialogTitle>
+              <DialogDescription className='text-muted-foreground'>
+                Full wallet analysis, tags, and history for this token.
+              </DialogDescription>
               <p className='text-muted-foreground mt-1 text-sm'>
                 {token.token_symbol || '-'} • Early Buyer Analysis
               </p>
@@ -234,7 +311,11 @@ export function TokenDetailsModal({
 
           {/* Current Analysis Tab */}
           <TabsContent value='current'>
-            <div className='mt-4 rounded-md border'>
+            <div
+              ref={currentWalletsContainerRef}
+              onScroll={handleCurrentWalletsScroll}
+              className='mt-4 max-h-[500px] overflow-auto rounded-md border'
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -298,7 +379,19 @@ export function TokenDetailsModal({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    token.wallets.map((wallet, index) => (
+                    <>
+                      {currentPaddingTop > 0 && (
+                        <TableRow aria-hidden='true'>
+                          <TableCell
+                            colSpan={8}
+                            className='p-0'
+                            style={{ height: currentPaddingTop }}
+                          />
+                        </TableRow>
+                      )}
+                      {visibleCurrentWallets.map((wallet) => {
+                        const index = token.wallets.findIndex(w => w.id === wallet.id);
+                        return (
                       <TableRow key={wallet.id}>
                         <TableCell className='text-primary font-semibold'>
                           #{index + 1}
@@ -331,20 +424,46 @@ export function TokenDetailsModal({
                               onClick={() => copyAddress(wallet.wallet_address)}
                             >
                               <Copy className='h-3 w-3' />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className='text-right font-mono text-sm'>
-                          <div className='flex items-center justify-end gap-2'>
-                            <span>
-                              {wallet.wallet_balance_usd !== null &&
-                              wallet.wallet_balance_usd !== undefined
-                                ? `$${Math.round(wallet.wallet_balance_usd)}`
-                                : 'N/A'}
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell className='text-right font-mono text-sm'>
+                  <div className='flex flex-col items-end gap-1'>
+                    <div className='flex items-center gap-1'>
+                      {(() => {
+                        const trend = getWalletTrend(wallet);
+                        const current = wallet.wallet_balance_usd;
+                        const formatted =
+                          current !== null && current !== undefined
+                            ? `$${Math.round(current).toLocaleString()}`
+                            : 'N/A';
+                        if (trend === 'up') {
+                          return (
+                            <span className='flex items-center gap-1 text-green-600'>
+                              <span>▲</span>
+                              <span>{formatted}</span>
                             </span>
-                            <Button
-                              variant='ghost'
-                              size='sm'
+                          );
+                        }
+                        if (trend === 'down') {
+                          return (
+                            <span className='flex items-center gap-1 text-red-600'>
+                              <span>▼</span>
+                              <span>{formatted}</span>
+                            </span>
+                          );
+                        }
+                        return <span>{formatted}</span>;
+                      })()}
+                    </div>
+                    <div className='text-[11px] text-muted-foreground'>
+                      {formatWalletTimestamp(
+                        wallet.wallet_balance_updated_at as string | null
+                      )}
+                    </div>
+                    <Button
+                      variant='ghost'
+                      size='sm'
                               className='h-6 w-6 p-0'
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -397,7 +516,18 @@ export function TokenDetailsModal({
                             : 'N/A'}
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })}
+                      {currentPaddingBottom > 0 && (
+                        <TableRow aria-hidden='true'>
+                          <TableCell
+                            colSpan={8}
+                            className='p-0'
+                            style={{ height: currentPaddingBottom }}
+                          />
+                        </TableRow>
+                      )}
+                    </>
                   )}
                 </TableBody>
               </Table>
@@ -567,13 +697,41 @@ export function TokenDetailsModal({
                                     </div>
                                   </TableCell>
                                   <TableCell className='text-right font-mono text-xs'>
-                                    <div className='flex items-center justify-end gap-1'>
-                                      <span>
-                                        {wallet.wallet_balance_usd !== null &&
-                                        wallet.wallet_balance_usd !== undefined
-                                          ? `$${Math.round(wallet.wallet_balance_usd)}`
-                                          : 'N/A'}
-                                      </span>
+                                    <div className='flex flex-col items-end gap-1'>
+                                      <div className='flex items-center gap-1'>
+                                        {(() => {
+                                          const trend = getWalletTrend(wallet);
+                                          const current =
+                                            wallet.wallet_balance_usd;
+                                          const formatted =
+                                            current !== null &&
+                                            current !== undefined
+                                              ? `$${Math.round(current).toLocaleString()}`
+                                              : 'N/A';
+                                          if (trend === 'up') {
+                                            return (
+                                              <span className='flex items-center gap-1 text-green-600'>
+                                                <span>▲</span>
+                                                <span>{formatted}</span>
+                                              </span>
+                                            );
+                                          }
+                                          if (trend === 'down') {
+                                            return (
+                                              <span className='flex items-center gap-1 text-red-600'>
+                                                <span>▼</span>
+                                                <span>{formatted}</span>
+                                              </span>
+                                            );
+                                          }
+                                          return <span>{formatted}</span>;
+                                        })()}
+                                      </div>
+                                      <div className='text-[10px] text-muted-foreground'>
+                                        {formatWalletTimestamp(
+                                          wallet.wallet_balance_updated_at as string | null
+                                        )}
+                                      </div>
                                       <Button
                                         variant='ghost'
                                         size='sm'

@@ -19,6 +19,10 @@ from meridinate.utils.models import AnalysisCompleteNotification, AnalysisStartN
 # Import WebSocket manager and notification endpoints
 from meridinate.websocket import get_connection_manager
 
+# Import rate limiting middleware
+from meridinate.middleware.rate_limit import setup_rate_limiting
+from meridinate.settings import RATE_LIMIT_ENABLED
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,6 +53,10 @@ def create_app() -> FastAPI:
 
     # GZip Compression Middleware (reduces payload size by 70-90%)
     app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # Setup rate limiting (if enabled)
+    if RATE_LIMIT_ENABLED:
+        setup_rate_limiting(app)
 
     # Register routers
     app.include_router(settings_debug.router, tags=["Settings & Health"])
@@ -125,6 +133,8 @@ def create_app() -> FastAPI:
         print("[OK] GZip compression (70-90% payload reduction)")
         print("[OK] Async database queries with aiosqlite")
         print("[OK] Fast JSON serialization (orjson - 5-10x faster)")
+        if RATE_LIMIT_ENABLED:
+            print("[OK] Rate limiting enabled (slowapi + Redis)")
         print("=" * 80)
         print("Performance Features:")
         print("  - Cached requests: <10ms (instant on 2nd load)")

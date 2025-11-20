@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import builtins
 
 from meridinate.debug_config import is_debug_enabled
+from meridinate.cache import ResponseCache
 
 # ============================================================================
 # OPSEC: PRODUCTION MODE - Disable Sensitive Logging
@@ -53,6 +54,12 @@ class HeliusAPI:
         self._sol_price_cache_time = None
         self._sol_price_cache_duration = 300  # Cache for 5 minutes
 
+        # Response cache for DexScreener and wallet balances
+        # DexScreener: 5 minute TTL (market cap doesn't change that rapidly)
+        # Wallet balances: 5 minute TTL (balance can be manually refreshed)
+        self._dexscreener_cache = ResponseCache(ttl=300, name="dexscreener")
+        self._wallet_balance_cache = ResponseCache(ttl=300, name="wallet_balance")
+
     def _get_sol_price_usd(self) -> float:
         """
         Get current SOL price in USD from CoinGecko API (free, no API key required).
@@ -73,7 +80,8 @@ class HeliusAPI:
         try:
             url = "https://api.coingecko.com/api/v3/simple/price"
             params = {"ids": "solana", "vs_currencies": "usd"}
-            response = requests.get(url, params=params, timeout=5)
+            # Use persistent session for connection reuse
+            response = self.session.get(url, params=params, timeout=5)
             response.raise_for_status()
             data = response.json()
 
@@ -109,17 +117,28 @@ class HeliusAPI:
         except Exception:
             return False
 
-    def get_wallet_balance(self, wallet_address: str) -> tuple[Optional[float], int]:
+    def get_wallet_balance(self, wallet_address: str, force_refresh: bool = False) -> tuple[Optional[float], int]:
         """
         Get wallet balance in USD for a wallet address.
 
+        Caching: 5 minute TTL to reduce API calls. Can be bypassed with force_refresh.
+
         Args:
             wallet_address: Solana wallet address
+            force_refresh: If True, bypass cache and fetch fresh balance
 
         Returns:
             Tuple of (balance in USD, API credits used)
             Returns (None, 0) if the call fails
         """
+        # Check cache first (unless force_refresh is True)
+        cache_key = f"wallet_balance:{wallet_address}"
+        if not force_refresh:
+            cached_balance, _ = self._wallet_balance_cache.get(cache_key)
+            if cached_balance is not None:
+                print(f"[Helius] Cache hit for wallet {wallet_address}: ${cached_balance:,.2f} USD (0 credits)")
+                return cached_balance, 0  # No API credits used for cached result
+
         try:
             result = self._rpc_call("getBalance", [wallet_address])
             # getBalance returns lamports (1 SOL = 1,000,000,000 lamports)
@@ -130,6 +149,9 @@ class HeliusAPI:
                 # Get current SOL price from CoinGecko (cached for 5 minutes)
                 sol_price_usd = self._get_sol_price_usd()
                 usd_balance = sol_balance * sol_price_usd
+
+                # Cache the result
+                self._wallet_balance_cache.set(cache_key, usd_balance)
 
                 # getBalance costs 1 credit per call
                 return usd_balance, 1
@@ -256,12 +278,21 @@ class HeliusAPI:
         - HTTP 429 if rate limit exceeded (cooldown: 30-60 seconds)
         - Our sequential processing stays well within limits for typical use
 
+        Caching: 5 minute TTL to reduce API calls and avoid rate limiting
+
         Args:
             mint_address: Token mint address
 
         Returns:
             Market cap in USD, or None if not available
         """
+        # Check cache first
+        cache_key = f"dexscreener_mc:{mint_address}"
+        cached_value, _ = self._dexscreener_cache.get(cache_key)
+        if cached_value is not None:
+            print(f"[DexScreener] Cache hit for {mint_address}: ${cached_value:,.2f} USD")
+            return cached_value
+
         try:
             url = f"https://api.dexscreener.com/token-pairs/v1/solana/{mint_address}"
             response = self.session.get(url, timeout=10)
@@ -281,8 +312,11 @@ class HeliusAPI:
                 market_cap = pair.get("marketCap")
 
                 if market_cap is not None and market_cap > 0:
-                    print(f"[DexScreener] Market cap found: ${market_cap:,.2f} USD")
-                    return float(market_cap)
+                    market_cap_float = float(market_cap)
+                    print(f"[DexScreener] Market cap found: ${market_cap_float:,.2f} USD")
+                    # Cache the result
+                    self._dexscreener_cache.set(cache_key, market_cap_float)
+                    return market_cap_float
                 else:
                     print("[DexScreener] Market cap not available (null or zero)")
                     return None

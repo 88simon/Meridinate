@@ -11,6 +11,8 @@ from typing import Any, Dict, List
 import aiosqlite
 from fastapi import APIRouter, HTTPException, Request, Response
 
+from meridinate.middleware.rate_limit import MARKET_CAP_RATE_LIMIT, READ_RATE_LIMIT, conditional_rate_limit
+
 from meridinate import analyzed_tokens_db as db
 from meridinate import settings
 from meridinate.cache import ResponseCache
@@ -26,10 +28,11 @@ from meridinate.utils.models import (
 from meridinate.helius_api import HeliusAPI
 
 router = APIRouter()
-cache = ResponseCache()
+cache = ResponseCache(name="tokens_history")
 
 
 @router.get("/api/tokens/history", response_model=TokensResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
 async def get_tokens_history(request: Request, response: Response):
     """Get all non-deleted tokens with wallet counts (with caching)"""
     cache_key = "tokens_history"
@@ -90,7 +93,8 @@ async def get_tokens_history(request: Request, response: Response):
 
 
 @router.get("/api/tokens/trash", response_model=TokensResponse)
-async def get_deleted_tokens():
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_deleted_tokens(request: Request):
     """Get all soft-deleted tokens"""
     async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
         conn.row_factory = aiosqlite.Row
@@ -111,7 +115,8 @@ async def get_deleted_tokens():
 
 
 @router.post("/api/tokens/refresh-market-caps", response_model=RefreshMarketCapsResponse)
-async def refresh_market_caps(request: RefreshMarketCapsRequest):
+@conditional_rate_limit(MARKET_CAP_RATE_LIMIT)
+async def refresh_market_caps(request: Request, data: RefreshMarketCapsRequest):
     """Refresh current market cap for multiple tokens"""
     from meridinate.settings import HELIUS_API_KEY
 
@@ -122,7 +127,7 @@ async def refresh_market_caps(request: RefreshMarketCapsRequest):
     async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
         conn.row_factory = aiosqlite.Row
 
-        for token_id in request.token_ids:
+        for token_id in data.token_ids:
             try:
                 # Get token address
                 cursor = await conn.execute("SELECT token_address FROM analyzed_tokens WHERE id = ?", (token_id,))
@@ -277,9 +282,9 @@ async def refresh_market_caps(request: RefreshMarketCapsRequest):
     cache.invalidate("tokens_history")
 
     return {
-        "message": f"Refreshed {successful}/{len(request.token_ids)} token market caps",
+        "message": f"Refreshed {successful}/{len(data.token_ids)} token market caps",
         "results": results,
-        "total_tokens": len(request.token_ids),
+        "total_tokens": len(data.token_ids),
         "successful": successful,
         "api_credits_used": total_credits,
     }
@@ -365,7 +370,7 @@ async def soft_delete_token(token_id: int):
         await conn.execute(query, (datetime.utcnow().isoformat(), token_id))
         await conn.commit()
 
-    cache.invalidate("tokens")
+    cache.invalidate("tokens_history")
     return {"message": "Token moved to trash"}
 
 
@@ -377,7 +382,7 @@ async def restore_token(token_id: int):
         await conn.execute(query, (token_id,))
         await conn.commit()
 
-    cache.invalidate("tokens")
+    cache.invalidate("tokens_history")
     return {"message": "Token restored"}
 
 
@@ -391,7 +396,7 @@ async def permanent_delete_token(token_id: int):
         await conn.execute("DELETE FROM analyzed_tokens WHERE id = ?", (token_id,))
         await conn.commit()
 
-    cache.invalidate("tokens")
+    cache.invalidate("tokens_history")
     return {"message": "Token permanently deleted"}
 
 

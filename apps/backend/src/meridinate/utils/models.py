@@ -42,6 +42,8 @@ class Wallet(BaseModel):
     transaction_count: Optional[int]
     average_buy_usd: Optional[float]
     wallet_balance_usd: Optional[float]
+    wallet_balance_usd_previous: Optional[float] = None
+    wallet_balance_updated_at: Optional[str] = None
 
 
 class TokenDetail(BaseModel):
@@ -92,6 +94,8 @@ class MultiTokenWallet(BaseModel):
     token_addresses: List[str]
     token_ids: List[int]
     wallet_balance_usd: Optional[float]
+    wallet_balance_usd_previous: Optional[float] = None
+    wallet_balance_updated_at: Optional[str] = None
 
 
 class MultiTokenWalletsResponse(BaseModel):
@@ -111,6 +115,8 @@ class RefreshBalancesRequest(BaseModel):
 class RefreshBalancesResult(BaseModel):
     wallet_address: str
     balance_usd: Optional[float]
+    previous_balance_usd: Optional[float] = None
+    updated_at: Optional[str] = None
     success: bool
 
 

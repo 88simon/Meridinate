@@ -67,6 +67,22 @@ class MetricsCollector:
         self._http_errors = defaultdict(int)  # endpoint -> count
         self._start_time = time.time()
 
+        # API usage tracking
+        self._helius_credits_used = 0
+        self._dexscreener_requests = 0
+        self._coingecko_requests = 0
+
+        # Cache metrics
+        self._cache_hits = defaultdict(int)  # cache_name -> hits
+        self._cache_misses = defaultdict(int)  # cache_name -> misses
+
+        # Analysis phase timing (for detailed breakdowns)
+        self._analysis_phase_times = defaultdict(list)  # phase_name -> [durations]
+
+        # Rate limiting metrics
+        self._rate_limit_hits = defaultdict(int)  # endpoint -> count
+        self._rate_limit_blocks = defaultdict(int)  # endpoint -> count
+
     # Job metrics
     def job_queued(self, job_id: str):
         """Record that a job was queued"""
@@ -183,6 +199,109 @@ class MetricsCollector:
         with self._lock:
             return {"requests": dict(self._http_requests), "errors": dict(self._http_errors)}
 
+    # API usage tracking
+    def record_helius_credits(self, credits: int):
+        """Record Helius API credits used"""
+        with self._lock:
+            self._helius_credits_used += credits
+
+    def record_dexscreener_request(self):
+        """Record DexScreener API request"""
+        with self._lock:
+            self._dexscreener_requests += 1
+
+    def record_coingecko_request(self):
+        """Record CoinGecko API request"""
+        with self._lock:
+            self._coingecko_requests += 1
+
+    def get_api_usage(self) -> Dict[str, int]:
+        """Get API usage statistics"""
+        with self._lock:
+            return {
+                "helius_credits_used": self._helius_credits_used,
+                "dexscreener_requests": self._dexscreener_requests,
+                "coingecko_requests": self._coingecko_requests,
+            }
+
+    # Cache metrics
+    def record_cache_hit(self, cache_name: str):
+        """Record cache hit"""
+        with self._lock:
+            self._cache_hits[cache_name] += 1
+
+    def record_cache_miss(self, cache_name: str):
+        """Record cache miss"""
+        with self._lock:
+            self._cache_misses[cache_name] += 1
+
+    def get_cache_stats(self) -> Dict[str, Dict[str, int]]:
+        """Get cache statistics"""
+        with self._lock:
+            stats = {}
+            all_caches = set(self._cache_hits.keys()) | set(self._cache_misses.keys())
+            for cache_name in all_caches:
+                hits = self._cache_hits.get(cache_name, 0)
+                misses = self._cache_misses.get(cache_name, 0)
+                total = hits + misses
+                hit_rate = hits / total if total > 0 else 0.0
+                stats[cache_name] = {
+                    "hits": hits,
+                    "misses": misses,
+                    "total": total,
+                    "hit_rate": hit_rate,
+                }
+            return stats
+
+    # Analysis phase timing
+    def record_analysis_phase(self, phase_name: str, duration_seconds: float):
+        """Record analysis phase timing"""
+        with self._lock:
+            self._analysis_phase_times[phase_name].append(duration_seconds)
+
+    def get_analysis_phase_stats(self) -> Dict[str, Dict[str, float]]:
+        """Get analysis phase timing statistics"""
+        with self._lock:
+            stats = {}
+            for phase, times in self._analysis_phase_times.items():
+                if times:
+                    stats[phase] = {
+                        "avg": sum(times) / len(times),
+                        "min": min(times),
+                        "max": max(times),
+                        "count": len(times),
+                    }
+            return stats
+
+    # Rate limiting metrics
+    def record_rate_limit_hit(self, endpoint: str):
+        """Record successful request that consumed rate limit quota"""
+        with self._lock:
+            self._rate_limit_hits[endpoint] += 1
+
+    def record_rate_limit_block(self, endpoint: str):
+        """Record request that was blocked by rate limit"""
+        with self._lock:
+            self._rate_limit_blocks[endpoint] += 1
+
+    def get_rate_limit_stats(self) -> Dict[str, Dict[str, int]]:
+        """Get rate limiting statistics"""
+        with self._lock:
+            all_endpoints = set(self._rate_limit_hits.keys()) | set(self._rate_limit_blocks.keys())
+            stats = {}
+            for endpoint in all_endpoints:
+                hits = self._rate_limit_hits.get(endpoint, 0)
+                blocks = self._rate_limit_blocks.get(endpoint, 0)
+                total = hits + blocks
+                block_rate = blocks / total if total > 0 else 0.0
+                stats[endpoint] = {
+                    "hits": hits,
+                    "blocks": blocks,
+                    "total": total,
+                    "block_rate": block_rate,
+                }
+            return stats
+
     # Prometheus metrics format
     def get_prometheus_metrics(self) -> str:
         """Generate Prometheus-format metrics"""
@@ -242,6 +361,76 @@ class MetricsCollector:
         for endpoint, count in http_stats["errors"].items():
             safe_endpoint = endpoint.replace('"', '\\"')
             metrics.append(f'http_errors_total{{endpoint="{safe_endpoint}"}} {count}')
+
+        # API usage stats
+        api_usage = self.get_api_usage()
+        metrics.append(f"\n# HELP helius_credits_used_total Total Helius API credits used")
+        metrics.append(f"# TYPE helius_credits_used_total counter")
+        metrics.append(f"helius_credits_used_total {api_usage['helius_credits_used']}")
+
+        metrics.append(f"\n# HELP dexscreener_requests_total Total DexScreener API requests")
+        metrics.append(f"# TYPE dexscreener_requests_total counter")
+        metrics.append(f"dexscreener_requests_total {api_usage['dexscreener_requests']}")
+
+        metrics.append(f"\n# HELP coingecko_requests_total Total CoinGecko API requests")
+        metrics.append(f"# TYPE coingecko_requests_total counter")
+        metrics.append(f"coingecko_requests_total {api_usage['coingecko_requests']}")
+
+        # Cache stats
+        cache_stats = self.get_cache_stats()
+        metrics.append(f"\n# HELP cache_hits_total Cache hits by cache name")
+        metrics.append(f"# TYPE cache_hits_total counter")
+        for cache_name, stats in cache_stats.items():
+            safe_name = cache_name.replace('"', '\\"')
+            metrics.append(f'cache_hits_total{{cache="{safe_name}"}} {stats["hits"]}')
+
+        metrics.append(f"\n# HELP cache_misses_total Cache misses by cache name")
+        metrics.append(f"# TYPE cache_misses_total counter")
+        for cache_name, stats in cache_stats.items():
+            safe_name = cache_name.replace('"', '\\"')
+            metrics.append(f'cache_misses_total{{cache="{safe_name}"}} {stats["misses"]}')
+
+        metrics.append(f"\n# HELP cache_hit_rate Cache hit rate by cache name (0.0 to 1.0)")
+        metrics.append(f"# TYPE cache_hit_rate gauge")
+        for cache_name, stats in cache_stats.items():
+            safe_name = cache_name.replace('"', '\\"')
+            metrics.append(f'cache_hit_rate{{cache="{safe_name}"}} {stats["hit_rate"]:.4f}')
+
+        # Analysis phase timing
+        phase_stats = self.get_analysis_phase_stats()
+        if phase_stats:
+            metrics.append(f"\n# HELP analysis_phase_duration_avg Average phase duration in seconds")
+            metrics.append(f"# TYPE analysis_phase_duration_avg gauge")
+            for phase, stats in phase_stats.items():
+                safe_phase = phase.replace('"', '\\"')
+                metrics.append(f'analysis_phase_duration_avg{{phase="{safe_phase}"}} {stats["avg"]:.4f}')
+
+            metrics.append(f"\n# HELP analysis_phase_duration_max Maximum phase duration in seconds")
+            metrics.append(f"# TYPE analysis_phase_duration_max gauge")
+            for phase, stats in phase_stats.items():
+                safe_phase = phase.replace('"', '\\"')
+                metrics.append(f'analysis_phase_duration_max{{phase="{safe_phase}"}} {stats["max"]:.4f}')
+
+        # Rate limiting stats
+        rate_limit_stats = self.get_rate_limit_stats()
+        if rate_limit_stats:
+            metrics.append(f"\n# HELP rate_limit_hits_total Total requests that consumed rate limit quota")
+            metrics.append(f"# TYPE rate_limit_hits_total counter")
+            for endpoint, stats in rate_limit_stats.items():
+                safe_endpoint = endpoint.replace('"', '\\"')
+                metrics.append(f'rate_limit_hits_total{{endpoint="{safe_endpoint}"}} {stats["hits"]}')
+
+            metrics.append(f"\n# HELP rate_limit_blocks_total Total requests blocked by rate limit")
+            metrics.append(f"# TYPE rate_limit_blocks_total counter")
+            for endpoint, stats in rate_limit_stats.items():
+                safe_endpoint = endpoint.replace('"', '\\"')
+                metrics.append(f'rate_limit_blocks_total{{endpoint="{safe_endpoint}"}} {stats["blocks"]}')
+
+            metrics.append(f"\n# HELP rate_limit_block_rate Rate of requests blocked (0.0 to 1.0)")
+            metrics.append(f"# TYPE rate_limit_block_rate gauge")
+            for endpoint, stats in rate_limit_stats.items():
+                safe_endpoint = endpoint.replace('"', '\\"')
+                metrics.append(f'rate_limit_block_rate{{endpoint="{safe_endpoint}"}} {stats["block_rate"]:.4f}')
 
         return "\n".join(metrics) + "\n"
 

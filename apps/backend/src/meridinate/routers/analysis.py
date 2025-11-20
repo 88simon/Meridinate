@@ -12,10 +12,11 @@ import os
 import requests
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
+from redis.asyncio import Redis
 
 from meridinate import analyzed_tokens_db as db
 from meridinate.observability import (
@@ -28,7 +29,9 @@ from meridinate.observability import (
     sanitize_address,
     set_job_id,
 )
-from meridinate.settings import CURRENT_API_SETTINGS, HELIUS_API_KEY
+from meridinate import settings
+from meridinate.settings import CURRENT_API_SETTINGS, HELIUS_API_KEY, REDIS_ENABLED, REDIS_URL
+from meridinate.middleware.rate_limit import ANALYSIS_RATE_LIMIT, conditional_rate_limit
 from meridinate.state import ANALYSIS_EXECUTOR, get_all_analysis_jobs, get_analysis_job, set_analysis_job, update_analysis_job
 from meridinate.utils.models import (
     AnalysisJob,
@@ -42,6 +45,39 @@ from meridinate.utils.validators import is_valid_solana_address
 from meridinate.helius_api import TokenAnalyzer, generate_axiom_export, generate_token_acronym
 
 router = APIRouter()
+
+# Persistent HTTP session for connection reuse (WebSocket notifications)
+_http_session = requests.Session()
+
+# Redis connection pool (initialized on startup if REDIS_ENABLED)
+_redis_pool: Optional[Redis] = None
+
+
+@router.on_event("startup")
+async def startup_redis():
+    """Initialize Redis connection pool on startup"""
+    global _redis_pool
+    if REDIS_ENABLED:
+        try:
+            from arq import create_pool
+            from arq.connections import RedisSettings
+
+            _redis_pool = await create_pool(RedisSettings.from_dsn(REDIS_URL))
+            log_info("Redis connection pool initialized", redis_url=REDIS_URL)
+        except Exception as e:
+            log_error("Failed to initialize Redis pool", error=str(e))
+
+
+@router.on_event("shutdown")
+async def shutdown_redis():
+    """Close Redis connection pool on shutdown"""
+    global _redis_pool
+    if _redis_pool:
+        try:
+            await _redis_pool.close()
+            log_info("Redis connection pool closed")
+        except Exception as e:
+            log_error("Error closing Redis pool", error=str(e))
 
 
 def run_token_analysis_sync(
@@ -116,6 +152,13 @@ def run_token_analysis_sync(
             market_cap_usd=result.get("market_cap_usd"),
         )
         log_info("Saved token to database", token_id=token_id, acronym=acronym)
+        # Invalidate cached token list so the new analysis shows up immediately
+        try:
+            from meridinate.routers.tokens import cache as tokens_cache
+
+            tokens_cache.invalidate("tokens_history")
+        except Exception as cache_err:
+            log_error("Failed to invalidate token cache after analysis", error=str(cache_err))
 
         # Get file paths
         analysis_filepath = db.get_analysis_file_path(token_id, token_name, in_trash=False)
@@ -163,7 +206,8 @@ def run_token_analysis_sync(
                 "wallets_found": len(early_bidders),
                 "token_id": token_id,
             }
-            requests.post(
+            # Use persistent session for connection reuse
+            _http_session.post(
                 "http://localhost:5003/notify/analysis_complete",
                 json=notification_data,
                 timeout=1,
@@ -179,25 +223,106 @@ def run_token_analysis_sync(
         update_analysis_job(job_id, {"status": "failed", "error": error_msg})
 
 
-@router.post("/analyze/token", status_code=202, response_model=QueueTokenResponse)
-async def analyze_token(request: AnalyzeTokenRequest):
-    """Analyze a token to find early bidders (queues job)"""
-    if not is_valid_solana_address(request.address):
+@router.post("/analyze/token/redis", status_code=202, response_model=QueueTokenResponse)
+@conditional_rate_limit(ANALYSIS_RATE_LIMIT)
+async def analyze_token_redis(request: Request, data: AnalyzeTokenRequest):
+    """
+    Analyze a token using Redis queue (arq worker)
+
+    This endpoint queues analysis jobs in Redis for processing by arq workers.
+    Requires Redis to be enabled (REDIS_ENABLED=true).
+    Returns immediately with job_id for status tracking.
+    """
+    if not REDIS_ENABLED or not _redis_pool:
+        raise HTTPException(
+            status_code=503, detail="Redis queue not available. Use /analyze/token endpoint instead or enable Redis."
+        )
+
+    if not is_valid_solana_address(data.address):
         raise HTTPException(status_code=400, detail="Invalid Solana address format")
 
-    settings = request.api_settings or AnalysisSettings(**CURRENT_API_SETTINGS)
-    min_usd = request.min_usd if request.min_usd is not None else settings.minUsdFilter
+    # Get analysis settings
+    api_settings = data.api_settings or AnalysisSettings(**CURRENT_API_SETTINGS)
+    min_usd = data.min_usd if data.min_usd is not None else api_settings.minUsdFilter
+
+    # Generate job ID
+    job_id = str(uuid.uuid4())[:8]
+
+    # Prepare job settings
+    job_settings = {
+        "min_usd": min_usd,
+        "time_window_hours": data.time_window_hours,
+        "transaction_limit": api_settings.transactionLimit,
+        "max_wallets": api_settings.walletCount,
+        "max_credits": api_settings.maxCreditsPerAnalysis,
+    }
+
+    try:
+        # Enqueue job in arq
+        job = await _redis_pool.enqueue_job("analyze_token_task", job_id, data.address, job_settings)
+
+        # Track metrics
+        metrics_collector.job_queued(job_id)
+        log_info(
+            "Token analysis queued (Redis)",
+            job_id=job_id,
+            arq_job_id=job.job_id,
+            token_address=sanitize_address(data.address),
+            min_usd=min_usd,
+            max_wallets=api_settings.walletCount,
+        )
+
+        # Store initial job metadata in Redis
+        redis_client = Redis.from_url(REDIS_URL)
+        await redis_client.set(f"job:{job_id}:status", "queued")
+        await redis_client.set(f"job:{job_id}:token_address", data.address)
+        await redis_client.set(f"job:{job_id}:created_at", datetime.now().isoformat())
+        await redis_client.set(f"job:{job_id}:arq_job_id", job.job_id)
+        await redis_client.close()
+
+        return {
+            "status": "queued",
+            "job_id": job_id,
+            "token_address": data.address,
+            "api_settings": {
+                "min_usd": min_usd,
+                "transaction_limit": api_settings.transactionLimit,
+                "max_wallets": api_settings.walletCount,
+                "time_window_hours": data.time_window_hours,
+            },
+            "results_url": f"/analysis/{job_id}",
+        }
+
+    except Exception as e:
+        log_error("Failed to enqueue analysis job", job_id=job_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to queue analysis: {str(e)}")
+
+
+@router.post("/analyze/token", status_code=202, response_model=QueueTokenResponse)
+@conditional_rate_limit(ANALYSIS_RATE_LIMIT)
+async def analyze_token(request: Request, data: AnalyzeTokenRequest):
+    """
+    Analyze a token to find early bidders (thread pool queue)
+
+    This endpoint uses Python thread pool for background processing.
+    For Redis-backed queue processing, use /analyze/token/redis instead.
+    """
+    if not is_valid_solana_address(data.address):
+        raise HTTPException(status_code=400, detail="Invalid Solana address format")
+
+    api_settings = data.api_settings or AnalysisSettings(**CURRENT_API_SETTINGS)
+    min_usd = data.min_usd if data.min_usd is not None else api_settings.minUsdFilter
 
     job_id = str(uuid.uuid4())[:8]
     job_data = {
         "job_id": job_id,
-        "token_address": request.address,
+        "token_address": data.address,
         "status": "queued",
         "min_usd": min_usd,
-        "time_window_hours": request.time_window_hours,
-        "transaction_limit": settings.transactionLimit,
-        "max_wallets": settings.walletCount,
-        "max_credits": settings.maxCreditsPerAnalysis,
+        "time_window_hours": data.time_window_hours,
+        "transaction_limit": api_settings.transactionLimit,
+        "max_wallets": api_settings.walletCount,
+        "max_credits": api_settings.maxCreditsPerAnalysis,
         "created_at": datetime.now().isoformat(),
         "result": None,
         "error": None,
@@ -207,33 +332,33 @@ async def analyze_token(request: AnalyzeTokenRequest):
     # Track metrics
     metrics_collector.job_queued(job_id)
     log_info(
-        "Token analysis queued",
-        token_address=sanitize_address(request.address),
+        "Token analysis queued (thread pool)",
+        token_address=sanitize_address(data.address),
         min_usd=min_usd,
-        max_wallets=settings.walletCount,
+        max_wallets=api_settings.walletCount,
     )
 
     # Submit to thread pool
     ANALYSIS_EXECUTOR.submit(
         run_token_analysis_sync,
         job_id,
-        request.address,
+        data.address,
         min_usd,
-        request.time_window_hours,
-        settings.transactionLimit,
-        settings.maxCreditsPerAnalysis,
-        settings.walletCount,
+        data.time_window_hours,
+        api_settings.transactionLimit,
+        api_settings.maxCreditsPerAnalysis,
+        api_settings.walletCount,
     )
 
     return {
         "status": "queued",
         "job_id": job_id,
-        "token_address": request.address,
+        "token_address": data.address,
         "api_settings": {
             "min_usd": min_usd,
-            "transaction_limit": settings.transactionLimit,
-            "max_wallets": settings.walletCount,
-            "time_window_hours": request.time_window_hours,
+            "transaction_limit": api_settings.transactionLimit,
+            "max_wallets": api_settings.walletCount,
+            "time_window_hours": data.time_window_hours,
         },
         "results_url": f"/analysis/{job_id}",
     }
@@ -252,7 +377,7 @@ async def get_analysis(job_id: str):
     if job_copy["status"] == "completed" and job_copy.get("result") is None:
         try:
             if "result_file" in job_copy:
-                result_file = os.path.join("analysis_results", job_copy["result_file"])
+                result_file = os.path.join(settings.ANALYSIS_RESULTS_DIR, job_copy["result_file"])
                 if os.path.exists(result_file):
                     with open(result_file, "r") as f:
                         job_copy["result"] = json.load(f)

@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import withBundleAnalyzer from '@next/bundle-analyzer';
+import withPWA from '@ducanh2912/next-pwa';
 
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
@@ -17,7 +19,69 @@ const baseConfig: NextConfig = {
   transpilePackages: ['geist']
 };
 
-let configWithPlugins = baseConfig;
+// Configure PWA with Workbox
+const pwaConfig = withPWA({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  // Workbox options
+  workboxOptions: {
+    disableDevLogs: true,
+    skipWaiting: true,
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'google-fonts',
+          expiration: {
+            maxEntries: 10,
+            maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
+          }
+        }
+      },
+      {
+        urlPattern: /^http:\/\/localhost:5003\/api\/.*/i,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'api-cache',
+          networkTimeoutSeconds: 10,
+          expiration: {
+            maxEntries: 50,
+            maxAgeSeconds: 5 * 60 // 5 minutes
+          },
+          cacheableResponse: {
+            statuses: [0, 200]
+          }
+        }
+      },
+      {
+        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'image-cache',
+          expiration: {
+            maxEntries: 60,
+            maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+          }
+        }
+      },
+      {
+        urlPattern: /\.(?:js|css)$/i,
+        handler: 'StaleWhileRevalidate',
+        options: {
+          cacheName: 'static-resources',
+          expiration: {
+            maxEntries: 100,
+            maxAgeSeconds: 24 * 60 * 60 // 24 hours
+          }
+        }
+      }
+    ]
+  }
+});
+
+let configWithPlugins = pwaConfig(baseConfig);
 
 // Conditionally enable Sentry configuration
 if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
@@ -55,5 +119,10 @@ if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
   });
 }
 
-const nextConfig = configWithPlugins;
+// Conditionally enable bundle analyzer (ANALYZE=true pnpm build)
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true'
+});
+
+const nextConfig = bundleAnalyzer(configWithPlugins);
 export default nextConfig;

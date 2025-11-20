@@ -16,8 +16,14 @@ const META_THEME_COLORS = {
 };
 
 export const metadata: Metadata = {
-  title: 'Next Shadcn',
-  description: 'Basic dashboard with Next.js and Shadcn'
+  title: 'Meridinate - Solana Token Analysis',
+  description: 'Solana token analysis toolkit for identifying profitable early investment opportunities',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Meridinate'
+  }
 };
 
 export const viewport: Viewport = {

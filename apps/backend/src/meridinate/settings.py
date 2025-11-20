@@ -61,6 +61,18 @@ if not HELIUS_API_KEY:
 print(f"[Config] Loaded Helius API key: {HELIUS_API_KEY[:8]}..." if HELIUS_API_KEY else "[Config] No API key loaded")
 
 # ============================================================================
+# Redis Configuration (for task queue and rate limiting)
+# ============================================================================
+
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+REDIS_ENABLED = os.environ.get("REDIS_ENABLED", "false").lower() == "true"
+RATE_LIMIT_ENABLED = os.environ.get("RATE_LIMIT_ENABLED", "false").lower() == "true"
+
+print(f"[Config] Redis URL: {REDIS_URL}")
+print(f"[Config] Redis enabled: {REDIS_ENABLED}")
+print(f"[Config] Rate limiting enabled: {RATE_LIMIT_ENABLED}")
+
+# ============================================================================
 # API Settings Management
 # ============================================================================
 

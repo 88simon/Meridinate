@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 74291c56433b05e29818e057eb1c727104b1ebba
+ * Backend Commit: cca6a61cdce3aaf2ff0de5261b1b9224c911e41e
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -174,6 +174,9 @@ export interface paths {
      *     - Job success rate
      *     - WebSocket connection stats
      *     - HTTP request stats
+     *     - API usage (Helius, DexScreener, CoinGecko)
+     *     - Cache hit/miss rates
+     *     - Analysis phase timing breakdowns
      */
     get: operations["get_metrics_metrics_get"];
     put?: never;
@@ -196,9 +199,36 @@ export interface paths {
      * @description Get health check status
      *
      *     Returns basic health information including queue depth
-     *     and success rate
+     *     and success_rate
      */
     get: operations["get_health_metrics_health_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/metrics/stats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Detailed Stats
+     * @description Get detailed statistics in JSON format
+     *
+     *     Returns comprehensive metrics including:
+     *     - Queue and job statistics
+     *     - API usage breakdown
+     *     - Cache performance
+     *     - Analysis phase timing
+     *     - WebSocket stats
+     */
+    get: operations["get_detailed_stats_metrics_stats_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -408,6 +438,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/tokens/refresh-market-caps": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Refresh Market Caps
+     * @description Refresh current market cap for multiple tokens
+     */
+    post: operations["refresh_market_caps_api_tokens_refresh_market_caps_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/tokens/{token_id}": {
     parameters: {
       query?: never;
@@ -492,7 +542,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/tokens/refresh-market-caps": {
+  "/analyze/token/redis": {
     parameters: {
       query?: never;
       header?: never;
@@ -502,10 +552,14 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Refresh Market Caps
-     * @description Refresh current market cap for multiple tokens
+     * Analyze Token Redis
+     * @description Analyze a token using Redis queue (arq worker)
+     *
+     *     This endpoint queues analysis jobs in Redis for processing by arq workers.
+     *     Requires Redis to be enabled (REDIS_ENABLED=true).
+     *     Returns immediately with job_id for status tracking.
      */
-    post: operations["refresh_market_caps_api_tokens_refresh_market_caps_post"];
+    post: operations["analyze_token_redis_analyze_token_redis_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -523,7 +577,10 @@ export interface paths {
     put?: never;
     /**
      * Analyze Token
-     * @description Analyze a token to find early bidders (queues job)
+     * @description Analyze a token to find early bidders (thread pool queue)
+     *
+     *     This endpoint uses Python thread pool for background processing.
+     *     For Redis-backed queue processing, use /analyze/token/redis instead.
      */
     post: operations["analyze_token_analyze_token_post"];
     delete?: never;
@@ -944,7 +1001,9 @@ export interface components {
       /** Created At */
       created_at: string;
       /** Result */
-      result?: Record<string, never> | null;
+      result?: {
+        [key: string]: unknown;
+      } | null;
       /** Error */
       error?: string | null;
       /** Axiom File */
@@ -1141,6 +1200,10 @@ export interface components {
       token_ids: number[];
       /** Wallet Balance Usd */
       wallet_balance_usd: number | null;
+      /** Wallet Balance Usd Previous */
+      wallet_balance_usd_previous?: number | null;
+      /** Wallet Balance Updated At */
+      wallet_balance_updated_at?: string | null;
     };
     /** MultiTokenWalletsResponse */
     MultiTokenWalletsResponse: {
@@ -1161,7 +1224,9 @@ export interface components {
       /** Token Address */
       token_address: string;
       /** Api Settings */
-      api_settings: Record<string, never>;
+      api_settings: {
+        [key: string]: unknown;
+      };
       /** Results Url */
       results_url: string;
     };
@@ -1189,6 +1254,10 @@ export interface components {
       wallet_address: string;
       /** Balance Usd */
       balance_usd: number | null;
+      /** Previous Balance Usd */
+      previous_balance_usd?: number | null;
+      /** Updated At */
+      updated_at?: string | null;
       /** Success */
       success: boolean;
     };
@@ -1396,6 +1465,10 @@ export interface components {
       average_buy_usd: number | null;
       /** Wallet Balance Usd */
       wallet_balance_usd: number | null;
+      /** Wallet Balance Usd Previous */
+      wallet_balance_usd_previous?: number | null;
+      /** Wallet Balance Updated At */
+      wallet_balance_updated_at?: string | null;
     };
     /** WalletTag */
     WalletTag: {
@@ -1625,6 +1698,26 @@ export interface operations {
     };
   };
   get_health_metrics_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  get_detailed_stats_metrics_stats_get: {
     parameters: {
       query?: never;
       header?: never;
@@ -1887,6 +1980,39 @@ export interface operations {
       };
     };
   };
+  refresh_market_caps_api_tokens_refresh_market_caps_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RefreshMarketCapsRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RefreshMarketCapsResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   get_token_by_id_api_tokens__token_id__get: {
     parameters: {
       query?: never;
@@ -2042,7 +2168,7 @@ export interface operations {
       };
     };
   };
-  refresh_market_caps_api_tokens_refresh_market_caps_post: {
+  analyze_token_redis_analyze_token_redis_post: {
     parameters: {
       query?: never;
       header?: never;
@@ -2051,17 +2177,17 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["RefreshMarketCapsRequest"];
+        "application/json": components["schemas"]["AnalyzeTokenRequest"];
       };
     };
     responses: {
       /** @description Successful Response */
-      200: {
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["RefreshMarketCapsResponse"];
+          "application/json": components["schemas"]["QueueTokenResponse"];
         };
       };
       /** @description Validation Error */

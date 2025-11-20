@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-import analyzed_tokens_db as db
+from meridinate import analyzed_tokens_db as db
 
 
 @pytest.mark.integration

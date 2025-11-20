@@ -10,6 +10,16 @@ import time
 from typing import Any, Dict, Optional, Tuple
 
 
+# Import metrics_collector for tracking cache hits/misses
+# This is optional - if not available, metrics won't be recorded
+try:
+    from meridinate.observability import metrics_collector
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+    metrics_collector = None
+
+
 class ResponseCache:
     """
     Cache for API responses with ETag support and request deduplication
@@ -20,16 +30,18 @@ class ResponseCache:
     - Request deduplication to prevent duplicate concurrent queries
     """
 
-    def __init__(self, ttl: int = 30):
+    def __init__(self, ttl: int = 30, name: str = "unknown"):
         """
         Initialize response cache
 
         Args:
             ttl: Time-to-live in seconds (default: 30)
+            name: Cache name for metrics tracking (default: "unknown")
         """
         self.cache: Dict[str, Tuple[Any, float, str]] = {}  # (data, timestamp, etag)
         self.pending_requests: Dict[str, asyncio.Future] = {}  # Request deduplication
         self.ttl = ttl
+        self.name = name
 
     def get(self, key: str) -> Tuple[Optional[Any], Optional[str]]:
         """
@@ -44,8 +56,17 @@ class ResponseCache:
         if key in self.cache:
             data, timestamp, etag = self.cache[key]
             if time.time() - timestamp < self.ttl:
+                # Record cache hit
+                if METRICS_AVAILABLE and metrics_collector:
+                    metrics_collector.record_cache_hit(self.name)
                 return (data, etag)
+            # Expired, delete and record as miss
             del self.cache[key]
+
+        # Record cache miss
+        if METRICS_AVAILABLE and metrics_collector:
+            metrics_collector.record_cache_miss(self.name)
+
         return (None, None)
 
     def set(self, key: str, data: Any) -> str:

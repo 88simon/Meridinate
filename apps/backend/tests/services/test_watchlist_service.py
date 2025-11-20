@@ -10,8 +10,8 @@ import tempfile
 
 import pytest
 
-from app import state
-from app.services.watchlist_service import WatchlistService, get_watchlist_service
+from meridinate import state
+from meridinate.services.watchlist_service import WatchlistService, get_watchlist_service
 
 
 @pytest.mark.unit
@@ -34,7 +34,7 @@ class TestWatchlistService:
     @pytest.fixture
     def watchlist_service(self, temp_data_file, monkeypatch):
         """Create a watchlist service with temporary data file"""
-        from app import settings
+        from meridinate import settings
 
         monkeypatch.setattr(settings, "DATA_FILE", temp_data_file)
 

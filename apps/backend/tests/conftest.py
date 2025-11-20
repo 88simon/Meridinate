@@ -13,10 +13,10 @@ from typing import Any, Dict, Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app import settings, state
+from meridinate import settings, state
 
 # Import the app
-from app.main import create_app
+from meridinate.main import create_app
 
 
 @pytest.fixture(scope="function")
@@ -43,7 +43,7 @@ def test_db(test_db_path: str) -> Generator[str, None, None]:
     This fixture has function scope so each test gets a fresh database
     """
     # Import database module to initialize schema
-    import analyzed_tokens_db as db
+    from meridinate import analyzed_tokens_db as db
 
     # Temporarily override the database path
     original_db_path = db.DATABASE_FILE
@@ -88,7 +88,7 @@ def test_client(test_db: str, monkeypatch) -> Generator[TestClient, None, None]:
     state.analysis_jobs.clear()
 
     # Clear all router caches before each test
-    from app.routers import tags, tokens, wallets
+    from meridinate.routers import tags, tokens, wallets
 
     tokens.cache.cache.clear()
     tokens.cache.pending_requests.clear()

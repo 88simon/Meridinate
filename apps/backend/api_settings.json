@@ -1,5 +1,5 @@
 {
-  "transactionLimit": 250,
+  "transactionLimit": 350,
   "minUsdFilter": 50.0,
   "walletCount": 50,
   "apiRateDelay": 100,

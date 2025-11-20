@@ -24,52 +24,58 @@ interface WebSocketMessage {
   data: AnalysisCompleteData | AnalysisStartData;
 }
 
-// Singleton WebSocket connection to prevent duplicate notifications
+// singleton websocket connection to prevent duplicate notifications across components
+const MAX_RECONNECT_ATTEMPTS = 5;
+const HIDDEN_TAB_CLOSE_DELAY = 30000; // close connection after 30s of tab being hidden
+const RECONNECT_BASE_DELAY = 3000;
+const MAX_RECONNECT_DELAY = 30000;
+
 let globalWs: WebSocket | null = null;
 let connectionCount = 0;
+let reconnectAttempts = 0;
+let lastErrorNotifiedAt = 0;
+let hasShownFailureToast = false;
 let messageCallbacks: Set<
   (data: AnalysisCompleteData | AnalysisStartData, event: string) => void
 > = new Set();
 let lastProcessedJobId: string | null = null;
 let lastProcessedTime = 0;
+let visibilityChangeTimer: NodeJS.Timeout | null = null;
+let reconnectTimer: NodeJS.Timeout | null = null;
 
-// Global message handler - only processes each message once
+// global message handler - only processes each message once
 const globalMessageHandler = (event: MessageEvent) => {
   try {
     const message: WebSocketMessage = JSON.parse(event.data);
-    if (shouldLog()) {
-    }
 
     if (message.event === 'analysis_complete') {
       const data = message.data as AnalysisCompleteData;
 
-      // Deduplicate: Skip if we just processed this job_id within last 2 seconds
+      // deduplicate: skip if we just processed this job_id within last 2 seconds
       const now = Date.now();
       if (
         data.job_id === lastProcessedJobId &&
         now - lastProcessedTime < 2000
       ) {
-        if (shouldLog()) {
-        }
         return;
       }
       lastProcessedJobId = data.job_id;
       lastProcessedTime = now;
 
-      // Show toast notification (only once, with ID to prevent duplicates)
-      toast.success(`Analysis complete: ${data.token_name}`, {
-        description: `Found ${data.wallets_found} early bidder wallets`,
+      // show toast notification (only once, with ID to prevent duplicates)
+      toast.success(`analysis complete: ${data.token_name}`, {
+        description: `found ${data.wallets_found} early bidder wallets`,
         duration: 5000,
-        id: `analysis-${data.job_id}` // Sonner will deduplicate based on this ID
+        id: `analysis-${data.job_id}`
       });
 
-      // Show desktop notification ONLY if tab is not focused
+      // show desktop notification only if tab is not focused
       if (
         'Notification' in window &&
         Notification.permission === 'granted' &&
-        document.hidden // Only show desktop notification if tab is hidden
+        document.hidden
       ) {
-        const notification = new Notification('Analysis Complete ✓', {
+        const notification = new Notification('analysis complete', {
           body: `${data.token_name} (${data.acronym})\n${data.wallets_found} wallets found`,
           icon: '/favicon.ico',
           tag: 'analysis-complete',
@@ -77,7 +83,6 @@ const globalMessageHandler = (event: MessageEvent) => {
           silent: true
         });
 
-        // Auto-close after 3 seconds
         setTimeout(() => notification.close(), 3000);
 
         notification.onclick = () => {
@@ -86,23 +91,203 @@ const globalMessageHandler = (event: MessageEvent) => {
         };
       }
 
-      // Notify all registered callbacks
+      // notify all registered callbacks
       messageCallbacks.forEach((cb) => cb(data, 'analysis_complete'));
     } else if (message.event === 'analysis_start') {
       const data = message.data as AnalysisStartData;
 
-      // Show toast with unique ID to prevent duplicates
-      toast.info(`Analysis started: ${data.token_name}`, {
-        description: 'Processing early bidders...',
+      toast.info(`analysis started: ${data.token_name}`, {
+        description: 'processing early bidders...',
         duration: 3000,
-        id: `analysis-start-${data.job_id}` // Deduplicate start notifications too
+        id: `analysis-start-${data.job_id}`
       });
 
-      // Notify all registered callbacks
       messageCallbacks.forEach((cb) => cb(data, 'analysis_start'));
     }
   } catch (error) {
     if (shouldLog()) {
+      console.error('[ws] message parse error:', error);
+    }
+  }
+};
+
+// close global websocket and clean up
+const closeGlobalWebSocket = () => {
+  if (globalWs) {
+    if (shouldLog()) {
+      console.log('[ws] closing global connection');
+    }
+    globalWs.close();
+    globalWs = null;
+  }
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+};
+
+// handle page visibility changes
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    // tab became hidden - schedule connection close after delay
+    if (shouldLog()) {
+      console.log('[ws] tab hidden, scheduling connection close in 30s');
+    }
+
+    if (visibilityChangeTimer) {
+      clearTimeout(visibilityChangeTimer);
+    }
+
+    visibilityChangeTimer = setTimeout(() => {
+      if (document.hidden && globalWs) {
+        if (shouldLog()) {
+          console.log('[ws] closing connection due to prolonged tab inactivity');
+        }
+        closeGlobalWebSocket();
+      }
+    }, HIDDEN_TAB_CLOSE_DELAY);
+  } else {
+    // tab became visible - cancel close timer and reconnect if needed
+    if (visibilityChangeTimer) {
+      clearTimeout(visibilityChangeTimer);
+      visibilityChangeTimer = null;
+    }
+
+    if (shouldLog()) {
+      console.log('[ws] tab visible, resetting reconnect attempts');
+    }
+
+    // reset reconnect attempts when tab becomes active again
+    reconnectAttempts = 0;
+    hasShownFailureToast = false;
+
+    // reconnect if we have active consumers but no connection
+    if (
+      connectionCount > 0 &&
+      (!globalWs || globalWs.readyState === WebSocket.CLOSED)
+    ) {
+      if (shouldLog()) {
+        console.log('[ws] reconnecting due to tab visibility');
+      }
+      // give the tab a moment to settle before reconnecting
+      setTimeout(() => {
+        if (!document.hidden) {
+          connectWebSocket();
+        }
+      }, 500);
+    }
+  }
+};
+
+// establish websocket connection
+const connectWebSocket = () => {
+  // don't connect if tab is hidden
+  if (document.hidden) {
+    if (shouldLog()) {
+      console.log('[ws] skipping connection - tab is hidden');
+    }
+    return;
+  }
+
+  // stop trying after too many failures
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    if (!hasShownFailureToast) {
+      hasShownFailureToast = true;
+      toast.error(
+        'real-time notifications disabled (websocket not available)'
+      );
+    }
+    return;
+  }
+
+  // reuse existing connection if available
+  if (
+    globalWs &&
+    (globalWs.readyState === WebSocket.OPEN ||
+      globalWs.readyState === WebSocket.CONNECTING)
+  ) {
+    if (shouldLog()) {
+      console.log('[ws] reusing existing connection');
+    }
+    return;
+  }
+
+  // create new connection
+  if (!globalWs || globalWs.readyState === WebSocket.CLOSED) {
+    try {
+      const ws = new WebSocket('ws://localhost:5003/ws');
+      globalWs = ws;
+
+      ws.onopen = () => {
+        if (shouldLog()) {
+          console.log('[ws] connected');
+        }
+        reconnectAttempts = 0;
+        hasShownFailureToast = false;
+      };
+
+      ws.onmessage = globalMessageHandler;
+
+      ws.onerror = (event) => {
+        const now = Date.now();
+        if (now - lastErrorNotifiedAt > 5000) {
+          const errorMessage =
+            (event as unknown as ErrorEvent)?.message || 'websocket error';
+          if (
+            errorMessage.toLowerCase().includes('insufficient resources')
+          ) {
+            if (shouldLog()) {
+              console.warn('[ws] insufficient resources - too many concurrent connections');
+            }
+          }
+          lastErrorNotifiedAt = now;
+        }
+      };
+
+      ws.onclose = () => {
+        if (shouldLog()) {
+          console.log('[ws] connection closed');
+        }
+        globalWs = null;
+
+        // only attempt reconnect if:
+        // 1. we have active consumers
+        // 2. tab is visible
+        // 3. haven't exceeded max attempts
+        if (connectionCount > 0 && !document.hidden && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          const delay = Math.min(
+            RECONNECT_BASE_DELAY * reconnectAttempts,
+            MAX_RECONNECT_DELAY
+          );
+
+          if (shouldLog()) {
+            console.log(`[ws] reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+          }
+
+          reconnectTimer = setTimeout(() => {
+            if (!document.hidden) {
+              connectWebSocket();
+            }
+          }, delay);
+        }
+      };
+    } catch (error) {
+      if (shouldLog()) {
+        console.error('[ws] connection error:', error);
+      }
+    }
+  }
+};
+
+// global page visibility listener (only attached once)
+let visibilityListenerAttached = false;
+const attachVisibilityListener = () => {
+  if (!visibilityListenerAttached && typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    visibilityListenerAttached = true;
+    if (shouldLog()) {
+      console.log('[ws] page visibility listener attached');
     }
   }
 };
@@ -110,21 +295,25 @@ const globalMessageHandler = (event: MessageEvent) => {
 export function useAnalysisNotifications(
   onComplete?: (data: AnalysisCompleteData) => void
 ) {
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const callbackRef = useRef<
     | ((data: AnalysisCompleteData | AnalysisStartData, event: string) => void)
     | null
   >(null);
 
   useEffect(() => {
-    let isSubscribed = true;
     connectionCount++;
 
-    // Initialize debug mode from backend
+    if (shouldLog()) {
+      console.log(`[ws] consumer registered, total: ${connectionCount}`);
+    }
+
+    // initialize debug mode from backend
     initDebugMode();
 
-    // Create callback for this component instance
+    // attach global visibility listener
+    attachVisibilityListener();
+
+    // create callback for this component instance
     const callback = (
       data: AnalysisCompleteData | AnalysisStartData,
       event: string
@@ -137,81 +326,37 @@ export function useAnalysisNotifications(
     callbackRef.current = callback;
     messageCallbacks.add(callback);
 
-    const connect = () => {
-      if (!isSubscribed) return;
+    // initial connection (only if tab is visible)
+    connectWebSocket();
 
-      // Reuse existing global connection if available
-      if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-        wsRef.current = globalWs;
-        if (shouldLog()) {
-        }
-        return;
-      }
-
-      // Create new connection only if no global connection exists
-      if (!globalWs || globalWs.readyState === WebSocket.CLOSED) {
-        const ws = new WebSocket('ws://localhost:5003/ws');
-        globalWs = ws;
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (shouldLog()) {
-          }
-        };
-
-        // Use the global message handler (only attached once)
-        ws.onmessage = globalMessageHandler;
-
-        ws.onerror = () => {
-          if (shouldLog()) {
-          }
-        };
-
-        ws.onclose = () => {
-          if (shouldLog()) {
-          }
-          globalWs = null;
-          wsRef.current = null;
-
-          // Attempt to reconnect after 3 seconds
-          if (connectionCount > 0) {
-            if (shouldLog()) {
-            }
-            reconnectTimeoutRef.current = setTimeout(connect, 3000);
-          }
-        };
-      }
-    };
-
-    // Initial connection
-    connect();
-
-    // Cleanup on unmount
+    // cleanup on unmount
     return () => {
-      isSubscribed = false;
       connectionCount--;
 
       if (shouldLog()) {
+        console.log(`[ws] consumer unregistered, remaining: ${connectionCount}`);
       }
 
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-
-      // Remove callback from the set
+      // remove callback from the set
       if (callbackRef.current) {
         messageCallbacks.delete(callbackRef.current);
       }
 
-      // Only close global connection if no more components are using it
-      if (connectionCount === 0 && globalWs) {
-        globalWs.close();
-        globalWs = null;
-      }
+      // only close global connection if no more components are using it
+      if (connectionCount === 0) {
+        if (shouldLog()) {
+          console.log('[ws] last consumer removed, closing connection');
+        }
+        closeGlobalWebSocket();
 
-      wsRef.current = null;
+        // clean up visibility timer
+        if (visibilityChangeTimer) {
+          clearTimeout(visibilityChangeTimer);
+          visibilityChangeTimer = null;
+        }
+      }
     };
   }, [onComplete]);
 
-  return wsRef.current;
+  return globalWs;
 }

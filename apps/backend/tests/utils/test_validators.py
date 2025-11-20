@@ -8,7 +8,7 @@ from datetime import datetime
 
 import pytest
 
-from app.utils.validators import format_timestamp, is_valid_solana_address, sanitize_address_for_logging
+from meridinate.utils.validators import format_timestamp, is_valid_solana_address, sanitize_address_for_logging
 
 
 @pytest.mark.unit

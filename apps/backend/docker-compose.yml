@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Redis for task queue (arq) and rate limiting (slowapi)
+  redis:
+    image: redis:7-alpine
+    container_name: meridinate-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL (optional - for future migration from SQLite)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: meridinate-postgres
+  #   environment:
+  #     POSTGRES_DB: meridinate
+  #     POSTGRES_USER: meridinate
+  #     POSTGRES_PASSWORD: changeme
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  # postgres_data:
+  #   driver: local

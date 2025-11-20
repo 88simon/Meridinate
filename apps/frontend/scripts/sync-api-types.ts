@@ -34,7 +34,7 @@ function validateBackendPath(path: string): string {
 }
 
 const BACKEND_REPO_PATH = validateBackendPath(
-  process.env.BACKEND_REPO_PATH || '../backend'
+  process.env.BACKEND_REPO_PATH || '../backend' // In monorepo: resolves to apps/backend from apps/frontend
 );
 // In monorepo structure, openapi.json is at apps/backend/openapi.json
 const BACKEND_OPENAPI_PATH = join(BACKEND_REPO_PATH, 'openapi.json');
@@ -101,17 +101,20 @@ import json
 import io
 from pathlib import Path
 
-sys.path.insert(0, str(Path.cwd()))
+# Add src directory to Python path for meridinate package
+src_dir = Path.cwd() / 'src'
+sys.path.insert(0, str(src_dir))
 
 # Suppress FastAPI startup logs by redirecting stdout
 old_stdout = sys.stdout
 sys.stdout = io.StringIO()
 
-from app.main import app
+from meridinate.main import create_app
 
 # Restore stdout
 sys.stdout = old_stdout
 
+app = create_app()
 schema = app.openapi()
 
 with open('openapi.json', 'w') as f:
@@ -120,11 +123,10 @@ with open('openapi.json', 'w') as f:
 print('OpenAPI schema exported successfully!')
 `;
 
-  const configPath = join(BACKEND_REPO_PATH, 'backend', 'config.json');
-  const settingsPath = join(BACKEND_REPO_PATH, 'backend', 'api_settings.json');
+  const configPath = join(BACKEND_REPO_PATH, 'config.json');
+  const settingsPath = join(BACKEND_REPO_PATH, 'api_settings.json');
   const monitoredPath = join(
     BACKEND_REPO_PATH,
-    'backend',
     'monitored_addresses.json'
   );
 
@@ -156,9 +158,13 @@ print('OpenAPI schema exported successfully!')
 
   // Execute Python script via stdin to avoid command injection and temp files
   try {
-    const backendDir = join(BACKEND_REPO_PATH, 'backend');
-    execSync('python', {
-      cwd: backendDir,
+    // Use venv Python on Windows, fallback to system python
+    const pythonCmd = process.platform === 'win32'
+      ? join(BACKEND_REPO_PATH, '.venv', 'Scripts', 'python.exe')
+      : 'python';
+
+    execSync(pythonCmd, {
+      cwd: BACKEND_REPO_PATH,
       encoding: 'utf-8',
       stdio: 'pipe',
       input: pythonScript

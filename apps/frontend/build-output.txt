@@ -1,0 +1,45 @@
+
+> meridinate-web@1.0.0 build C:\Meridinate\apps\frontend
+> next build
+
+   ▲ Next.js 15.3.2
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings in 4.0s
+
+./node_modules/.pnpm/@opentelemetry+instrumentat_04f370d515cee0be955272f826166073/node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./node_modules/.pnpm/@opentelemetry+instrumentat_04f370d515cee0be955272f826166073/node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+./node_modules/.pnpm/@opentelemetry+instrumentat_04f370d515cee0be955272f826166073/node_modules/@opentelemetry/instrumentation/build/esm/platform/node/index.js
+./node_modules/.pnpm/@opentelemetry+instrumentat_04f370d515cee0be955272f826166073/node_modules/@opentelemetry/instrumentation/build/esm/platform/index.js
+./node_modules/.pnpm/@opentelemetry+instrumentat_04f370d515cee0be955272f826166073/node_modules/@opentelemetry/instrumentation/build/esm/index.js
+./node_modules/.pnpm/@sentry+node@9.47.1/node_modules/@sentry/node/build/cjs/integrations/tracing/postgresjs.js
+./node_modules/.pnpm/@sentry+node@9.47.1/node_modules/@sentry/node/build/cjs/index.js
+./node_modules/.pnpm/@sentry+nextjs@9.47.1_@open_8a003d59cf793c4ad2a78a0dee15f17a/node_modules/@sentry/nextjs/build/cjs/index.server.js
+
+ ✓ Compiled successfully in 7.0s
+   Linting and checking validity of types ...
+
+./src/hooks/useAnalysisNotifications.ts
+184:15  Warning: Unexpected console statement.  no-console
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/9) ...
+   Generating static pages (2/9) 
+   Generating static pages (4/9) 
+   Generating static pages (6/9) 
+ ✓ Generating static pages (9/9)
+   Finalizing page optimization ...
+   Collecting build traces ...
+Error reading "sharp" dependencies from "C:\Meridinate\apps\frontend\node_modules\.pnpm\sharp@0.34.5\node_modules\@img\sharp-libvips-linux-x64/package.json"'
+[Error: EACCES: permission denied, open 'C:\Meridinate\apps\frontend\node_modules\.pnpm\sharp@0.34.5\node_modules\@img\sharp-libvips-linux-x64\package.json'] {
+  errno: -4092,
+  code: 'EACCES',
+  syscall: 'open',
+  path: 'C:\\Meridinate\\apps\\frontend\\node_modules\\.pnpm\\sharp@0.34.5\\node_modules\\@img\\sharp-libvips-linux-x64\\package.json'
+}
+ ELIFECYCLE  Command failed with exit code 1.

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Download, ExternalLink, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -23,6 +23,79 @@ interface TokenDetailsViewProps {
 
 export function TokenDetailsView({ token }: TokenDetailsViewProps) {
   const [copied, setCopied] = useState(false);
+
+  // Virtualization state
+  const walletsContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+
+  // Handle scroll for virtualization
+  const handleScroll = useCallback(() => {
+    if (walletsContainerRef.current) {
+      setScrollTop(walletsContainerRef.current.scrollTop);
+    }
+  }, []);
+
+  // Update viewport height on mount and resize
+  useEffect(() => {
+    if (walletsContainerRef.current) {
+      const updateHeight = () => {
+        setViewportHeight(walletsContainerRef.current?.clientHeight ?? 0);
+      };
+      updateHeight();
+      window.addEventListener('resize', updateHeight);
+      return () => window.removeEventListener('resize', updateHeight);
+    }
+  }, []);
+
+  // Virtualization logic
+  const { visibleWallets, paddingTop, paddingBottom } = useMemo(() => {
+    if (!token?.wallets) {
+      return { visibleWallets: [], paddingTop: 0, paddingBottom: 0 };
+    }
+
+    const allWallets = token.wallets;
+    const totalWallets = allWallets.length;
+    const baseRowHeight = 80;
+    const overscan = 5;
+    const visibleCount =
+      viewportHeight > 0
+        ? Math.ceil(viewportHeight / Math.max(baseRowHeight, 1)) + overscan
+        : totalWallets;
+    const startIndex = Math.max(
+      0,
+      Math.floor(scrollTop / Math.max(baseRowHeight, 1)) - overscan
+    );
+    const endIndex = Math.min(totalWallets, startIndex + visibleCount);
+    const visible = allWallets.slice(startIndex, endIndex);
+    const paddingTop = startIndex * baseRowHeight;
+    const paddingBottom = Math.max(0, (totalWallets - endIndex) * baseRowHeight);
+
+    return {
+      visibleWallets: visible,
+      paddingTop,
+      paddingBottom
+    };
+  }, [token, scrollTop, viewportHeight]);
+
+  const formatWalletTimestamp = (timestamp?: string | null) => {
+    if (!timestamp) return 'Not refreshed yet';
+    const iso = timestamp.replace(' ', 'T') + 'Z';
+    const date = new Date(iso);
+    return `Updated ${date.toLocaleString()}`;
+  };
+
+  const getWalletTrend = (
+    wallet: TokenDetail['wallets'][number]
+  ): 'up' | 'down' | 'flat' | 'none' => {
+    const current = wallet.wallet_balance_usd;
+    const previous = wallet.wallet_balance_usd_previous;
+    if (current === null || current === undefined) return 'none';
+    if (previous === null || previous === undefined) return 'none';
+    if (current > previous) return 'up';
+    if (current < previous) return 'down';
+    return 'flat';
+  };
 
   const copyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -124,7 +197,12 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
           <CardTitle>Early Buyer Wallets</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div
+            ref={walletsContainerRef}
+            onScroll={handleScroll}
+            className='max-h-[600px] overflow-auto'
+          >
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className='w-[60px]'>Rank</TableHead>
@@ -148,7 +226,19 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                token.wallets.map((wallet, index) => (
+                <>
+                  {paddingTop > 0 && (
+                    <TableRow aria-hidden='true'>
+                      <TableCell
+                        colSpan={8}
+                        className='p-0'
+                        style={{ height: paddingTop }}
+                      />
+                    </TableRow>
+                  )}
+                  {visibleWallets.map((wallet) => {
+                    const index = token.wallets.findIndex(w => w.id === wallet.id);
+                    return (
                   <TableRow key={wallet.id}>
                     <TableCell className='text-primary font-semibold'>
                       #{index + 1}
@@ -163,13 +253,43 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                           compact
                         />
                       </div>
-                    </TableCell>
-                    <TableCell className='text-right font-mono text-sm'>
-                      {wallet.wallet_balance_usd !== null &&
-                      wallet.wallet_balance_usd !== undefined
-                        ? `$${Math.round(wallet.wallet_balance_usd)}`
-                        : 'N/A'}
-                    </TableCell>
+                </TableCell>
+                <TableCell className='text-right font-mono text-sm'>
+                  <div className='flex flex-col items-end gap-1'>
+                    <div className='flex items-center gap-1'>
+                      {(() => {
+                        const trend = getWalletTrend(wallet);
+                        const current = wallet.wallet_balance_usd;
+                        const formatted =
+                          current !== null && current !== undefined
+                            ? `$${Math.round(current).toLocaleString()}`
+                            : 'N/A';
+                        if (trend === 'up') {
+                          return (
+                            <span className='flex items-center gap-1 text-green-600'>
+                              <span>▲</span>
+                              <span>{formatted}</span>
+                            </span>
+                          );
+                        }
+                        if (trend === 'down') {
+                          return (
+                            <span className='flex items-center gap-1 text-red-600'>
+                              <span>▼</span>
+                              <span>{formatted}</span>
+                            </span>
+                          );
+                        }
+                        return <span>{formatted}</span>;
+                      })()}
+                    </div>
+                    <div className='text-[11px] text-muted-foreground'>
+                      {formatWalletTimestamp(
+                        wallet.wallet_balance_updated_at as string | null
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
                     <TableCell className='text-sm'>
                       {formatTimestamp(wallet.first_buy_timestamp)}
                     </TableCell>
@@ -208,10 +328,22 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                    );
+                  })}
+                  {paddingBottom > 0 && (
+                    <TableRow aria-hidden='true'>
+                      <TableCell
+                        colSpan={8}
+                        className='p-0'
+                        style={{ height: paddingBottom }}
+                      />
+                    </TableRow>
+                  )}
+                </>
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

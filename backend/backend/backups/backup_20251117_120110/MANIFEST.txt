@@ -1,4 +1,0 @@
-Backup created: 2025-11-17T12:01:10.251268
-Database: analyzed_tokens.db
-Tokens: 1
-Tags: 11

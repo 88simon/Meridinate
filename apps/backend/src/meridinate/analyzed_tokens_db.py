@@ -24,11 +24,12 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional
 
-# Use absolute path to ensure database is always in the backend directory
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_FILE = os.path.join(SCRIPT_DIR, "analyzed_tokens.db")
-ANALYSIS_RESULTS_DIR = os.path.join(SCRIPT_DIR, "analysis_results")
-AXIOM_EXPORTS_DIR = os.path.join(SCRIPT_DIR, "axiom_exports")
+# Centralized paths (keep DB and artifacts under apps/backend/data)
+from meridinate import settings
+
+DATABASE_FILE = settings.DATABASE_FILE
+ANALYSIS_RESULTS_DIR = settings.ANALYSIS_RESULTS_DIR
+AXIOM_EXPORTS_DIR = settings.AXIOM_EXPORTS_DIR
 
 
 def sanitize_filename(text: str, max_length: int = 50) -> str:
@@ -344,6 +345,8 @@ def init_database():
                 first_buy_timestamp TIMESTAMP,
                 axiom_name TEXT,
                 wallet_balance_usd REAL,
+                wallet_balance_usd_previous REAL,
+                wallet_balance_updated_at TIMESTAMP,
                 FOREIGN KEY (token_id) REFERENCES analyzed_tokens(id) ON DELETE CASCADE,
                 FOREIGN KEY (analysis_run_id) REFERENCES analysis_runs(id) ON DELETE CASCADE,
                 UNIQUE(analysis_run_id, wallet_address)
@@ -461,6 +464,12 @@ def init_database():
         if "wallet_balance_usd" not in ebw_columns:
             print("[Database] Migrating: Adding wallet_balance_usd column...")
             cursor.execute("ALTER TABLE early_buyer_wallets ADD COLUMN wallet_balance_usd REAL")
+        if "wallet_balance_usd_previous" not in ebw_columns:
+            print("[Database] Migrating: Adding wallet_balance_usd_previous column...")
+            cursor.execute("ALTER TABLE early_buyer_wallets ADD COLUMN wallet_balance_usd_previous REAL")
+        if "wallet_balance_updated_at" not in ebw_columns:
+            print("[Database] Migrating: Adding wallet_balance_updated_at column...")
+            cursor.execute("ALTER TABLE early_buyer_wallets ADD COLUMN wallet_balance_updated_at TIMESTAMP")
 
         # Check if credits_used and last_analysis_credits columns exist in analyzed_tokens, if not add them
         cursor.execute("PRAGMA table_info(analyzed_tokens)")
@@ -1128,6 +1137,8 @@ def get_multi_token_wallets(min_tokens: int = 2) -> List[Dict]:
                     "token_addresses": row[3].split(",") if row[3] else [],
                     "token_ids": [int(x) for x in row[4].split(",")] if row[4] else [],
                     "wallet_balance_usd": row[5],
+                    "wallet_balance_usd_previous": row[6] if len(row) > 6 else None,
+                    "wallet_balance_updated_at": row[7] if len(row) > 7 else None,
                 }
             )
 
@@ -1153,7 +1164,9 @@ def update_wallet_balance(wallet_address: str, balance_usd: float) -> bool:
         cursor.execute(
             """
             UPDATE early_buyer_wallets
-            SET wallet_balance_usd = ?
+            SET wallet_balance_usd_previous = wallet_balance_usd,
+                wallet_balance_usd = ?,
+                wallet_balance_updated_at = CURRENT_TIMESTAMP
             WHERE wallet_address = ?
         """,
             (balance_usd, wallet_address),

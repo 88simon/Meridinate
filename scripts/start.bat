@@ -21,26 +21,26 @@ taskkill /FI "WINDOWTITLE eq Meridinate - AutoHotkey*" /F >nul 2>nul
 
 REM Kill processes on backend port 5003
 echo   - Killing processes on port 5003 (backend)...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5003 ^| findstr LISTENING') do (
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr :5003 ^| findstr LISTENING 2^>nul') do (
     taskkill /PID %%a /F >nul 2>nul
 )
 
 REM Kill processes on frontend port 3000
 echo   - Killing processes on port 3000 (frontend)...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3000 ^| findstr LISTENING') do (
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr :3000 ^| findstr LISTENING 2^>nul') do (
     taskkill /PID %%a /F >nul 2>nul
 )
 
 REM Kill any Python processes running meridinate
 echo   - Killing Python processes running meridinate...
-for /f "tokens=2" %%a in ('tasklist /FI "IMAGENAME eq python.exe" /FO LIST ^| findstr /I "PID:"') do (
-    wmic process where "ProcessId=%%a AND CommandLine LIKE '%%meridinate%%'" delete >nul 2>nul
+for /f "tokens=2" %%a in ('tasklist /FI "IMAGENAME eq python.exe" /FO LIST 2^>nul ^| findstr /I "PID:" 2^>nul') do (
+    wmic process where "ProcessId=%%a AND CommandLine LIKE '%%%%meridinate%%%%'" delete >nul 2>nul
 )
 
 REM Kill any Node processes running Next.js dev
 echo   - Killing Node.js processes running Next.js dev...
-for /f "tokens=2" %%a in ('tasklist /FI "IMAGENAME eq node.exe" /FO LIST ^| findstr /I "PID:"') do (
-    wmic process where "ProcessId=%%a AND CommandLine LIKE '%%next dev%%'" delete >nul 2>nul
+for /f "tokens=2" %%a in ('tasklist /FI "IMAGENAME eq node.exe" /FO LIST 2^>nul ^| findstr /I "PID:" 2^>nul') do (
+    wmic process where "ProcessId=%%a AND CommandLine LIKE '%%%%next dev%%%%'" delete >nul 2>nul
 )
 
 echo   [OK] Cleanup complete
@@ -61,15 +61,30 @@ echo.
 
 REM [2/3] Launch FastAPI Backend
 echo [2/3] Starting FastAPI backend...
-echo       Checking: %~dp0..\apps\backend\src
-if exist "%~dp0..\apps\backend\src" (
-    start "Meridinate - Backend" /D "%~dp0..\apps\backend" cmd /k "title Meridinate - FastAPI Backend && call .venv\Scripts\activate.bat && cd src && python -m meridinate.main"
-    timeout /t 2 /nobreak >nul
-    echo       [OK] Started: FastAPI (localhost:5003)
-) else (
+echo       Checking backend and venv...
+
+set "BACKEND_DIR=%~dp0..\apps\backend"
+set "BACKEND_SRC=%BACKEND_DIR%\src"
+set "BACKEND_VENV_PY=%BACKEND_DIR%\.venv\Scripts\python.exe"
+
+if not exist "%BACKEND_SRC%" (
     echo       [ERROR] Backend not found at apps\backend\src
     echo       Script will continue anyway...
+    goto :skip_backend
 )
+
+if not exist "%BACKEND_VENV_PY%" (
+    echo       [ERROR] Virtual environment not found at apps\backend\.venv
+    echo       Please run: cd apps\backend ^&^& python -m venv .venv ^&^& pip install -r requirements.txt
+    echo       Script will continue anyway...
+    goto :skip_backend
+)
+
+start "Meridinate - Backend" /D "%BACKEND_SRC%" cmd /k "title Meridinate - FastAPI Backend && ..\\.venv\\Scripts\\python.exe -m meridinate.main"
+timeout /t 2 /nobreak >nul
+echo       [OK] Started: FastAPI (localhost:5003) - Using venv Python
+
+:skip_backend
 
 echo.
 

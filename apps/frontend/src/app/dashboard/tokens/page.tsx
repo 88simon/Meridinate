@@ -5,6 +5,7 @@ import React, {
   useState,
   useRef,
   useMemo,
+  useCallback,
   startTransition
 } from 'react';
 import dynamic from 'next/dynamic';
@@ -292,9 +293,14 @@ export default function TokensPage() {
   );
   const walletsPerPage = 5;
 
+  // Virtualization state for multi-token wallet table
+  const walletContainerRef = useRef<HTMLDivElement>(null);
+  const [walletScrollTop, setWalletScrollTop] = useState(0);
+  const [walletViewportHeight, setWalletViewportHeight] = useState(0);
+
   // Use API settings from context
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     // Use startTransition to defer non-urgent updates and avoid blocking paint
     startTransition(() => {
@@ -310,15 +316,17 @@ export default function TokensPage() {
         })
         .finally(() => setLoading(false));
     });
-  };
+  }, []);
 
   // WebSocket notifications for real-time analysis updates
-  useAnalysisNotifications(() => {
+  const handleAnalysisComplete = useCallback(() => {
     if (shouldLog()) {
     }
     // Refresh the tokens list when analysis completes
     fetchData();
-  });
+  }, [fetchData]);
+
+  useAnalysisNotifications(handleAnalysisComplete);
 
   const handleTokenDelete = (tokenId: number) => {
     // Optimistically update UI by removing the token from local state
@@ -353,24 +361,62 @@ export default function TokensPage() {
       });
 
     // Poll for Solscan settings changes every 500ms for near-instant updates
-    const settingsInterval = setInterval(() => {
-      getSolscanSettings()
-        .then(setSolscanSettings)
-        .catch(() => {
-          // Silently fail
-        });
-    }, 500);
+    // Tab visibility-aware: pause polling when tab is hidden
+    let settingsInterval: NodeJS.Timeout | null = null;
 
-    return () => clearInterval(settingsInterval);
-  }, []);
+    const startSettingsPolling = () => {
+      if (settingsInterval) return; // Already polling
+      settingsInterval = setInterval(() => {
+        if (!document.hidden) {
+          getSolscanSettings()
+            .then(setSolscanSettings)
+            .catch(() => {
+              // Silently fail
+            });
+        }
+      }, 500);
+    };
+
+    const stopSettingsPolling = () => {
+      if (settingsInterval) {
+        clearInterval(settingsInterval);
+        settingsInterval = null;
+      }
+    };
+
+    // Start polling immediately
+    startSettingsPolling();
+
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopSettingsPolling();
+      } else {
+        // Refresh settings immediately when tab becomes visible
+        getSolscanSettings()
+          .then(setSolscanSettings)
+          .catch(() => {});
+        startSettingsPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopSettingsPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchData]);
 
   // Poll for active analysis jobs and auto-refresh when they complete
+  // Tab visibility-aware: pause polling when tab is hidden
   useEffect(() => {
     // Guard against React Strict Mode double-mounting
     if (hasInitializedPolling.current) return;
     hasInitializedPolling.current = true;
 
     const isFirstPollRef = { current: true };
+    let pollInterval: NodeJS.Timeout | null = null;
 
     // Initialize lastJobId on mount to prevent showing old notifications
     const initializeLastJobId = async () => {
@@ -393,97 +439,112 @@ export default function TokensPage() {
       } catch (err) {}
     };
 
-    initializeLastJobId();
+    const startAnalysisPolling = () => {
+      if (pollInterval) return; // Already polling
 
-    const pollInterval = setInterval(async () => {
-      // Skip the first poll since we already initialized
-      if (isFirstPollRef.current) {
-        isFirstPollRef.current = false;
-        return;
-      }
-
-      // OPTIMIZATION: Only poll if there are active jobs or if we haven't checked recently
-      // Check every 10th poll even when no active jobs (to catch new analyses started from AHK)
-      if (!hasActiveJobs && pollsSinceLastActive < 10) {
-        setPollsSinceLastActive((prev) => prev + 1);
-        return;
-      }
-
-      // Reset counter when we do poll
-      setPollsSinceLastActive(0);
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/analysis`);
-        const analysisData = await response.json();
-
-        if (analysisData.jobs && analysisData.jobs.length > 0) {
-          const latestJob = analysisData.jobs[0];
-
-          // Update hasActiveJobs state
-          const activeJobs = analysisData.jobs.some(
-            (job: any) => job.status === 'queued' || job.status === 'processing'
-          );
-          setHasActiveJobs(activeJobs);
-
-          // Check if there's a new completed job we haven't seen yet
-          if (
-            latestJob.status === 'completed' &&
-            latestJob.job_id !== lastJobId
-          ) {
-            setLastJobId(latestJob.job_id);
-            // Refresh the tokens list without showing loading state
-            Promise.all([getTokens(), getMultiTokenWallets(2)])
-              .then(([tokensData, walletsData]) => {
-                setData(tokensData);
-                setMultiWallets(walletsData);
-
-                const tokenName = latestJob.token_name || 'Token';
-                toast.success(`Analysis complete: ${tokenName}`);
-
-                // Show desktop notification if permission granted
-                if (
-                  'Notification' in window &&
-                  Notification.permission === 'granted'
-                ) {
-                  const notification = new Notification('Analysis Complete ✓', {
-                    body: `${tokenName} analysis finished\nClick to view results`,
-                    icon: '/favicon.ico',
-                    tag: 'analysis-complete',
-                    requireInteraction: false,
-                    silent: true // No sound
-                  });
-
-                  // Auto-close notification after 0.75 seconds
-                  setTimeout(() => notification.close(), 750);
-
-                  // Focus window when notification is clicked
-                  notification.onclick = () => {
-                    window.focus();
-                    notification.close();
-                  };
-                }
-              })
-              .catch(() => {});
-          }
-        } else {
-          // No jobs at all, stop polling
-          setHasActiveJobs(false);
+      pollInterval = setInterval(async () => {
+        // Skip the first poll since we already initialized
+        if (isFirstPollRef.current) {
+          isFirstPollRef.current = false;
+          return;
         }
-      } catch (err) {
-        // Silently fail - don't spam errors if backend is temporarily unavailable
+
+        // Skip polling if tab is hidden
+        if (document.hidden) {
+          return;
+        }
+
+        // OPTIMIZATION: Only poll if there are active jobs or if we haven't checked recently
+        // Check every 10th poll even when no active jobs (to catch new analyses started from AHK)
+        if (!hasActiveJobs && pollsSinceLastActive < 10) {
+          setPollsSinceLastActive((prev) => prev + 1);
+          return;
+        }
+
+        // Reset counter when we do poll
+        setPollsSinceLastActive(0);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/analysis`);
+          const analysisData = await response.json();
+
+          if (analysisData.jobs && analysisData.jobs.length > 0) {
+            const latestJob = analysisData.jobs[0];
+
+            // Update hasActiveJobs state
+            const activeJobs = analysisData.jobs.some(
+              (job: any) => job.status === 'queued' || job.status === 'processing'
+            );
+            setHasActiveJobs(activeJobs);
+
+            // Check if there's a new completed job we haven't seen yet
+            if (
+              latestJob.status === 'completed' &&
+              latestJob.job_id !== lastJobId
+            ) {
+              setLastJobId(latestJob.job_id);
+              // Refresh the tokens list without showing loading state
+              Promise.all([getTokens(), getMultiTokenWallets(2)])
+                .then(([tokensData, walletsData]) => {
+                  setData(tokensData);
+                  setMultiWallets(walletsData);
+
+                  const tokenName = latestJob.token_name || 'Token';
+                  toast.success(`Analysis complete: ${tokenName}`);
+
+                  // Show desktop notification if permission granted
+                  if (
+                    'Notification' in window &&
+                    Notification.permission === 'granted'
+                  ) {
+                    const notification = new Notification('Analysis Complete ✓', {
+                      body: `${tokenName} analysis finished\nClick to view results`,
+                      icon: '/favicon.ico',
+                      tag: 'analysis-complete',
+                      requireInteraction: false,
+                      silent: true // No sound
+                    });
+
+                    // Auto-close notification after 0.75 seconds
+                    setTimeout(() => notification.close(), 750);
+
+                    // Focus window when notification is clicked
+                    notification.onclick = () => {
+                      window.focus();
+                      notification.close();
+                    };
+                  }
+                })
+                .catch(() => {});
+            }
+          } else {
+            // No jobs at all, stop polling
+            setHasActiveJobs(false);
+          }
+        } catch (err) {
+          // Silently fail - don't spam errors if backend is temporarily unavailable
+        }
+      }, 3000); // Poll every 3 seconds
+    };
+
+    const stopAnalysisPolling = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
       }
-    }, 3000); // Poll every 3 seconds
+    };
 
-    return () => clearInterval(pollInterval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastJobId, hasActiveJobs]);
+    // Initialize and start polling
+    initializeLastJobId();
+    startAnalysisPolling();
 
-  // Pause polling when page is hidden (tab switched or minimized)
-  useEffect(() => {
+    // Handle visibility changes
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        // Keep interval running but skip polls (allows intelligent polling logic to continue)
+        // The interval itself checks document.hidden
       } else {
-        // Check for new jobs immediately when tab becomes visible
+        // When tab becomes visible, check immediately if there are active jobs
         if (hasActiveJobs) {
           fetchData();
         }
@@ -491,9 +552,13 @@ export default function TokensPage() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () =>
+
+    return () => {
+      stopAnalysisPolling();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [hasActiveJobs]);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastJobId, hasActiveJobs]);
 
   // Collect all unique wallet addresses for batch tag fetching
   // MUST be before early returns to comply with Rules of Hooks
@@ -576,18 +641,68 @@ export default function TokensPage() {
     await handleRefreshBalances(allVisibleAddresses);
   };
 
-  // Pagination logic for multi-token wallets
-  const walletsToDisplay = useMemo(() => {
-    if (!multiWallets?.wallets) return [];
-
-    if (isWalletPanelExpanded) {
-      return multiWallets.wallets;
+  // Handle wallet container scroll for virtualization
+  const handleWalletScroll = useCallback(() => {
+    if (walletContainerRef.current) {
+      setWalletScrollTop(walletContainerRef.current.scrollTop);
     }
+  }, []);
+
+  // Update viewport height when container size changes
+  useEffect(() => {
+    if (walletContainerRef.current) {
+      const updateViewportHeight = () => {
+        setWalletViewportHeight(walletContainerRef.current?.clientHeight ?? 0);
+      };
+      updateViewportHeight();
+      window.addEventListener('resize', updateViewportHeight);
+      return () => window.removeEventListener('resize', updateViewportHeight);
+    }
+  }, [isWalletPanelExpanded]);
+
+  // Pagination logic for multi-token wallets (collapsed mode)
+  const walletsPaginated = useMemo(() => {
+    if (!multiWallets?.wallets) return [];
+    if (isWalletPanelExpanded) return multiWallets.wallets;
 
     const start = walletPage * walletsPerPage;
     const end = start + walletsPerPage;
     return multiWallets.wallets.slice(start, end);
   }, [multiWallets, isWalletPanelExpanded, walletPage]);
+
+  // Virtualization logic for expanded mode
+  const { walletsToDisplay, walletPaddingTop, walletPaddingBottom } = useMemo(() => {
+    if (!isWalletPanelExpanded || !multiWallets?.wallets) {
+      return {
+        walletsToDisplay: walletsPaginated,
+        walletPaddingTop: 0,
+        walletPaddingBottom: 0
+      };
+    }
+
+    const allWallets = multiWallets.wallets;
+    const totalWallets = allWallets.length;
+    const baseRowHeight = 80; // Average height per wallet row
+    const overscan = 5;
+    const visibleCount =
+      walletViewportHeight > 0
+        ? Math.ceil(walletViewportHeight / Math.max(baseRowHeight, 1)) + overscan
+        : totalWallets;
+    const startIndex = Math.max(
+      0,
+      Math.floor(walletScrollTop / Math.max(baseRowHeight, 1)) - overscan
+    );
+    const endIndex = Math.min(totalWallets, startIndex + visibleCount);
+    const visibleWallets = allWallets.slice(startIndex, endIndex);
+    const paddingTop = startIndex * baseRowHeight;
+    const paddingBottom = Math.max(0, (totalWallets - endIndex) * baseRowHeight);
+
+    return {
+      walletsToDisplay: visibleWallets,
+      walletPaddingTop: paddingTop,
+      walletPaddingBottom: paddingBottom
+    };
+  }, [multiWallets, isWalletPanelExpanded, walletsPaginated, walletScrollTop, walletViewportHeight]);
 
   const totalWalletPages = useMemo(() => {
     if (!multiWallets?.wallets) return 0;
@@ -859,6 +974,8 @@ export default function TokensPage() {
             )}
 
             <div
+              ref={walletContainerRef}
+              onScroll={handleWalletScroll}
               className={`overflow-x-auto ${isWalletPanelExpanded ? 'max-h-[600px] overflow-y-auto' : ''}`}
             >
               <table className='w-full'>
@@ -929,6 +1046,15 @@ export default function TokensPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {walletPaddingTop > 0 && (
+                    <tr aria-hidden='true'>
+                      <td
+                        colSpan={5}
+                        className='p-0'
+                        style={{ height: walletPaddingTop }}
+                      />
+                    </tr>
+                  )}
                   {walletsToDisplay.map((wallet) => {
                     const isSelected = selectedWallets.has(
                       wallet.wallet_address
@@ -1077,6 +1203,15 @@ export default function TokensPage() {
                       </tr>
                     );
                   })}
+                  {walletPaddingBottom > 0 && (
+                    <tr aria-hidden='true'>
+                      <td
+                        colSpan={5}
+                        className='p-0'
+                        style={{ height: walletPaddingBottom }}
+                      />
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

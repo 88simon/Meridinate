@@ -1,0 +1,19 @@
+{
+  "name": "Meridinate - Solana Token Analysis",
+  "short_name": "Meridinate",
+  "description": "Solana token analysis toolkit for identifying profitable early investment opportunities",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["finance", "utilities"],
+  "prefer_related_applications": false
+}
