@@ -52,7 +52,7 @@ jobs:
         run: |
           python -c "import arq; print(f'arq version: {arq.__version__}')"
           python -c "import redis; print(f'redis version: {redis.__version__}')"
-          python -c "import slowapi; print(f'slowapi version: {slowapi.__version__}')"
+          python -c "import slowapi; print('slowapi: installed')"
 
   frontend-lint:
     name: Frontend Lint & Format
