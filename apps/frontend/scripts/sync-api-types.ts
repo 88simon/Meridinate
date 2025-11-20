@@ -243,9 +243,18 @@ function compareTypes(): boolean {
     return false;
   }
 
+  // Strip header comment (contains commit SHA that changes with every commit)
+  const stripHeader = (str: string) => {
+    // Remove everything before the first "export" statement
+    const match = str.match(/(export\s)/);
+    return match && match.index !== undefined
+      ? str.substring(match.index)
+      : str;
+  };
+
   // Normalize line endings and type representations for comparison
   const normalize = (str: string) =>
-    str
+    stripHeader(str)
       .replace(/\r\n/g, '\n') // Windows CRLF -> LF
       .replace(/Record<string, never>/g, '{ [key: string]: unknown }') // openapi-typescript platform difference
       .replace(
