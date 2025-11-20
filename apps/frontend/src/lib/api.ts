@@ -430,3 +430,62 @@ export async function updateSolscanSettings(
 
   return res.json();
 }
+
+/**
+ * Build Solscan URL from settings for a wallet address
+ * Fetches current settings and constructs the proper URL
+ *
+ * IMPORTANT: Parameter order matters for Solscan!
+ * - token_address must come BEFORE value parameters
+ * - Second value parameter should be 'undefined', not empty
+ */
+export async function buildSolscanUrlWithSettings(
+  walletAddress: string
+): Promise<string> {
+  try {
+    const settings = await getSolscanSettings();
+    // CRITICAL: Maintain exact parameter order that Solscan expects
+    return `https://solscan.io/account/${walletAddress}?activity_type=${settings.activity_type}&exclude_amount_zero=${settings.exclude_amount_zero}&remove_spam=${settings.remove_spam}&token_address=${settings.token_address}&value=${settings.value}&value=undefined&page_size=${settings.page_size}#transfers`;
+  } catch (error) {
+    console.error('Failed to build Solscan URL with settings:', error);
+    // Fallback to basic URL if settings fetch fails
+    return `https://solscan.io/account/${walletAddress}#transfers`;
+  }
+}
+
+/**
+ * Normalize activity_type for compatibility with Solscan's current expectations
+ * Handles migration from old ACTIVITY_* values to current format if needed
+ */
+function normalizeActivityType(activityType: string): string {
+  // Map old/deprecated values to current ones
+  const migrations: Record<string, string> = {
+    ACTIVITY_SOL_TRANSFER: 'ACTIVITY_SPL_TRANSFER' // SOL is handled via token_address filter
+    // Add more migrations here if Solscan changes parameter format
+  };
+
+  return migrations[activityType] || activityType;
+}
+
+/**
+ * Build Solscan URL synchronously from provided settings
+ * Use this when settings are already available
+ */
+export function buildSolscanUrl(
+  walletAddress: string,
+  settings: SolscanSettings
+): string {
+  // Normalize activity_type for compatibility
+  const activityType = normalizeActivityType(settings.activity_type);
+
+  // CRITICAL: Maintain exact parameter order that Solscan expects
+  // Based on Solscan's 2025 format:
+  // 1. activity_type
+  // 2. exclude_amount_zero
+  // 3. remove_spam
+  // 4. token_address (MUST come before value parameters)
+  // 5. value (min value)
+  // 6. value=undefined (max value, required by Solscan)
+  // 7. page_size
+  return `https://solscan.io/account/${walletAddress}?activity_type=${activityType}&exclude_amount_zero=${settings.exclude_amount_zero}&remove_spam=${settings.remove_spam}&token_address=${settings.token_address}&value=${settings.value}&value=undefined&page_size=${settings.page_size}#transfers`;
+}

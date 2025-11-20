@@ -6,7 +6,10 @@ import {
   downloadAxiomJson,
   getTokenAnalysisHistory,
   AnalysisHistory,
-  refreshWalletBalances
+  refreshWalletBalances,
+  getSolscanSettings,
+  buildSolscanUrl,
+  SolscanSettings
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +70,14 @@ export function TokenDetailsModal({
     new Set()
   );
   const [refreshingAll, setRefreshingAll] = useState(false);
+  const [solscanSettings, setSolscanSettings] = useState<SolscanSettings>({
+    activity_type: 'ACTIVITY_SPL_TRANSFER',
+    exclude_amount_zero: 'true',
+    remove_spam: 'true',
+    value: '100',
+    token_address: 'So11111111111111111111111111111111111111111',
+    page_size: '10'
+  });
 
   // Virtualization state
   const currentWalletsContainerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +173,13 @@ export function TokenDetailsModal({
           setHistory(null);
         })
         .finally(() => setLoadingHistory(false));
+
+      // Fetch Solscan settings for URL generation
+      getSolscanSettings()
+        .then(setSolscanSettings)
+        .catch(() => {
+          // Silently fail, keep default settings
+        });
     }
   }, [open, token]);
 
@@ -275,12 +293,12 @@ export function TokenDetailsModal({
               </Button>
             </div>
             <a
-              href={`https://solscan.io/token/${token.token_address}`}
+              href={`https://gmgn.ai/sol/token/${token.token_address}?min=0.1&isInputValue=true`}
               target='_blank'
               rel='noopener noreferrer'
               className='text-primary mt-2 flex items-center text-xs hover:underline'
             >
-              View on Solscan <ExternalLink className='ml-1 h-3 w-3' />
+              View on GMGN <ExternalLink className='ml-1 h-3 w-3' />
             </a>
           </div>
 
@@ -509,7 +527,10 @@ export function TokenDetailsModal({
                                   walletAddress={wallet.wallet_address}
                                 />
                                 <a
-                                  href={`https://solscan.io/account/${wallet.wallet_address}`}
+                                  href={buildSolscanUrl(
+                                    wallet.wallet_address,
+                                    solscanSettings
+                                  )}
                                   target='_blank'
                                   rel='noopener noreferrer'
                                 >
@@ -786,7 +807,10 @@ export function TokenDetailsModal({
                                         compact
                                       />
                                       <a
-                                        href={`https://solscan.io/account/${wallet.wallet_address}`}
+                                        href={buildSolscanUrl(
+                                          wallet.wallet_address,
+                                          solscanSettings
+                                        )}
                                         target='_blank'
                                         rel='noopener noreferrer'
                                       >

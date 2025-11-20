@@ -54,9 +54,32 @@ Production-ready React application built with modern web technologies:
 ### Tags & Codex
 
 - **Wallet Tagging** - Custom tags + nationality tags (US, CN, KR, JP, EU, UK, SG, IN, RU, BR, CA, AU)
+- **Additional Tags** - Bot, Whale, Insider, Gunslinger, Gambler (quick-access popover)
 - **Codex Panel** - Wallet directory with token counts (excludes deleted tokens)
 - **Tag Filtering** - Filter tokens by wallet tags
 - **KOL Marking** - Flag Key Opinion Leaders for special tracking
+
+### External Token Explorer
+
+- **GMGN.ai Integration** - Direct links from token addresses and names to GMGN.ai
+- **Pre-filtered Views** - URLs include `?min=0.1&isInputValue=true` for consistent filtering
+- **Multiple Entry Points:**
+  - Token table address column (clickable token addresses)
+  - Multi-token wallets panel (clickable token names)
+  - Token detail modal "View on GMGN" link
+  - Token detail page "View on GMGN" link
+
+### Status Bar
+
+- **Real-time Metrics** - Bottom sticky bar with key performance indicators
+- **Tokens Scanned** - Total count with filtered view indicator
+- **API Credits Tracking** - Total API credits used today
+- **Latest Analysis Details:**
+  - Token name of most recent analysis
+  - Timestamp of analysis completion
+  - Number of wallets found
+  - API credits consumed
+- **Responsive Design** - Adapts to mobile/desktop viewports
 
 ### Real-time WebSocket Notifications
 
@@ -73,13 +96,42 @@ Production-ready React application built with modern web technologies:
 
 ### Solscan Settings Management
 
-- **Centralized Control Panel** - Configure Solscan URL parameters
-- **Activity Type Dropdown** - SPL Transfer, SOL Transfer, etc.
-- **Minimum Value Filter** - Arrow controls and drag-to-adjust
-- **Page Size Selection** - 10, 20, 30, 40, 60, 100
-- **Auto-save** - Persists after 300ms of changes
-- **Dynamic URL Generation** - Multi-token wallet hyperlinks
-- **AHK Integration** - Syncs with AutoHotkey action wheel via INI file
+- **Centralized Control Panel** - Configure Solscan URL parameters from sidebar settings
+- **Activity Type Dropdown** - Transfer, Mint, Burn, Create Account, Close Account, Set Authority, Split Stake, Merge Stake, Withdraw Stake, Vote Withdraw
+- **Minimum Value Filter** - Arrow controls and drag-to-adjust (0-1000 USD)
+- **Token Address Filter** - SOL or any SPL token address (defaults to SOL)
+- **Exclude Amount Zero** - Toggle to hide zero-amount transactions
+- **Remove Spam** - Toggle to hide spam transactions
+- **Page Size Selection** - 10, 20, 30, 40, 60, 100 results per page
+- **Auto-save** - Settings persist after 300ms of changes
+- **Dynamic URL Generation** - Centralized `buildSolscanUrl()` keeps Solscan’s required parameter order (`token_address` before `value`, second `value=undefined`)
+- **Shared Settings File** - Stored in `apps/backend/action_wheel_settings.ini`, auto-synced with the AutoHotkey action wheel (reload script after web UI changes)
+- **Backward Compatible** - Automatically migrates old `ACTIVITY_SOL_TRANSFER` settings
+
+### UI & Branding
+
+- **MeridinateLogo Component** - Reusable SVG logo component
+  - Light/dark theme variants
+  - Configurable size via className prop
+  - Professional meridian-inspired design
+- **Header Layout** - Logo prominently displayed in main header
+  - "Meridinate" title + "Blockchain Intelligence Desk" tagline
+  - Logo visible regardless of sidebar state
+  - Cleaner visual hierarchy
+- **Sidebar Navigation** - Collapsible sidebar with integrated toggle
+  - Toggle button moved inside sidebar as first menu item
+  - Overview section (Dashboard, Tokens, Trash, etc.)
+  - Tools section (Codex, Settings)
+
+### API Settings
+
+- **Wallet Count Configuration** - No artificial limits
+  - Minimum value: 5 wallets
+  - No maximum cap (previously limited to 50)
+  - Arrow buttons for quick adjustments
+  - Manual input for precise control
+- **API Credit Tracking** - Calculations scale with wallet count
+- **Flexible Analysis** - Support for large-scale token analysis
 
 ### Performance Optimizations
 
@@ -145,7 +197,11 @@ apps/frontend/
 │   │   └── page.tsx            # Home page
 │   ├── components/             # React components
 │   │   ├── ui/                 # shadcn/ui components
-│   │   ├── layout/             # Layout components
+│   │   ├── layout/             # Layout components (header, sidebar, dashboard-wrapper)
+│   │   ├── meridinate-logo.tsx # MeridinateLogo SVG component
+│   │   ├── status-bar.tsx      # Bottom status bar with metrics
+│   │   ├── wallet-tags.tsx     # Wallet tagging UI
+│   │   ├── additional-tags.tsx # Additional tags (bot, whale, insider, gunslinger, gambler)
 │   │   ├── forms/              # Form components
 │   │   └── ...                 # Feature components
 │   ├── lib/                    # Utilities

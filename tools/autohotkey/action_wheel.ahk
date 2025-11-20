@@ -307,7 +307,9 @@ global WheelMenuActions := [
 LoadSettings() {
     global WheelMenuHotkey, WheelMenuActions
 
-    settingsFile := A_ScriptDir . "\action_wheel_settings.ini"
+    ; IMPORTANT: Settings file is shared with backend (apps/backend/action_wheel_settings.ini)
+    ; This allows web UI settings to sync with AutoHotkey
+    settingsFile := A_ScriptDir . "\..\..\apps\backend\action_wheel_settings.ini"
 
     ; Load hotkey (default: backtick)
     WheelMenuHotkey := IniRead(settingsFile, "Hotkeys", "WheelMenu", "``")
@@ -322,7 +324,9 @@ LoadSettings() {
 SaveSettings() {
     global WheelMenuHotkey, WheelMenuActions
 
-    settingsFile := A_ScriptDir . "\action_wheel_settings.ini"
+    ; IMPORTANT: Settings file is shared with backend (apps/backend/action_wheel_settings.ini)
+    ; This allows web UI settings to sync with AutoHotkey
+    settingsFile := A_ScriptDir . "\..\..\apps\backend\action_wheel_settings.ini"
 
     ; Save hotkey
     IniWrite(WheelMenuHotkey, settingsFile, "Hotkeys", "WheelMenu")
@@ -1118,8 +1122,9 @@ GetAddressAndExclusionsFromURL() {
 ; ============================================================================
 
 OpenSolscan(address) {
-    ; Read Solscan settings from action_wheel_settings.ini
-    settingsFile := A_ScriptDir . "\action_wheel_settings.ini"
+    ; IMPORTANT: Settings file is shared with backend (apps/backend/action_wheel_settings.ini)
+    ; This allows web UI settings to sync with AutoHotkey
+    settingsFile := A_ScriptDir . "\..\..\apps\backend\action_wheel_settings.ini"
 
     ; Read settings with defaults
     activityType := IniRead(settingsFile, "Solscan", "activity_type", "ACTIVITY_SPL_TRANSFER")
@@ -1130,13 +1135,14 @@ OpenSolscan(address) {
     pageSize := IniRead(settingsFile, "Solscan", "page_size", "10")
 
     ; Build custom Solscan URL with settings from file
+    ; IMPORTANT: Parameter order matters! token_address must come BEFORE value
     url := "https://solscan.io/account/" . address
     url .= "?activity_type=" . activityType
     url .= "&exclude_amount_zero=" . excludeAmountZero
     url .= "&remove_spam=" . removeSpam
-    url .= "&value=" . minValue
-    url .= "&value="
     url .= "&token_address=" . tokenAddress
+    url .= "&value=" . minValue
+    url .= "&value=undefined"
     url .= "&page_size=" . pageSize
     url .= "#transfers"
 
@@ -1156,8 +1162,9 @@ OpenSolscan(address) {
 ; ============================================================================
 
 ReloadPageWithExclusions(mainAddress, exclusionsList) {
-    ; Read Solscan settings from action_wheel_settings.ini
-    settingsFile := A_ScriptDir . "\action_wheel_settings.ini"
+    ; IMPORTANT: Settings file is shared with backend (apps/backend/action_wheel_settings.ini)
+    ; This allows web UI settings to sync with AutoHotkey
+    settingsFile := A_ScriptDir . "\..\..\apps\backend\action_wheel_settings.ini"
 
     ; Read settings with defaults
     activityType := IniRead(settingsFile, "Solscan", "activity_type", "ACTIVITY_SPL_TRANSFER")
@@ -1181,19 +1188,20 @@ ReloadPageWithExclusions(mainAddress, exclusionsList) {
     }
 
     ; Build URL with exclusion filter using settings from file
+    ; IMPORTANT: Parameter order matters! token_address must come BEFORE value
     url := "https://solscan.io/account/" . mainAddress
     url .= "?activity_type=" . activityType
     url .= "&exclude_amount_zero=" . excludeAmountZero
     url .= "&remove_spam=" . removeSpam
-    url .= "&value=" . minValue
-    url .= "&value="
 
-    ; Insert to_address BEFORE token_address (same as OpenSolscan)
+    ; Insert to_address BEFORE token_address
     if (excludeParam != "") {
         url .= "&to_address=" . excludeParam
     }
 
     url .= "&token_address=" . tokenAddress
+    url .= "&value=" . minValue
+    url .= "&value=undefined"
     url .= "&page_size=" . pageSize
     url .= "#transfers"
 

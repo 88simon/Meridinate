@@ -16,6 +16,7 @@ import {
   MultiTokenWalletsResponse,
   refreshWalletBalances,
   getSolscanSettings,
+  buildSolscanUrl,
   SolscanSettings,
   API_BASE_URL
 } from '@/lib/api';
@@ -23,6 +24,7 @@ import { shouldLog } from '@/lib/debug';
 import { TokensTable } from './tokens-table';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { StatusBar } from '@/components/status-bar';
 import { WalletTagsProvider } from '@/contexts/WalletTagsContext';
 import { useAnalysisNotifications } from '@/hooks/useAnalysisNotifications';
 import {
@@ -96,6 +98,14 @@ const CalendarIcon = dynamic(
 );
 const X = dynamic(
   () => import('lucide-react').then((mod) => ({ default: mod.X })),
+  { ssr: false }
+);
+const ChevronLeft = dynamic(
+  () => import('lucide-react').then((mod) => ({ default: mod.ChevronLeft })),
+  { ssr: false }
+);
+const ChevronRight = dynamic(
+  () => import('lucide-react').then((mod) => ({ default: mod.ChevronRight })),
   { ssr: false }
 );
 const ChevronDown = dynamic(
@@ -339,10 +349,7 @@ export default function TokensPage() {
     }
   };
 
-  // Helper function to build Solscan URL from settings
-  const buildSolscanUrl = (walletAddress: string): string => {
-    return `https://solscan.io/account/${walletAddress}?activity_type=${solscanSettings.activity_type}&exclude_amount_zero=${solscanSettings.exclude_amount_zero}&remove_spam=${solscanSettings.remove_spam}&value=${solscanSettings.value}&value=&token_address=${solscanSettings.token_address}&page_size=${solscanSettings.page_size}#transfers`;
-  };
+  // Note: buildSolscanUrl function is imported from @/lib/api
 
   useEffect(() => {
     // Fetch tokens and multi-token wallets from Flask API
@@ -799,13 +806,13 @@ export default function TokensPage() {
 
   return (
     <WalletTagsProvider walletAddresses={allWalletAddresses}>
-      <div className='flex h-full flex-col space-y-4'>
+      <div className='flex h-full flex-col space-y-4 pb-16'>
         <div className='flex items-center justify-between'>
           <div>
-            <h1 className='text-3xl font-bold tracking-tight'>
+            <h1 className='text-xl font-bold tracking-tight'>
               Analyzed Tokens
             </h1>
-            <p className='text-muted-foreground'>
+            <p className='text-muted-foreground text-sm'>
               View and manage your analyzed Solana tokens
             </p>
           </div>
@@ -852,84 +859,60 @@ export default function TokensPage() {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className='grid gap-4 md:grid-cols-3'>
-          <div className='bg-card rounded-lg border p-6'>
-            <div className='flex items-center justify-between'>
-              <div className='text-muted-foreground text-sm font-medium'>
-                Tokens Scanned
-                {(dateRange.from || dateRange.to) && (
-                  <span className='ml-2 text-xs'>
-                    ({filteredTokens.length} filtered)
-                  </span>
-                )}
+        {/* Date Range Filter - Moved to top bar */}
+        <div className='flex items-center gap-2'>
+          {(dateRange.from || dateRange.to) && (
+            <>
+              <div className='text-muted-foreground text-sm'>
+                Filtered: {filteredTokens.length} of {data.tokens.length} tokens
               </div>
-              <div className='flex items-center gap-1'>
-                {(dateRange.from || dateRange.to) && (
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    className='h-6 w-6 p-0'
-                    onClick={() =>
-                      setDateRange({ from: undefined, to: undefined })
+              <Button
+                variant='ghost'
+                size='sm'
+                className='h-6 w-6 p-0'
+                onClick={() => setDateRange({ from: undefined, to: undefined })}
+              >
+                <X className='h-3 w-3' />
+              </Button>
+            </>
+          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant='outline' size='sm' className='h-8 gap-2'>
+                <CalendarIcon className='h-4 w-4' />
+                Filter by Date
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className='w-auto p-0' align='start'>
+              <div className='p-3'>
+                <div className='mb-2 text-sm font-medium'>
+                  Filter by Scan Date
+                </div>
+                <div className='space-y-2'>
+                  <Calendar
+                    mode='range'
+                    selected={{ from: dateRange.from, to: dateRange.to }}
+                    onSelect={(range: any) =>
+                      setDateRange({ from: range?.from, to: range?.to })
                     }
-                  >
-                    <X className='h-3 w-3' />
-                  </Button>
-                )}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant='ghost' size='sm' className='h-8 w-8 p-0'>
-                      <CalendarIcon className='h-4 w-4' />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className='w-auto p-0' align='start'>
-                    <div className='p-3'>
-                      <div className='mb-2 text-sm font-medium'>
-                        Filter by Scan Date
-                      </div>
-                      <div className='space-y-2'>
-                        <Calendar
-                          mode='range'
-                          selected={{ from: dateRange.from, to: dateRange.to }}
-                          onSelect={(range: any) =>
-                            setDateRange({ from: range?.from, to: range?.to })
-                          }
-                          numberOfMonths={1}
-                          defaultMonth={new Date()}
-                        />
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                    numberOfMonths={1}
+                    defaultMonth={new Date()}
+                  />
+                </div>
               </div>
-            </div>
-            <div className='text-3xl font-bold'>{filteredTokens.length}</div>
-            <div className='mt-3 border-t pt-3'>
-              <div className='text-muted-foreground mb-1 text-xs font-medium'>
-                Latest Analysis
-              </div>
-              <div className='text-sm font-medium'>
-                {data.tokens[0]
-                  ? new Date(
-                      data.tokens[0].analysis_timestamp.replace(' ', 'T') + 'Z'
-                    ).toLocaleString()
-                  : '-'}
-              </div>
-            </div>
-          </div>
-          <div className='bg-card rounded-lg border p-6'>
-            <div className='text-muted-foreground text-sm font-medium'>
-              Multi-Token Wallets
-            </div>
-            <div className='text-3xl font-bold'>{multiWallets?.total || 0}</div>
-          </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Multi-Token Wallets Section */}
         {multiWallets && multiWallets.total > 0 && (
           <div className='bg-card rounded-lg border p-6'>
-            <h2 className='mb-2 text-xl font-bold'>Multi-Token Wallets</h2>
+            <div className='mb-2 flex items-center gap-3'>
+              <h2 className='text-xl font-bold'>Multi-Token Wallets</h2>
+              <span className='bg-primary/10 text-primary rounded-full px-3 py-1 text-sm font-semibold'>
+                {multiWallets.total}
+              </span>
+            </div>
             <p className='text-muted-foreground mb-4 text-sm'>
               Wallets that appear in multiple analyzed tokens (potential
               whale/insider wallets)
@@ -1102,7 +1085,10 @@ export default function TokensPage() {
                               walletAddress={wallet.wallet_address}
                             >
                               <a
-                                href={buildSolscanUrl(wallet.wallet_address)}
+                                href={buildSolscanUrl(
+                                  wallet.wallet_address,
+                                  solscanSettings
+                                )}
                                 target='_blank'
                                 rel='noopener noreferrer'
                                 className='text-primary font-sans text-xs hover:underline'
@@ -1209,7 +1195,7 @@ export default function TokensPage() {
                             {wallet.token_names.map((name, idx) => (
                               <a
                                 key={idx}
-                                href={`https://solscan.io/token/${wallet.token_addresses[idx]}`}
+                                href={`https://gmgn.ai/sol/token/${wallet.token_addresses[idx]}?min=0.1&isInputValue=true`}
                                 target='_blank'
                                 rel='noopener noreferrer'
                                 className='bg-muted hover:bg-muted/80 rounded px-2 py-1 text-xs'
@@ -1281,7 +1267,7 @@ export default function TokensPage() {
                       disabled={walletPage === 0}
                       className='h-7 px-2'
                     >
-                      <ChevronUp className='h-3 w-3' />
+                      <ChevronLeft className='h-3 w-3' />
                     </Button>
                     <span className='text-muted-foreground px-2 text-xs'>
                       Page {walletPage + 1} / {totalWalletPages}
@@ -1297,7 +1283,7 @@ export default function TokensPage() {
                       disabled={walletPage >= totalWalletPages - 1}
                       className='h-7 px-2'
                     >
-                      <ChevronDown className='h-3 w-3' />
+                      <ChevronRight className='h-3 w-3' />
                     </Button>
                   </div>
                 )}
@@ -1329,6 +1315,35 @@ export default function TokensPage() {
         {/* Tokens Table */}
         <TokensTable tokens={filteredTokens} onDelete={handleTokenDelete} />
       </div>
+
+      {/* Sticky Bottom Status Bar */}
+      <StatusBar
+        tokensScanned={data.tokens.length}
+        latestAnalysis={data.tokens[0]?.analysis_timestamp || null}
+        latestTokenName={data.tokens[0]?.token_name || null}
+        latestWalletsFound={data.tokens[0]?.wallets_found || null}
+        latestApiCredits={
+          data.tokens[0]?.last_analysis_credits ||
+          data.tokens[0]?.credits_used ||
+          null
+        }
+        totalApiCreditsToday={data.tokens
+          .filter((token) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const analysisDate = new Date(
+              token.analysis_timestamp.replace(' ', 'T') + 'Z'
+            );
+            return analysisDate >= today;
+          })
+          .reduce(
+            (sum, token) =>
+              sum + (token.last_analysis_credits || token.credits_used || 0),
+            0
+          )}
+        isFiltered={!!(dateRange.from || dateRange.to)}
+        filteredCount={filteredTokens.length}
+      />
     </WalletTagsProvider>
   );
 }

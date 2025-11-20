@@ -1,6 +1,13 @@
 'use client';
 
-import { TokenDetail, formatTimestamp, downloadAxiomJson } from '@/lib/api';
+import {
+  TokenDetail,
+  formatTimestamp,
+  downloadAxiomJson,
+  getSolscanSettings,
+  buildSolscanUrl,
+  SolscanSettings
+} from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +30,14 @@ interface TokenDetailsViewProps {
 
 export function TokenDetailsView({ token }: TokenDetailsViewProps) {
   const [copied, setCopied] = useState(false);
+  const [solscanSettings, setSolscanSettings] = useState<SolscanSettings>({
+    activity_type: 'ACTIVITY_SPL_TRANSFER',
+    exclude_amount_zero: 'true',
+    remove_spam: 'true',
+    value: '100',
+    token_address: 'So11111111111111111111111111111111111111111',
+    page_size: '10'
+  });
 
   // Virtualization state
   const walletsContainerRef = useRef<HTMLDivElement>(null);
@@ -46,6 +61,15 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
       window.addEventListener('resize', updateHeight);
       return () => window.removeEventListener('resize', updateHeight);
     }
+  }, []);
+
+  // Fetch Solscan settings on mount
+  useEffect(() => {
+    getSolscanSettings()
+      .then(setSolscanSettings)
+      .catch(() => {
+        // Silently fail, keep default settings
+      });
   }, []);
 
   // Virtualization logic
@@ -146,12 +170,12 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
               </Button>
             </div>
             <a
-              href={`https://solscan.io/token/${token.token_address}`}
+              href={`https://gmgn.ai/sol/token/${token.token_address}?min=0.1&isInputValue=true`}
               target='_blank'
               rel='noopener noreferrer'
               className='text-primary mt-2 flex items-center text-xs hover:underline'
             >
-              View on Solscan <ExternalLink className='ml-1 h-3 w-3' />
+              View on GMGN <ExternalLink className='ml-1 h-3 w-3' />
             </a>
           </CardContent>
         </Card>
@@ -328,7 +352,10 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                                 <Copy className='h-4 w-4' />
                               </Button>
                               <a
-                                href={`https://solscan.io/account/${wallet.wallet_address}`}
+                                href={buildSolscanUrl(
+                                  wallet.wallet_address,
+                                  solscanSettings
+                                )}
                                 target='_blank'
                                 rel='noopener noreferrer'
                               >

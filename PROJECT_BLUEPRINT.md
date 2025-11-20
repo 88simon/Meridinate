@@ -79,6 +79,7 @@ C:\Meridinate\
 - ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
 - ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth
 - ✅ **CI/CD Pipeline** - Unified monorepo workflow at `.github/workflows/monorepo-ci.yml` with all checks passing
+- ✅ **UI/UX Enhancements** - GMGN.ai integration, enhanced status bar with detailed metrics, MeridinateLogo component in header, Gunslinger/Gambler tags, removed wallet count cap, horizontal pagination arrows
 
 ### What Needs Cleanup ⚠️
 
@@ -168,7 +169,10 @@ C:\Meridinate\                                    # PROJECT ROOT
 │       │   ├── components/                       # Reusable UI components
 │       │   │   ├── ui/                           # shadcn/ui components
 │       │   │   ├── wallet-tags.tsx               # Wallet tagging UI
-│       │   │   └── additional-tags.tsx           # Additional tag components
+│       │   │   ├── additional-tags.tsx           # Additional tag components (bot, whale, insider, gunslinger, gambler)
+│       │   │   ├── meridinate-logo.tsx           # MeridinateLogo SVG component (light/dark variants)
+│       │   │   ├── status-bar.tsx                # Bottom status bar with metrics and API credits
+│       │   │   └── layout/                       # Layout components (header, sidebar, dashboard-wrapper)
 │       │   ├── lib/                              # Utility libraries
 │       │   │   ├── api.ts                        # API client (all backend calls)
 │       │   │   ├── generated/
@@ -237,8 +241,12 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/frontend/src/lib/generated/api-types.ts` | TypeScript types | Auto-generated from OpenAPI, DO NOT edit manually |
 | `apps/frontend/src/app/dashboard/tokens/page.tsx` | Main token dashboard | Where Simon spends most time |
 | `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` | Token table component | Memoized rows, virtualized rendering for performance |
-| `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` | Token detail modal | Shows per-wallet balance trend/timestamp |
-| `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` | Token detail page | Shows per-wallet balance trend/timestamp |
+| `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` | Token detail modal | Shows per-wallet balance trend/timestamp, links to GMGN.ai |
+| `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` | Token detail page | Shows per-wallet balance trend/timestamp, links to GMGN.ai |
+| `apps/frontend/src/components/status-bar.tsx` | Bottom status bar | Displays tokens scanned, API credits, latest analysis with detailed metrics |
+| `apps/frontend/src/components/meridinate-logo.tsx` | MeridinateLogo component | Reusable SVG logo with light/dark variants |
+| `apps/frontend/src/components/layout/header.tsx` | Main header | Contains logo, branding, navigation, user controls |
+| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with toggle, navigation items, Codex/Settings |
 | `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend), uses venv Python explicitly |
 | `scripts/start-backend.bat` | Backend launcher | Starts backend only, uses venv Python explicitly (line 60) |
 | `scripts/start-debug.bat` | Diagnostic tool | Troubleshooting startup issues |
@@ -303,9 +311,19 @@ When Simon says...  →  Technical term & Implementation
 - **Location:** `tools/autohotkey/action_wheel.ahk`
 - **Functionality:**
   - Quick token analysis from clipboard
-  - Open Solscan/DexScreener for selected token
+  - Open GMGN.ai/DexScreener for selected token
   - Copy wallet addresses
 - **Platform:** Windows only (AutoHotkey v2)
+
+#### **"Token Explorer Links"**
+- **Technical Term:** External Token Explorer Integration
+- **What it is:** Hyperlinks from token addresses/names to GMGN.ai token pages
+- **Format:** `https://gmgn.ai/sol/token/{address}?min=0.1&isInputValue=true`
+- **Locations:**
+  - Token Names in multi-token wallets panel
+  - Address column in token table
+  - "View on GMGN" links in token detail modal/page
+- **Previous:** Used Solscan (replaced Nov 2025)
 
 **Correct Terminology:**
 - ✅ "AutoHotkey action wheel"
@@ -315,9 +333,10 @@ When Simon says...  →  Technical term & Implementation
 
 #### **"Tagging Wallets"**
 - **Technical Term:** Wallet Tagging System
-- **What it is:** Categorization system for wallet addresses (e.g., "insider", "bot", "smart money")
+- **What it is:** Categorization system for wallet addresses (e.g., "insider", "bot", "smart money", "gunslinger", "gambler")
 - **Location (Backend):** `apps/backend/src/meridinate/routers/tags.py`
-- **Location (Frontend):** `apps/frontend/src/components/wallet-tags.tsx`
+- **Location (Frontend):** `apps/frontend/src/components/wallet-tags.tsx`, `apps/frontend/src/components/additional-tags.tsx`
+- **Additional Tags:** Bot, Whale, Insider, Gunslinger, Gambler (managed via popover in Tags column)
 - **Database Table:** `wallet_tags`
 - **Context Provider:** `WalletTagsContext.tsx` (React Context for state management)
 
@@ -598,22 +617,32 @@ pnpm install
   - Cross-platform CI fixes (PYTHONPATH, database directory, Python command)
   - Fixed API types sync infinite loop (excluded commit SHA from comparison)
 
+- ✅ **Phase 6: UI/UX Enhancements** (Nov 20, 2025)
+  - GMGN.ai integration - replaced Solscan links across all token views
+  - Extended tagging system - added Gunslinger and Gambler tags
+  - MeridinateLogo component - reusable SVG logo with light/dark variants
+  - Header redesign - logo moved outside sidebar, sidebar toggle moved inside
+  - Enhanced status bar - detailed analysis metrics (token name, wallets found, API credits)
+  - API credits tracking - "Total API Credits Used Today" metric
+  - Settings improvements - removed wallet count cap (was 50, now unlimited)
+  - UX polish - reduced page title font sizes, horizontal pagination arrows
+
 ### In Progress 🔄
 
-- 🔄 **Phase 6: Production Hardening** (Nov-Dec 2025)
+- 🔄 **Phase 7: Production Hardening** (Nov-Dec 2025)
   - Production deployment setup
   - Performance optimization
   - Monitoring and alerting setup
 
 ### Planned 📋
 
-- 📋 **Phase 7: Enhanced Analytics** (2026 Q1)
+- 📋 **Phase 8: Enhanced Analytics** (2026 Q1)
   - Wallet performance scoring
   - Predictive analysis using historical data
   - Portfolio tracking
   - Automated alerts for watchlist wallets
 
-- 📋 **Phase 8: Data Enrichment** (2026 Q2)
+- 📋 **Phase 9: Data Enrichment** (2026 Q2)
   - Integration with additional data sources
   - Social sentiment analysis
   - Token holder distribution analysis
@@ -694,6 +723,58 @@ AttributeError: 'Request' object has no attribute 'token_ids'
 - When adding endpoints with both `Request` and Pydantic model parameters, always use the model instance for accessing request body data
 - FastAPI `Request` object is for HTTP metadata (headers, cookies, etc.), not request body
 - CORS errors in browser often mask underlying 500/400 errors - always check backend logs first
+
+### Solscan URL Filtering Fix (Nov 20, 2025)
+
+**Problem:** Solscan wallet links from dashboard showed "No data" even though wallets had transaction history
+
+**Root Causes:**
+1. **Wrong URL parameter order** - `token_address` must come BEFORE `value` parameters (Solscan requirement)
+2. **Malformed value parameter** - Second `value` was empty string instead of `undefined`
+3. **Incorrect activity type options** - Settings dropdown included non-existent filters (Token Swap, DeFi operations)
+4. **Settings file mismatch** - AutoHotkey read from `tools/autohotkey/action_wheel_settings.ini` while backend wrote to `apps/backend/action_wheel_settings.ini`, breaking sync
+
+**Correct URL Format (Verified 2025):**
+```
+https://solscan.io/account/{ADDRESS}?
+  activity_type=ACTIVITY_SPL_TRANSFER&
+  exclude_amount_zero=true&
+  remove_spam=true&
+  token_address=So11111111111111111111111111111111111111111&
+  value=50&
+  value=undefined&
+  page_size=30#transfers
+```
+
+**Solutions:**
+1. **Fixed parameter order** - Updated `buildSolscanUrl()` to place `token_address` before `value` parameters
+2. **Fixed value parameter** - Changed `&value=` to `&value=undefined`
+3. **Updated activity type dropdown** - Replaced with Solscan's actual Action filter options:
+   - Token Operations: Transfer, Mint, Burn, Create Account, Close Account, Set Authority
+   - Staking Operations: Split Stake, Merge Stake, Withdraw Stake, Vote Withdraw
+4. **Unified settings file path** - Updated AutoHotkey to read from `apps/backend/action_wheel_settings.ini`
+5. **Added compatibility layer** - `normalizeActivityType()` function automatically migrates old `ACTIVITY_SOL_TRANSFER` to `ACTIVITY_SPL_TRANSFER`
+
+**Files Modified:**
+- `apps/frontend/src/lib/api.ts` - Added `buildSolscanUrl()` with correct parameter order and compatibility layer
+- `apps/frontend/src/components/settings-modal.tsx` - Updated activity type dropdown to match Solscan's options
+- `apps/frontend/src/app/dashboard/tokens/page.tsx` - Uses centralized URL builder
+- `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` - Uses centralized URL builder
+- `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` - Uses centralized URL builder
+- `tools/autohotkey/action_wheel.ahk` - Fixed parameter order and unified settings file path (4 locations)
+- `apps/backend/action_wheel_settings.ini` - Updated to `ACTIVITY_SPL_TRANSFER`
+
+**Testing:**
+- ✅ All CI checks pass (TypeScript, ESLint, Prettier)
+- ✅ Solscan links with Transfer filter show correct transaction data
+- ✅ Settings changes in web UI sync to AutoHotkey after reload
+- ✅ Backward compatible with old settings via migration function
+
+**Developer Notes:**
+- Solscan's web interface uses the same `ACTIVITY_SPL_*` format as their API (confirmed 2025)
+- **Critical:** `token_address` parameter MUST come before `value` parameters in URL
+- Settings file at `apps/backend/action_wheel_settings.ini` is shared between backend and AutoHotkey
+- AutoHotkey requires reload after web UI settings changes (right-click tray icon → Reload Script)
 
 ### Frontend Performance Optimizations (Nov 19, 2025)
 
@@ -1177,6 +1258,139 @@ AttributeError: 'Request' object has no attribute 'token_ids'
 - Analysis phase timing helps identify bottlenecks for future optimization
 - All caches must specify `name` parameter for metrics tracking
 
+### UI/UX Enhancements (Nov 20, 2025)
+
+**Goal:** Improve user experience with better external integrations, enhanced status tracking, and refined interface elements
+
+**Enhancements Implemented:**
+
+#### 1. GMGN.ai Integration (Frontend)
+- **Impact:** Better token exploration experience with GMGN.ai's advanced features
+- **Implementation:**
+  - Replaced all Solscan links with GMGN.ai format
+  - URL pattern: `https://gmgn.ai/sol/token/{address}?min=0.1&isInputValue=true`
+  - Updated locations: Token table address column, multi-token wallets token names, token detail modal/page
+- **Files Modified:**
+  - `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` (line 519)
+  - `apps/frontend/src/app/dashboard/tokens/page.tsx` (line 1212)
+  - `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` (line 278)
+  - `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` (line 149)
+  - `apps/frontend/src/app/dashboard/trash/page.tsx`
+- **User Benefits:**
+  - GMGN.ai provides more comprehensive token analytics
+  - Pre-filtered view with minimum liquidity parameter
+  - Consistent external navigation experience
+
+#### 2. Extended Tagging System (Frontend)
+- **Impact:** More granular wallet categorization with Gunslinger and Gambler tags
+- **Implementation:**
+  - Added "Gunslinger" and "Gambler" to additional tags popover
+  - Updated filter logic in both additional-tags.tsx and wallet-tags.tsx
+  - Checkbox UI for quick tag assignment
+- **Files Modified:**
+  - `apps/frontend/src/components/additional-tags.tsx` (lines 47-56, 175-202)
+  - `apps/frontend/src/components/wallet-tags.tsx` (lines 23-29)
+- **Tag Categories:**
+  - **Additional Tags (Popover):** Bot, Whale, Insider, Gunslinger, Gambler
+  - **Regular Tags (Inline):** All other custom user tags
+- **User Benefits:**
+  - More descriptive wallet behavior classification
+  - Quick identification of risk-taking wallets (Gunslinger = aggressive, Gambler = speculative)
+
+#### 3. MeridinateLogo Component (Frontend)
+- **Impact:** Reusable, professional branding component
+- **Implementation:**
+  - Created React component from SVG markup
+  - Supports light/dark variants via `variant` prop
+  - Configurable size via `className` prop
+  - SVG features: central circle, ripple rings, meridian lines, decorative dots
+- **Files Created:**
+  - `apps/frontend/src/components/meridinate-logo.tsx`
+- **User Benefits:**
+  - Consistent branding across application
+  - Theme-aware logo coloring
+  - Scalable vector graphics (no pixelation)
+
+#### 4. Header Redesign (Frontend)
+- **Impact:** Improved layout hierarchy and navigation accessibility
+- **Implementation:**
+  - **Logo Placement:** Moved from inside sidebar to main header
+  - **Branding:** Added "Meridinate" title + "Blockchain Intelligence Desk" tagline
+  - **Sidebar Toggle:** Moved from header to first menu item inside sidebar
+- **Files Modified:**
+  - `apps/frontend/src/components/layout/header.tsx` - Added logo and branding
+  - `apps/frontend/src/components/layout/app-sidebar.tsx` (lines 65-74) - Added SidebarTrigger as first menu item
+- **User Benefits:**
+  - Logo always visible regardless of sidebar state
+  - Cleaner visual hierarchy
+  - More intuitive sidebar toggle placement
+
+#### 5. Enhanced Status Bar (Frontend)
+- **Impact:** Comprehensive real-time metrics for monitoring analysis activity
+- **Implementation:**
+  - **New Props Added:**
+    - `latestTokenName` - Shows which token was most recently analyzed
+    - `latestWalletsFound` - Number of wallets found in latest analysis
+    - `latestApiCredits` - API credits consumed in latest analysis
+    - `totalApiCreditsToday` - Aggregate daily API credit usage
+  - **Calculation Logic:** Filters tokens by today's date, sums credits from `last_analysis_credits` or `credits_used`
+  - **Responsive Design:** Latest analysis section hidden on mobile (`lg:flex`)
+- **Files Modified:**
+  - `apps/frontend/src/components/status-bar.tsx` (full rewrite with new interface)
+  - `apps/frontend/src/app/dashboard/tokens/page.tsx` (lines 1311+, StatusBar usage with calculations)
+- **User Benefits:**
+  - At-a-glance view of latest analysis results
+  - Daily API cost tracking for budget monitoring
+  - Detailed metrics without navigating away from main view
+
+#### 6. Settings Improvements (Frontend)
+- **Impact:** Removed artificial limit on wallet count for larger analyses
+- **Implementation:**
+  - Removed `Math.min(50, ...)` cap from wallet count setter
+  - Maintained minimum value (5) for validation
+  - Arrow buttons now increment/decrement without upper limit
+  - Manual input accepts any value >= 5
+- **Files Modified:**
+  - `apps/frontend/src/components/settings-modal.tsx` (lines 319, 344)
+- **User Benefits:**
+  - Flexibility for large-scale token analysis
+  - No artificial constraints on wallet discovery
+  - API credit calculations automatically scale with wallet count
+
+#### 7. UX Polish (Frontend)
+- **Impact:** Refined visual hierarchy and navigation patterns
+- **Implementation:**
+  - **Page Titles:** Reduced font size from `text-3xl` to `text-xl` (Analyzed Tokens, Trash pages)
+  - **Subtitles:** Reduced from default to `text-sm`
+  - **Pagination Arrows:** Changed from vertical (ChevronUp/Down) to horizontal (ChevronLeft/Right)
+- **Files Modified:**
+  - `apps/frontend/src/app/dashboard/tokens/page.tsx` (lines 806, 1269, 1285)
+  - `apps/frontend/src/app/dashboard/trash/page.tsx` (line 144)
+- **User Benefits:**
+  - Less visual clutter with smaller headings
+  - More intuitive pagination (left = previous, right = next)
+  - Consistent with standard web navigation patterns
+
+**Overall Impact:**
+- User Experience: Improved navigation, better external integrations, more detailed metrics
+- Flexibility: Removed artificial limits, added more tag options
+- Branding: Professional logo component with consistent styling
+- Observability: Better visibility into API costs and analysis results
+
+**Testing:**
+- ✅ TypeScript: Type checking passes
+- ✅ ESLint: Passes (console warnings only)
+- ✅ Manual testing: All UI changes verified in browser
+- ✅ Responsive design: Status bar adapts to mobile/desktop viewports
+- ✅ Accessibility: All interactive elements keyboard-navigable
+
+**Developer Notes:**
+- Logo component uses `currentColor` for automatic theme adaptation
+- Status bar calculations use filter/reduce pattern for efficiency
+- GMGN.ai URL includes `?min=0.1&isInputValue=true` for consistent filtered view
+- Additional tags filter must stay synchronized between additional-tags.tsx and wallet-tags.tsx
+- Pagination arrow icon change improves usability without functional changes
+
 ### High-Complexity Performance Optimizations (Nov 19, 2025)
 
 **Goal:** Progressive Web App capabilities, offline support, and architectural foundation for background task processing
@@ -1414,7 +1628,7 @@ pnpm install
 
 1. **User Background:** Simon is non-technical - always explain concepts clearly and correct imprecise terminology politely
 
-2. **Project State:** 95% complete monorepo migration - old `backend/` and `frontend/` folders still exist but are obsolete
+2. **Project State:** 100% complete monorepo migration with unified CI/CD - legacy root `backend/` and `frontend/` folders removed
 
 3. **Critical Files:**
    - Database: `apps/backend/data/db/analyzed_tokens.db`
@@ -1491,6 +1705,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 1.6
-**Last Updated:** November 20, 2025 (CI/CD Pipeline Complete - Unified Monorepo Workflow)
+**Document Version:** 1.7
+**Last Updated:** November 20, 2025 (UI/UX Enhancements - GMGN Integration, Enhanced Status Bar, Extended Tags)
 **Next Review:** After production deployment

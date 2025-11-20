@@ -36,11 +36,11 @@ interface SettingsModalProps {
 }
 
 const defaultSolscanSettings: SolscanSettings = {
-  activity_type: 'ACTIVITY_SPL_TRANSFER',
+  activity_type: 'ACTIVITY_SPL_TRANSFER', // Correct type for SPL tokens (includes SOL)
   exclude_amount_zero: 'true',
   remove_spam: 'true',
   value: '100',
-  token_address: 'So11111111111111111111111111111111111111111',
+  token_address: 'So11111111111111111111111111111111111111111', // SOL token address
   page_size: '10'
 };
 
@@ -316,10 +316,7 @@ export function SettingsModal({
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                       const diff =
                         Math.floor((moveEvent.clientX - startX) / 10) * 5;
-                      const newValue = Math.max(
-                        5,
-                        Math.min(50, startValue + diff)
-                      );
+                      const newValue = Math.max(5, startValue + diff);
                       setApiSettings({
                         ...apiSettings,
                         walletCount: newValue
@@ -344,7 +341,7 @@ export function SettingsModal({
                   onClick={() =>
                     setApiSettings({
                       ...apiSettings,
-                      walletCount: Math.min(50, apiSettings.walletCount + 5)
+                      walletCount: apiSettings.walletCount + 5
                     })
                   }
                 >
@@ -465,13 +462,39 @@ export function SettingsModal({
                 className='border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-7 w-full rounded-md border px-3 text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
                 disabled={loadingSolscanSettings}
               >
-                <option value='ACTIVITY_SPL_TRANSFER'>SPL Transfer</option>
-                <option value='ACTIVITY_SOL_TRANSFER'>SOL Transfer</option>
-                <option value='ACTIVITY_SPL_BURN'>SPL Burn</option>
-                <option value='ACTIVITY_SPL_MINT'>SPL Mint</option>
-                <option value='ACTIVITY_TOKEN_SWAP'>Token Swap</option>
-                <option value='ALL'>All Activities</option>
+                <optgroup label='Token Operations'>
+                  <option value='ACTIVITY_SPL_TRANSFER'>Transfer</option>
+                  <option value='ACTIVITY_SPL_MINT'>Mint</option>
+                  <option value='ACTIVITY_SPL_BURN'>Burn</option>
+                  <option value='ACTIVITY_SPL_CREATE_ACCOUNT'>
+                    Create Account
+                  </option>
+                  <option value='ACTIVITY_SPL_CLOSE_ACCOUNT'>
+                    Close Account
+                  </option>
+                  <option value='ACTIVITY_SPL_SET_OWNER_AUTHORITY'>
+                    Set Authority
+                  </option>
+                </optgroup>
+                <optgroup label='Staking Operations'>
+                  <option value='ACTIVITY_SPL_TOKEN_SPLIT_STAKE'>
+                    Split Stake
+                  </option>
+                  <option value='ACTIVITY_SPL_TOKEN_MERGE_STAKE'>
+                    Merge Stake
+                  </option>
+                  <option value='ACTIVITY_SPL_TOKEN_WITHDRAW_STAKE'>
+                    Withdraw Stake
+                  </option>
+                  <option value='ACTIVITY_SPL_VOTE_WITHDRAW'>
+                    Vote Withdraw
+                  </option>
+                </optgroup>
               </select>
+              <p className='text-muted-foreground text-xs'>
+                Matches Solscan&apos;s Action filter. Use Token Address below to
+                filter SOL vs SPL tokens.
+              </p>
             </div>
 
             {/* Exclude Amount Zero */}
