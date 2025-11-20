@@ -114,11 +114,13 @@ pnpm dev
 Or use monorepo scripts:
 
 **Windows:**
+
 ```cmd
 scripts\start-frontend.bat
 ```
 
 **macOS/Linux:**
+
 ```bash
 chmod +x scripts/start-frontend.sh
 ./scripts/start-frontend.sh
@@ -256,11 +258,13 @@ run_ci_checks.bat     # Windows: Run all CI checks
 ### Local Development Workflow
 
 1. **Start backend** (from monorepo root):
+
    ```bash
    scripts\start-backend.bat
    ```
 
 2. **Start frontend** (from monorepo root):
+
    ```bash
    scripts\start-frontend.bat
    ```
@@ -268,6 +272,7 @@ run_ci_checks.bat     # Windows: Run all CI checks
 3. **Make changes** to components/pages
 
 4. **Check types** if you modified API calls:
+
    ```bash
    cd apps/frontend
    pnpm sync-types:check
@@ -311,17 +316,20 @@ Located at `../../.github/workflows/monorepo-ci.yml`:
 Run the same checks locally before pushing:
 
 **Windows:**
+
 ```cmd
 run_ci_checks.bat
 ```
 
 **macOS/Linux:**
+
 ```bash
 chmod +x run_ci_checks.sh
 ./run_ci_checks.sh
 ```
 
 These scripts run:
+
 - ESLint (normal + strict mode)
 - Prettier formatting check
 - TypeScript type checking
@@ -362,21 +370,25 @@ NODE_ENV=production
 ### Optimizations Applied
 
 1. **Replaced Framer Motion with CSS Transitions**
+
    - Native browser animations
    - Lower JavaScript overhead
    - Smoother 60fps animations
 
 2. **Memoized Heavy Table Cells**
+
    - React.memo for expensive components
    - Prevents unnecessary re-renders
    - Stable during sorting/filtering
 
 3. **Deferred State Updates**
+
    - Batched selection updates
    - Smooth UX during bulk operations
    - No UI blocking
 
 4. **Optimistic Updates**
+
    - Instant UI feedback for user actions
    - Background API sync
    - Error rollback if needed
@@ -439,6 +451,7 @@ tests/e2e/
 ### Common Issues
 
 **Build errors:**
+
 ```bash
 # Clean install
 rm -rf node_modules .next
@@ -446,6 +459,7 @@ pnpm install
 ```
 
 **Type errors:**
+
 ```bash
 # Check for specific issues
 pnpm type-check
@@ -455,27 +469,32 @@ pnpm sync-types:update
 ```
 
 **WebSocket not connecting:**
+
 - Verify backend is running on port 5003
 - Check browser console for errors
 - Ensure CORS is configured in backend
 - Check firewall allows WebSocket connections
 
 **Market cap not refreshing:**
+
 - Check browser console for API errors
 - Verify backend `/api/tokens/refresh-market-caps` endpoint is accessible
 - Check backend rate limiting settings
 
 **Wallet balances incorrect:**
+
 - Backend uses real-time SOL/USD pricing from CoinGecko
 - Ensure backend is updated to latest version
 - Check that Helius API key is valid
 
 **UI not updating after bulk operations:**
+
 - Should auto-refresh; if not, manually reload page
 - Check browser console for errors
 - Verify WebSocket connection is active
 
 **"Cannot find module 'jest-worker/processChild.js'" error:**
+
 ```bash
 # Next.js build cache corruption
 rm -rf node_modules .next
@@ -483,11 +502,13 @@ pnpm install
 ```
 
 **Docker build fails:**
+
 - Ensure `output: 'standalone'` is set in `next.config.ts`
 - Check that all dependencies are in `package.json`
 - Verify Node.js version in Dockerfile matches local
 
 **CI checks failing:**
+
 ```bash
 # Run CI checks locally
 run_ci_checks.bat  # Windows
@@ -514,12 +535,14 @@ debugLog('API call', { endpoint, data });
 ### Browser DevTools
 
 **React DevTools:**
+
 - Install React DevTools extension
 - Inspect component tree
 - View props and state
 - Profile performance
 
 **Network Tab:**
+
 - Monitor API calls
 - Check WebSocket connection
 - Inspect request/response payloads

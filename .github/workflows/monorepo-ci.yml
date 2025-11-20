@@ -40,7 +40,7 @@ jobs:
       - name: Run pytest
         run: |
           # Set PYTHONPATH to include src directory
-          export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+          export PYTHONPATH="$GITHUB_WORKSPACE/apps/backend/src:$PYTHONPATH"
           pytest tests/ -v --tb=short
         env:
           # Disable rate limiting for tests

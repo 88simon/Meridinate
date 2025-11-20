@@ -17,7 +17,8 @@ const META_THEME_COLORS = {
 
 export const metadata: Metadata = {
   title: 'Meridinate - Solana Token Analysis',
-  description: 'Solana token analysis toolkit for identifying profitable early investment opportunities',
+  description:
+    'Solana token analysis toolkit for identifying profitable early investment opportunities',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

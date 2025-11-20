@@ -53,11 +53,13 @@ export function AdditionalTagsPopover({
 
   // Find current nationality tag (if any)
   const currentNationality =
-    allTags.find((t) =>
-      NATIONALITY_OPTIONS.some(
-        (n) => n.value && n.value === t.tag.toUpperCase()
+    allTags
+      .find((t) =>
+        NATIONALITY_OPTIONS.some(
+          (n) => n.value && n.value === t.tag.toUpperCase()
+        )
       )
-    )?.tag.toUpperCase() || '';
+      ?.tag.toUpperCase() || '';
 
   const toggleTag = async (tag: string) => {
     setLoading(true);

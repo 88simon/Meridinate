@@ -64,9 +64,10 @@ import { cn } from '@/lib/utils';
 
 // Lazy-load the token details modal to reduce initial JS bundle size
 const TokenDetailsModal = dynamic(
-  () => import('./token-details-modal').then((mod) => ({
-    default: mod.TokenDetailsModal
-  })),
+  () =>
+    import('./token-details-modal').then((mod) => ({
+      default: mod.TokenDetailsModal
+    })),
   { ssr: false }
 );
 
@@ -95,10 +96,7 @@ const MemoizedTableRow = memo(
           'hover:shadow-[inset_0_0_0_2px_rgba(59,130,246,0.4),0_0_15px_rgba(59,130,246,0.3)]',
           'active:bg-primary/30'
         ],
-        !isSelected && [
-          'hover:bg-muted/50',
-          'active:bg-muted/70'
-        ]
+        !isSelected && ['hover:bg-muted/50', 'active:bg-muted/70']
       )}
       onClick={(e) => handleRowClick(row.original.id, e)}
       onMouseEnter={() => handleRowHover(row.original.id)}
@@ -273,7 +271,7 @@ const MarketCapCell = memo(
             </div>
             <div
               className={cn(
-                'font-semibold tabular-nums flex items-center gap-0.5',
+                'flex items-center gap-0.5 font-semibold tabular-nums',
                 isCompact ? 'text-xs' : 'text-sm',
                 (hasComparison && marketCapCurrent > comparisonBase!) || isAtAth
                   ? 'text-green-600'
@@ -381,7 +379,8 @@ const MarketCapCell = memo(
     prev.token.market_cap_usd_previous === next.token.market_cap_usd_previous &&
     prev.token.market_cap_updated_at === next.token.market_cap_updated_at &&
     prev.token.market_cap_ath === next.token.market_cap_ath &&
-    prev.token.market_cap_ath_timestamp === next.token.market_cap_ath_timestamp &&
+    prev.token.market_cap_ath_timestamp ===
+      next.token.market_cap_ath_timestamp &&
     prev.isRefreshing === next.isRefreshing &&
     prev.isCompact === next.isCompact
 );
@@ -574,9 +573,7 @@ const createColumns = (
           onDownload={() => downloadAxiomJson(token as any)}
           onDelete={() => {
             if (
-              window.confirm(
-                `Delete token "${token.token_name || 'Unknown'}"?`
-              )
+              window.confirm(`Delete token "${token.token_name || 'Unknown'}"?`)
             ) {
               handleDelete(token.id);
             }
@@ -831,7 +828,7 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
     setScrollTop(event.currentTarget.scrollTop);
   }, []);
 
-const [tableInstance, setTableInstance] = useState<any>(null);
+  const [tableInstance, setTableInstance] = useState<any>(null);
 
   const handleRefreshAllMarketCaps = useCallback(async () => {
     if (!tableInstance) {
@@ -873,7 +870,9 @@ const [tableInstance, setTableInstance] = useState<any>(null);
       );
       router.refresh();
     } catch (error) {
-      toast.error(`Failed to refresh market caps: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to refresh market caps: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     } finally {
       setRefreshingAll(false);
     }
@@ -1051,7 +1050,13 @@ const [tableInstance, setTableInstance] = useState<any>(null);
         apiSettings
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isCompactMode, refreshingMarketCaps, refreshingAll, apiSettings, handleRefreshAllMarketCaps]
+    [
+      isCompactMode,
+      refreshingMarketCaps,
+      refreshingAll,
+      apiSettings,
+      handleRefreshAllMarketCaps
+    ]
   );
 
   const table = useReactTable({

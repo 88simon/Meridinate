@@ -141,7 +141,9 @@ const handleVisibilityChange = () => {
     visibilityChangeTimer = setTimeout(() => {
       if (document.hidden && globalWs) {
         if (shouldLog()) {
-          console.log('[ws] closing connection due to prolonged tab inactivity');
+          console.log(
+            '[ws] closing connection due to prolonged tab inactivity'
+          );
         }
         closeGlobalWebSocket();
       }
@@ -193,9 +195,7 @@ const connectWebSocket = () => {
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
     if (!hasShownFailureToast) {
       hasShownFailureToast = true;
-      toast.error(
-        'real-time notifications disabled (websocket not available)'
-      );
+      toast.error('real-time notifications disabled (websocket not available)');
     }
     return;
   }
@@ -233,11 +233,11 @@ const connectWebSocket = () => {
         if (now - lastErrorNotifiedAt > 5000) {
           const errorMessage =
             (event as unknown as ErrorEvent)?.message || 'websocket error';
-          if (
-            errorMessage.toLowerCase().includes('insufficient resources')
-          ) {
+          if (errorMessage.toLowerCase().includes('insufficient resources')) {
             if (shouldLog()) {
-              console.warn('[ws] insufficient resources - too many concurrent connections');
+              console.warn(
+                '[ws] insufficient resources - too many concurrent connections'
+              );
             }
           }
           lastErrorNotifiedAt = now;
@@ -254,7 +254,11 @@ const connectWebSocket = () => {
         // 1. we have active consumers
         // 2. tab is visible
         // 3. haven't exceeded max attempts
-        if (connectionCount > 0 && !document.hidden && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        if (
+          connectionCount > 0 &&
+          !document.hidden &&
+          reconnectAttempts < MAX_RECONNECT_ATTEMPTS
+        ) {
           reconnectAttempts++;
           const delay = Math.min(
             RECONNECT_BASE_DELAY * reconnectAttempts,
@@ -262,7 +266,9 @@ const connectWebSocket = () => {
           );
 
           if (shouldLog()) {
-            console.log(`[ws] reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+            console.log(
+              `[ws] reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`
+            );
           }
 
           reconnectTimer = setTimeout(() => {
@@ -334,7 +340,9 @@ export function useAnalysisNotifications(
       connectionCount--;
 
       if (shouldLog()) {
-        console.log(`[ws] consumer unregistered, remaining: ${connectionCount}`);
+        console.log(
+          `[ws] consumer unregistered, remaining: ${connectionCount}`
+        );
       }
 
       // remove callback from the set

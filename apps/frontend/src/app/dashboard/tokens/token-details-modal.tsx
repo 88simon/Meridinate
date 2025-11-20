@@ -103,7 +103,9 @@ export function TokenDetailsModal({
   useEffect(() => {
     if (currentWalletsContainerRef.current) {
       const updateHeight = () => {
-        setCurrentViewportHeight(currentWalletsContainerRef.current?.clientHeight ?? 0);
+        setCurrentViewportHeight(
+          currentWalletsContainerRef.current?.clientHeight ?? 0
+        );
       };
       updateHeight();
       window.addEventListener('resize', updateHeight);
@@ -112,34 +114,43 @@ export function TokenDetailsModal({
   }, [open]);
 
   // Virtualization logic for current wallets
-  const { visibleCurrentWallets, currentPaddingTop, currentPaddingBottom } = useMemo(() => {
-    if (!token?.wallets) {
-      return { visibleCurrentWallets: [], currentPaddingTop: 0, currentPaddingBottom: 0 };
-    }
+  const { visibleCurrentWallets, currentPaddingTop, currentPaddingBottom } =
+    useMemo(() => {
+      if (!token?.wallets) {
+        return {
+          visibleCurrentWallets: [],
+          currentPaddingTop: 0,
+          currentPaddingBottom: 0
+        };
+      }
 
-    const allWallets = token.wallets;
-    const totalWallets = allWallets.length;
-    const baseRowHeight = 60;
-    const overscan = 5;
-    const visibleCount =
-      currentViewportHeight > 0
-        ? Math.ceil(currentViewportHeight / Math.max(baseRowHeight, 1)) + overscan
-        : totalWallets;
-    const startIndex = Math.max(
-      0,
-      Math.floor(currentScrollTop / Math.max(baseRowHeight, 1)) - overscan
-    );
-    const endIndex = Math.min(totalWallets, startIndex + visibleCount);
-    const visibleWallets = allWallets.slice(startIndex, endIndex);
-    const paddingTop = startIndex * baseRowHeight;
-    const paddingBottom = Math.max(0, (totalWallets - endIndex) * baseRowHeight);
+      const allWallets = token.wallets;
+      const totalWallets = allWallets.length;
+      const baseRowHeight = 60;
+      const overscan = 5;
+      const visibleCount =
+        currentViewportHeight > 0
+          ? Math.ceil(currentViewportHeight / Math.max(baseRowHeight, 1)) +
+            overscan
+          : totalWallets;
+      const startIndex = Math.max(
+        0,
+        Math.floor(currentScrollTop / Math.max(baseRowHeight, 1)) - overscan
+      );
+      const endIndex = Math.min(totalWallets, startIndex + visibleCount);
+      const visibleWallets = allWallets.slice(startIndex, endIndex);
+      const paddingTop = startIndex * baseRowHeight;
+      const paddingBottom = Math.max(
+        0,
+        (totalWallets - endIndex) * baseRowHeight
+      );
 
-    return {
-      visibleCurrentWallets: visibleWallets,
-      currentPaddingTop: paddingTop,
-      currentPaddingBottom: paddingBottom
-    };
-  }, [token, currentScrollTop, currentViewportHeight]);
+      return {
+        visibleCurrentWallets: visibleWallets,
+        currentPaddingTop: paddingTop,
+        currentPaddingBottom: paddingBottom
+      };
+    }, [token, currentScrollTop, currentViewportHeight]);
 
   // Fetch analysis history when modal opens
   useEffect(() => {
@@ -390,134 +401,143 @@ export function TokenDetailsModal({
                         </TableRow>
                       )}
                       {visibleCurrentWallets.map((wallet) => {
-                        const index = token.wallets.findIndex(w => w.id === wallet.id);
+                        const index = token.wallets.findIndex(
+                          (w) => w.id === wallet.id
+                        );
                         return (
-                      <TableRow key={wallet.id}>
-                        <TableCell className='text-primary font-semibold'>
-                          #{index + 1}
-                        </TableCell>
-                        <TableCell className='font-mono text-sm'>
-                          <div className='flex items-center gap-2'>
-                            <WalletAddressWithBotIndicator
-                              walletAddress={wallet.wallet_address}
-                            >
-                              {wallet.wallet_address}
-                            </WalletAddressWithBotIndicator>
-                            <a
-                              href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              title='Search on Twitter/X'
-                            >
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                className='h-6 w-6 p-0'
-                              >
-                                <Twitter className='h-3 w-3' />
-                              </Button>
-                            </a>
-                            <Button
-                              variant='ghost'
-                              size='sm'
-                              className='h-6 w-6 p-0'
-                              onClick={() => copyAddress(wallet.wallet_address)}
-                            >
-                              <Copy className='h-3 w-3' />
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell className='text-right font-mono text-sm'>
-                  <div className='flex flex-col items-end gap-1'>
-                    <div className='flex items-center gap-1'>
-                      {(() => {
-                        const trend = getWalletTrend(wallet);
-                        const current = wallet.wallet_balance_usd;
-                        const formatted =
-                          current !== null && current !== undefined
-                            ? `$${Math.round(current).toLocaleString()}`
-                            : 'N/A';
-                        if (trend === 'up') {
-                          return (
-                            <span className='flex items-center gap-1 text-green-600'>
-                              <span>▲</span>
-                              <span>{formatted}</span>
-                            </span>
-                          );
-                        }
-                        if (trend === 'down') {
-                          return (
-                            <span className='flex items-center gap-1 text-red-600'>
-                              <span>▼</span>
-                              <span>{formatted}</span>
-                            </span>
-                          );
-                        }
-                        return <span>{formatted}</span>;
-                      })()}
-                    </div>
-                    <div className='text-[11px] text-muted-foreground'>
-                      {formatWalletTimestamp(
-                        wallet.wallet_balance_updated_at as string | null
-                      )}
-                    </div>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                              className='h-6 w-6 p-0'
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRefreshBalance(wallet.wallet_address);
-                              }}
-                              disabled={
-                                refreshingWallets.has(wallet.wallet_address) ||
-                                refreshingAll
-                              }
-                              title='Refresh balance - 1 API credit'
-                            >
-                              <RefreshCw
-                                className={`h-3 w-3 ${refreshingWallets.has(wallet.wallet_address) ? 'animate-spin' : ''}`}
-                              />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className='text-right'>
-                          <div className='flex justify-end gap-2'>
-                            <WalletTags walletAddress={wallet.wallet_address} />
-                            <AdditionalTagsPopover
-                              walletId={wallet.id}
-                              walletAddress={wallet.wallet_address}
-                            />
-                            <a
-                              href={`https://solscan.io/account/${wallet.wallet_address}`}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                            >
-                              <Button variant='outline' size='sm'>
-                                <ExternalLink className='h-4 w-4' />
-                              </Button>
-                            </a>
-                          </div>
-                        </TableCell>
-                        <TableCell className='text-sm'>
-                          {formatTimestamp(wallet.first_buy_timestamp)}
-                        </TableCell>
-                        <TableCell className='text-right'>
-                          {wallet.total_usd
-                            ? `$${Math.round(wallet.total_usd)}`
-                            : 'N/A'}
-                        </TableCell>
-                        <TableCell className='text-center'>
-                          {wallet.transaction_count || 1}
-                        </TableCell>
-                        <TableCell className='text-right'>
-                          {wallet.average_buy_usd
-                            ? `$${Math.round(wallet.average_buy_usd)}`
-                            : 'N/A'}
-                        </TableCell>
-                      </TableRow>
-                      );
-                    })}
+                          <TableRow key={wallet.id}>
+                            <TableCell className='text-primary font-semibold'>
+                              #{index + 1}
+                            </TableCell>
+                            <TableCell className='font-mono text-sm'>
+                              <div className='flex items-center gap-2'>
+                                <WalletAddressWithBotIndicator
+                                  walletAddress={wallet.wallet_address}
+                                >
+                                  {wallet.wallet_address}
+                                </WalletAddressWithBotIndicator>
+                                <a
+                                  href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  title='Search on Twitter/X'
+                                >
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-6 w-6 p-0'
+                                  >
+                                    <Twitter className='h-3 w-3' />
+                                  </Button>
+                                </a>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-6 w-6 p-0'
+                                  onClick={() =>
+                                    copyAddress(wallet.wallet_address)
+                                  }
+                                >
+                                  <Copy className='h-3 w-3' />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className='text-right font-mono text-sm'>
+                              <div className='flex flex-col items-end gap-1'>
+                                <div className='flex items-center gap-1'>
+                                  {(() => {
+                                    const trend = getWalletTrend(wallet);
+                                    const current = wallet.wallet_balance_usd;
+                                    const formatted =
+                                      current !== null && current !== undefined
+                                        ? `$${Math.round(current).toLocaleString()}`
+                                        : 'N/A';
+                                    if (trend === 'up') {
+                                      return (
+                                        <span className='flex items-center gap-1 text-green-600'>
+                                          <span>▲</span>
+                                          <span>{formatted}</span>
+                                        </span>
+                                      );
+                                    }
+                                    if (trend === 'down') {
+                                      return (
+                                        <span className='flex items-center gap-1 text-red-600'>
+                                          <span>▼</span>
+                                          <span>{formatted}</span>
+                                        </span>
+                                      );
+                                    }
+                                    return <span>{formatted}</span>;
+                                  })()}
+                                </div>
+                                <div className='text-muted-foreground text-[11px]'>
+                                  {formatWalletTimestamp(
+                                    wallet.wallet_balance_updated_at as
+                                      | string
+                                      | null
+                                  )}
+                                </div>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-6 w-6 p-0'
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRefreshBalance(wallet.wallet_address);
+                                  }}
+                                  disabled={
+                                    refreshingWallets.has(
+                                      wallet.wallet_address
+                                    ) || refreshingAll
+                                  }
+                                  title='Refresh balance - 1 API credit'
+                                >
+                                  <RefreshCw
+                                    className={`h-3 w-3 ${refreshingWallets.has(wallet.wallet_address) ? 'animate-spin' : ''}`}
+                                  />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className='text-right'>
+                              <div className='flex justify-end gap-2'>
+                                <WalletTags
+                                  walletAddress={wallet.wallet_address}
+                                />
+                                <AdditionalTagsPopover
+                                  walletId={wallet.id}
+                                  walletAddress={wallet.wallet_address}
+                                />
+                                <a
+                                  href={`https://solscan.io/account/${wallet.wallet_address}`}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                >
+                                  <Button variant='outline' size='sm'>
+                                    <ExternalLink className='h-4 w-4' />
+                                  </Button>
+                                </a>
+                              </div>
+                            </TableCell>
+                            <TableCell className='text-sm'>
+                              {formatTimestamp(wallet.first_buy_timestamp)}
+                            </TableCell>
+                            <TableCell className='text-right'>
+                              {wallet.total_usd
+                                ? `$${Math.round(wallet.total_usd)}`
+                                : 'N/A'}
+                            </TableCell>
+                            <TableCell className='text-center'>
+                              {wallet.transaction_count || 1}
+                            </TableCell>
+                            <TableCell className='text-right'>
+                              {wallet.average_buy_usd
+                                ? `$${Math.round(wallet.average_buy_usd)}`
+                                : 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {currentPaddingBottom > 0 && (
                         <TableRow aria-hidden='true'>
                           <TableCell
@@ -632,9 +652,7 @@ export function TokenDetailsModal({
                                   </Button>
                                 </div>
                               </TableHead>
-                              <TableHead className='text-right'>
-                                Tags
-                              </TableHead>
+                              <TableHead className='text-right'>Tags</TableHead>
                               <TableHead>First Buy Time</TableHead>
                               <TableHead className='text-right'>
                                 Amount (USD)
@@ -727,9 +745,11 @@ export function TokenDetailsModal({
                                           return <span>{formatted}</span>;
                                         })()}
                                       </div>
-                                      <div className='text-[10px] text-muted-foreground'>
+                                      <div className='text-muted-foreground text-[10px]'>
                                         {formatWalletTimestamp(
-                                          wallet.wallet_balance_updated_at as string | null
+                                          wallet.wallet_balance_updated_at as
+                                            | string
+                                            | null
                                         )}
                                       </div>
                                       <Button

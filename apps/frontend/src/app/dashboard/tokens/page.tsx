@@ -473,7 +473,8 @@ export default function TokensPage() {
 
             // Update hasActiveJobs state
             const activeJobs = analysisData.jobs.some(
-              (job: any) => job.status === 'queued' || job.status === 'processing'
+              (job: any) =>
+                job.status === 'queued' || job.status === 'processing'
             );
             setHasActiveJobs(activeJobs);
 
@@ -497,13 +498,16 @@ export default function TokensPage() {
                     'Notification' in window &&
                     Notification.permission === 'granted'
                   ) {
-                    const notification = new Notification('Analysis Complete ✓', {
-                      body: `${tokenName} analysis finished\nClick to view results`,
-                      icon: '/favicon.ico',
-                      tag: 'analysis-complete',
-                      requireInteraction: false,
-                      silent: true // No sound
-                    });
+                    const notification = new Notification(
+                      'Analysis Complete ✓',
+                      {
+                        body: `${tokenName} analysis finished\nClick to view results`,
+                        icon: '/favicon.ico',
+                        tag: 'analysis-complete',
+                        requireInteraction: false,
+                        silent: true // No sound
+                      }
+                    );
 
                     // Auto-close notification after 0.75 seconds
                     setTimeout(() => notification.close(), 750);
@@ -671,38 +675,49 @@ export default function TokensPage() {
   }, [multiWallets, isWalletPanelExpanded, walletPage]);
 
   // Virtualization logic for expanded mode
-  const { walletsToDisplay, walletPaddingTop, walletPaddingBottom } = useMemo(() => {
-    if (!isWalletPanelExpanded || !multiWallets?.wallets) {
+  const { walletsToDisplay, walletPaddingTop, walletPaddingBottom } =
+    useMemo(() => {
+      if (!isWalletPanelExpanded || !multiWallets?.wallets) {
+        return {
+          walletsToDisplay: walletsPaginated,
+          walletPaddingTop: 0,
+          walletPaddingBottom: 0
+        };
+      }
+
+      const allWallets = multiWallets.wallets;
+      const totalWallets = allWallets.length;
+      const baseRowHeight = 80; // Average height per wallet row
+      const overscan = 5;
+      const visibleCount =
+        walletViewportHeight > 0
+          ? Math.ceil(walletViewportHeight / Math.max(baseRowHeight, 1)) +
+            overscan
+          : totalWallets;
+      const startIndex = Math.max(
+        0,
+        Math.floor(walletScrollTop / Math.max(baseRowHeight, 1)) - overscan
+      );
+      const endIndex = Math.min(totalWallets, startIndex + visibleCount);
+      const visibleWallets = allWallets.slice(startIndex, endIndex);
+      const paddingTop = startIndex * baseRowHeight;
+      const paddingBottom = Math.max(
+        0,
+        (totalWallets - endIndex) * baseRowHeight
+      );
+
       return {
-        walletsToDisplay: walletsPaginated,
-        walletPaddingTop: 0,
-        walletPaddingBottom: 0
+        walletsToDisplay: visibleWallets,
+        walletPaddingTop: paddingTop,
+        walletPaddingBottom: paddingBottom
       };
-    }
-
-    const allWallets = multiWallets.wallets;
-    const totalWallets = allWallets.length;
-    const baseRowHeight = 80; // Average height per wallet row
-    const overscan = 5;
-    const visibleCount =
-      walletViewportHeight > 0
-        ? Math.ceil(walletViewportHeight / Math.max(baseRowHeight, 1)) + overscan
-        : totalWallets;
-    const startIndex = Math.max(
-      0,
-      Math.floor(walletScrollTop / Math.max(baseRowHeight, 1)) - overscan
-    );
-    const endIndex = Math.min(totalWallets, startIndex + visibleCount);
-    const visibleWallets = allWallets.slice(startIndex, endIndex);
-    const paddingTop = startIndex * baseRowHeight;
-    const paddingBottom = Math.max(0, (totalWallets - endIndex) * baseRowHeight);
-
-    return {
-      walletsToDisplay: visibleWallets,
-      walletPaddingTop: paddingTop,
-      walletPaddingBottom: paddingBottom
-    };
-  }, [multiWallets, isWalletPanelExpanded, walletsPaginated, walletScrollTop, walletViewportHeight]);
+    }, [
+      multiWallets,
+      isWalletPanelExpanded,
+      walletsPaginated,
+      walletScrollTop,
+      walletViewportHeight
+    ]);
 
   const totalWalletPages = useMemo(() => {
     if (!multiWallets?.wallets) return 0;
@@ -716,7 +731,9 @@ export default function TokensPage() {
     return `Updated ${date.toLocaleString()}`;
   };
 
-  const getWalletTrend = (wallet: MultiTokenWalletsResponse['wallets'][number]) => {
+  const getWalletTrend = (
+    wallet: MultiTokenWalletsResponse['wallets'][number]
+  ) => {
     const current = wallet.wallet_balance_usd;
     const previous = wallet.wallet_balance_usd_previous;
     if (current === null || current === undefined) return 'none';
@@ -1152,9 +1169,11 @@ export default function TokensPage() {
                                 return <span>{formatted}</span>;
                               })()}
                             </div>
-                            <div className='text-[11px] text-muted-foreground'>
+                            <div className='text-muted-foreground text-[11px]'>
                               {formatWalletTimestamp(
-                                wallet.wallet_balance_updated_at as string | null
+                                wallet.wallet_balance_updated_at as
+                                  | string
+                                  | null
                               )}
                             </div>
                             <Button

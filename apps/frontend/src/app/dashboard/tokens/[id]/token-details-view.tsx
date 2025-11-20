@@ -69,7 +69,10 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
     const endIndex = Math.min(totalWallets, startIndex + visibleCount);
     const visible = allWallets.slice(startIndex, endIndex);
     const paddingTop = startIndex * baseRowHeight;
-    const paddingBottom = Math.max(0, (totalWallets - endIndex) * baseRowHeight);
+    const paddingBottom = Math.max(
+      0,
+      (totalWallets - endIndex) * baseRowHeight
+    );
 
     return {
       visibleWallets: visible,
@@ -203,146 +206,154 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
             className='max-h-[600px] overflow-auto'
           >
             <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className='w-[60px]'>Rank</TableHead>
-                <TableHead>Wallet Address</TableHead>
-                <TableHead className='text-right'>Balance (USD)</TableHead>
-                <TableHead>First Buy Time</TableHead>
-                <TableHead className='text-right'>Amount (USD)</TableHead>
-                <TableHead className='text-center'>Txns</TableHead>
-                <TableHead className='text-right'>Avg Buy</TableHead>
-                <TableHead className='text-right'>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {token.wallets.length === 0 ? (
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className='text-muted-foreground py-12 text-center'
-                  >
-                    No wallets found
-                  </TableCell>
+                  <TableHead className='w-[60px]'>Rank</TableHead>
+                  <TableHead>Wallet Address</TableHead>
+                  <TableHead className='text-right'>Balance (USD)</TableHead>
+                  <TableHead>First Buy Time</TableHead>
+                  <TableHead className='text-right'>Amount (USD)</TableHead>
+                  <TableHead className='text-center'>Txns</TableHead>
+                  <TableHead className='text-right'>Avg Buy</TableHead>
+                  <TableHead className='text-right'>Actions</TableHead>
                 </TableRow>
-              ) : (
-                <>
-                  {paddingTop > 0 && (
-                    <TableRow aria-hidden='true'>
-                      <TableCell
-                        colSpan={8}
-                        className='p-0'
-                        style={{ height: paddingTop }}
-                      />
-                    </TableRow>
-                  )}
-                  {visibleWallets.map((wallet) => {
-                    const index = token.wallets.findIndex(w => w.id === wallet.id);
-                    return (
-                  <TableRow key={wallet.id}>
-                    <TableCell className='text-primary font-semibold'>
-                      #{index + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex flex-col gap-1'>
-                        <div className='font-mono text-sm'>
-                          {wallet.wallet_address}
-                        </div>
-                        <WalletTags
-                          walletAddress={wallet.wallet_address}
-                          compact
-                        />
-                      </div>
-                </TableCell>
-                <TableCell className='text-right font-mono text-sm'>
-                  <div className='flex flex-col items-end gap-1'>
-                    <div className='flex items-center gap-1'>
-                      {(() => {
-                        const trend = getWalletTrend(wallet);
-                        const current = wallet.wallet_balance_usd;
-                        const formatted =
-                          current !== null && current !== undefined
-                            ? `$${Math.round(current).toLocaleString()}`
-                            : 'N/A';
-                        if (trend === 'up') {
-                          return (
-                            <span className='flex items-center gap-1 text-green-600'>
-                              <span>▲</span>
-                              <span>{formatted}</span>
-                            </span>
-                          );
-                        }
-                        if (trend === 'down') {
-                          return (
-                            <span className='flex items-center gap-1 text-red-600'>
-                              <span>▼</span>
-                              <span>{formatted}</span>
-                            </span>
-                          );
-                        }
-                        return <span>{formatted}</span>;
-                      })()}
-                    </div>
-                    <div className='text-[11px] text-muted-foreground'>
-                      {formatWalletTimestamp(
-                        wallet.wallet_balance_updated_at as string | null
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                    <TableCell className='text-sm'>
-                      {formatTimestamp(wallet.first_buy_timestamp)}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {wallet.total_usd
-                        ? `$${Math.round(wallet.total_usd)}`
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell className='text-center'>
-                      {wallet.transaction_count || 1}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {wallet.average_buy_usd
-                        ? `$${Math.round(wallet.average_buy_usd)}`
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      <div className='flex items-center gap-2'>
-                        <WalletTags walletAddress={wallet.wallet_address} />
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => copyAddress(wallet.wallet_address)}
-                        >
-                          <Copy className='h-4 w-4' />
-                        </Button>
-                        <a
-                          href={`https://solscan.io/account/${wallet.wallet_address}`}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                        >
-                          <Button variant='outline' size='sm'>
-                            <ExternalLink className='h-4 w-4' />
-                          </Button>
-                        </a>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {token.wallets.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className='text-muted-foreground py-12 text-center'
+                    >
+                      No wallets found
                     </TableCell>
                   </TableRow>
-                    );
-                  })}
-                  {paddingBottom > 0 && (
-                    <TableRow aria-hidden='true'>
-                      <TableCell
-                        colSpan={8}
-                        className='p-0'
-                        style={{ height: paddingBottom }}
-                      />
-                    </TableRow>
-                  )}
-                </>
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  <>
+                    {paddingTop > 0 && (
+                      <TableRow aria-hidden='true'>
+                        <TableCell
+                          colSpan={8}
+                          className='p-0'
+                          style={{ height: paddingTop }}
+                        />
+                      </TableRow>
+                    )}
+                    {visibleWallets.map((wallet) => {
+                      const index = token.wallets.findIndex(
+                        (w) => w.id === wallet.id
+                      );
+                      return (
+                        <TableRow key={wallet.id}>
+                          <TableCell className='text-primary font-semibold'>
+                            #{index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className='flex flex-col gap-1'>
+                              <div className='font-mono text-sm'>
+                                {wallet.wallet_address}
+                              </div>
+                              <WalletTags
+                                walletAddress={wallet.wallet_address}
+                                compact
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className='text-right font-mono text-sm'>
+                            <div className='flex flex-col items-end gap-1'>
+                              <div className='flex items-center gap-1'>
+                                {(() => {
+                                  const trend = getWalletTrend(wallet);
+                                  const current = wallet.wallet_balance_usd;
+                                  const formatted =
+                                    current !== null && current !== undefined
+                                      ? `$${Math.round(current).toLocaleString()}`
+                                      : 'N/A';
+                                  if (trend === 'up') {
+                                    return (
+                                      <span className='flex items-center gap-1 text-green-600'>
+                                        <span>▲</span>
+                                        <span>{formatted}</span>
+                                      </span>
+                                    );
+                                  }
+                                  if (trend === 'down') {
+                                    return (
+                                      <span className='flex items-center gap-1 text-red-600'>
+                                        <span>▼</span>
+                                        <span>{formatted}</span>
+                                      </span>
+                                    );
+                                  }
+                                  return <span>{formatted}</span>;
+                                })()}
+                              </div>
+                              <div className='text-muted-foreground text-[11px]'>
+                                {formatWalletTimestamp(
+                                  wallet.wallet_balance_updated_at as
+                                    | string
+                                    | null
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className='text-sm'>
+                            {formatTimestamp(wallet.first_buy_timestamp)}
+                          </TableCell>
+                          <TableCell className='text-right'>
+                            {wallet.total_usd
+                              ? `$${Math.round(wallet.total_usd)}`
+                              : 'N/A'}
+                          </TableCell>
+                          <TableCell className='text-center'>
+                            {wallet.transaction_count || 1}
+                          </TableCell>
+                          <TableCell className='text-right'>
+                            {wallet.average_buy_usd
+                              ? `$${Math.round(wallet.average_buy_usd)}`
+                              : 'N/A'}
+                          </TableCell>
+                          <TableCell className='text-right'>
+                            <div className='flex items-center gap-2'>
+                              <WalletTags
+                                walletAddress={wallet.wallet_address}
+                              />
+                              <Button
+                                variant='ghost'
+                                size='sm'
+                                onClick={() =>
+                                  copyAddress(wallet.wallet_address)
+                                }
+                              >
+                                <Copy className='h-4 w-4' />
+                              </Button>
+                              <a
+                                href={`https://solscan.io/account/${wallet.wallet_address}`}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                              >
+                                <Button variant='outline' size='sm'>
+                                  <ExternalLink className='h-4 w-4' />
+                                </Button>
+                              </a>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {paddingBottom > 0 && (
+                      <TableRow aria-hidden='true'>
+                        <TableCell
+                          colSpan={8}
+                          className='p-0'
+                          style={{ height: paddingBottom }}
+                        />
+                      </TableRow>
+                    )}
+                  </>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

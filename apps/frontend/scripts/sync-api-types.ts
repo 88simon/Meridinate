@@ -125,10 +125,7 @@ print('OpenAPI schema exported successfully!')
 
   const configPath = join(BACKEND_REPO_PATH, 'config.json');
   const settingsPath = join(BACKEND_REPO_PATH, 'api_settings.json');
-  const monitoredPath = join(
-    BACKEND_REPO_PATH,
-    'monitored_addresses.json'
-  );
+  const monitoredPath = join(BACKEND_REPO_PATH, 'monitored_addresses.json');
 
   // Create test config files if they don't exist
   // Using flag 'wx' to write only if file doesn't exist (atomic operation)
@@ -159,9 +156,10 @@ print('OpenAPI schema exported successfully!')
   // Execute Python script via stdin to avoid command injection and temp files
   try {
     // Use venv Python on Windows, fallback to system python
-    const pythonCmd = process.platform === 'win32'
-      ? join(BACKEND_REPO_PATH, '.venv', 'Scripts', 'python.exe')
-      : 'python3';
+    const pythonCmd =
+      process.platform === 'win32'
+        ? join(BACKEND_REPO_PATH, '.venv', 'Scripts', 'python.exe')
+        : 'python3';
 
     execSync(pythonCmd, {
       cwd: BACKEND_REPO_PATH,
