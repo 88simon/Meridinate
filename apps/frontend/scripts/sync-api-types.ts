@@ -161,7 +161,7 @@ print('OpenAPI schema exported successfully!')
     // Use venv Python on Windows, fallback to system python
     const pythonCmd = process.platform === 'win32'
       ? join(BACKEND_REPO_PATH, '.venv', 'Scripts', 'python.exe')
-      : 'python';
+      : 'python3';
 
     execSync(pythonCmd, {
       cwd: BACKEND_REPO_PATH,
