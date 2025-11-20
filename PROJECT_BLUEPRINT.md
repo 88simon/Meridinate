@@ -3,7 +3,7 @@
 **Created:** November 17, 2025
 **Purpose:** Comprehensive handoff documentation for AI assistants and future development
 **User:** Simon (non-technical background - use precise terminology and explanations)
-**Project Status:** ✅ Monorepo migration 95% complete, production-ready
+**Project Status:** ✅ Monorepo migration 100% complete, production-ready
 
 ---
 
@@ -50,9 +50,9 @@ This is a **personal analysis tool** for Simon's cryptocurrency investment resea
 
 ## Current Project Status
 
-### Migration Status: 95% Complete ✅
+### Migration Status: 100% Complete ✅
 
-**What Just Happened:** Complete restructure from dual-repository setup to professional enterprise-grade monorepo (November 17, 2025)
+**What Just Happened:** Complete restructure from dual-repository setup to professional enterprise-grade monorepo with unified CI/CD pipeline (November 2025)
 
 #### After (New Structure) ✅
 ```
@@ -78,10 +78,11 @@ C:\Meridinate\
 - ✅ **Legacy cleanup** - Old root `backend/` and `frontend/` folders removed
 - ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
 - ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth
+- ✅ **CI/CD Pipeline** - Unified monorepo workflow at `.github/workflows/monorepo-ci.yml` with all checks passing
 
 ### What Needs Cleanup ⚠️
 
-- ⚠️ **CI/CD workflows** - Still in per-app `.github/` folders, should be moved to root
+- None - all critical issues resolved ✅
 
 ---
 
@@ -543,16 +544,11 @@ pnpm install
 
 ### Optional (Nice to Have)
 
-5. **🔧 Unified CI/CD**
-   - Move `.github/workflows/` to root
-   - Create unified workflow for both apps
-   - Set up type sync validation
-
-6. **📦 Shared Packages**
+5. **📦 Shared Packages**
    - Create `packages/types/` for shared TypeScript types
    - Create `packages/config/` for shared configuration
 
-7. **🚀 Deployment**
+6. **🚀 Deployment**
    - Set up production deployment
    - Configure environment variables for prod
    - Set up monitoring/logging
@@ -594,23 +590,30 @@ pnpm install
   - enhanced start scripts with automatic process cleanup
   - pushed unified repository to github
 
+- ✅ **Phase 5: Async Tasks & CI/CD** (Nov 19-20, 2025)
+  - Async task queue with arq + Redis (disabled by default)
+  - Rate limiting with slowapi (disabled by default)
+  - Unified monorepo CI/CD pipeline at `.github/workflows/monorepo-ci.yml`
+  - API type synchronization validation in CI
+  - Cross-platform CI fixes (PYTHONPATH, database directory, Python command)
+  - Fixed API types sync infinite loop (excluded commit SHA from comparison)
+
 ### In Progress 🔄
 
-- 🔄 **Phase 5: Production Hardening** (Nov-Dec 2025)
-  - Clean up old directory structure
-  - Unified Git repository
+- 🔄 **Phase 6: Production Hardening** (Nov-Dec 2025)
   - Production deployment setup
   - Performance optimization
+  - Monitoring and alerting setup
 
 ### Planned 📋
 
-- 📋 **Phase 6: Enhanced Analytics** (2026 Q1)
+- 📋 **Phase 7: Enhanced Analytics** (2026 Q1)
   - Wallet performance scoring
   - Predictive analysis using historical data
   - Portfolio tracking
   - Automated alerts for watchlist wallets
 
-- 📋 **Phase 7: Data Enrichment** (2026 Q2)
+- 📋 **Phase 8: Data Enrichment** (2026 Q2)
   - Integration with additional data sources
   - Social sentiment analysis
   - Token holder distribution analysis
@@ -1456,7 +1459,7 @@ pnpm install
 
 **Project:** Solana token analysis toolkit (personal tool for investment research)
 
-**Current State:** ✅ 95% complete monorepo migration, fully functional
+**Current State:** ✅ 100% complete monorepo migration with unified CI/CD, fully functional
 
 **Structure:**
 ```
@@ -1477,8 +1480,9 @@ C:\Meridinate\
 4. Market cap tracking (with trend/last-updated)
 5. Wallet balance refresh (with trend/last-updated)
 6. Real-time WebSocket notifications
+7. Unified CI/CD pipeline with automated checks
 
-**Pending:** Move per-app CI/CD workflows into a unified root pipeline
+**CI/CD:** `.github/workflows/monorepo-ci.yml` - Backend tests, frontend lint/format/typecheck, API types sync, production builds
 
 **User:** Simon (non-technical) - explain clearly, correct terminology politely
 
@@ -1487,6 +1491,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 1.5
-**Last Updated:** November 19, 2025 (High-Complexity Performance Optimizations - PWA & Async Task Design)
+**Document Version:** 1.6
+**Last Updated:** November 20, 2025 (CI/CD Pipeline Complete - Unified Monorepo Workflow)
 **Next Review:** After production deployment
