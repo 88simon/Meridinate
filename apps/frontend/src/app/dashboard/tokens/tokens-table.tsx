@@ -106,7 +106,7 @@ const MemoizedTableRow = memo(
           key={cell.id}
           className={cn(
             'transition-all duration-200',
-            isCompactMode ? 'px-2 py-2' : 'px-3 py-3'
+            isCompactMode ? 'px-2 py-1' : 'px-3 py-1.5'
           )}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -297,6 +297,24 @@ const MarketCapCell = memo(
                 ({formatTimeSinceRefresh(marketCapUpdatedAt)})
               </div>
             )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-4 w-4 p-0'
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw
+                      className={cn('h-1 w-1', isRefreshing && 'animate-spin')}
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Refresh market cap</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
 
@@ -347,28 +365,6 @@ const MarketCapCell = memo(
             )}
           </div>
         )}
-
-        {/* Refresh Icon */}
-        <div className='flex items-center gap-1'>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='h-4 w-4 p-0'
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                >
-                  <RefreshCw
-                    className={cn('h-1 w-1', isRefreshing && 'animate-spin')}
-                  />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh market cap</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
       </div>
     );
   },
@@ -469,46 +465,6 @@ const createColumns = (
     }
   },
   {
-    accessorKey: 'market_cap_usd',
-    header: () => (
-      <div className='flex items-center gap-1'>
-        <span>Market Cap</span>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant='ghost'
-                size='sm'
-                className='h-5 w-5 p-0'
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRefreshAllMarketCaps();
-                }}
-                disabled={refreshingAll}
-              >
-                <RefreshCw
-                  className={cn('h-1 w-1', refreshingAll && 'animate-spin')}
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh all visible market caps</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <MarketCapCell
-        token={row.original}
-        isRefreshing={refreshingMarketCaps.has(row.original.id)}
-        isCompact={isCompact}
-        onRefresh={(e) => {
-          e.stopPropagation();
-          handleRefreshMarketCap(row.original.id);
-        }}
-      />
-    )
-  },
-  {
     accessorKey: 'token_address',
     header: 'Address',
     cell: ({ row }) => {
@@ -516,7 +472,7 @@ const createColumns = (
       return (
         <div className='flex items-center gap-1'>
           <a
-            href={`https://solscan.io/token/${address}`}
+            href={`https://gmgn.ai/sol/token/${address}?min=0.1&isInputValue=true`}
             target='_blank'
             rel='noopener noreferrer'
             className={cn(
@@ -560,6 +516,46 @@ const createColumns = (
         </div>
       );
     }
+  },
+  {
+    accessorKey: 'market_cap_usd',
+    header: () => (
+      <div className='flex items-center gap-1'>
+        <span>Market Cap</span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='ghost'
+                size='sm'
+                className='h-5 w-5 p-0'
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefreshAllMarketCaps();
+                }}
+                disabled={refreshingAll}
+              >
+                <RefreshCw
+                  className={cn('h-1 w-1', refreshingAll && 'animate-spin')}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh all visible market caps</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <MarketCapCell
+        token={row.original}
+        isRefreshing={refreshingMarketCaps.has(row.original.id)}
+        isCompact={isCompact}
+        onRefresh={(e) => {
+          e.stopPropagation();
+          handleRefreshMarketCap(row.original.id);
+        }}
+      />
+    )
   },
   {
     id: 'actions',
@@ -1129,8 +1125,8 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
 
         {/* Selection Control Panel */}
         {selectedTokenIds.size > 0 && (
-          <div className='bg-primary/10 border-primary/20 sticky top-0 z-10 flex items-center justify-center gap-2 rounded-md border p-2 backdrop-blur-sm'>
-            <span className='text-primary text-sm font-medium'>
+          <div className='bg-primary/10 border-primary/20 sticky top-0 z-10 flex items-center justify-center gap-2 rounded-md border p-1 backdrop-blur-sm'>
+            <span className='text-primary text-[11px] font-medium'>
               {selectedTokenIds.size} token
               {selectedTokenIds.size !== 1 ? 's' : ''} selected
             </span>
@@ -1138,7 +1134,7 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
               variant='outline'
               size='sm'
               onClick={handleRefreshSelectedMarketCaps}
-              className='h-7 gap-1 text-xs'
+              className='h-5 gap-1 text-[11px]'
               disabled={refreshingAll}
             >
               <RefreshCw
@@ -1150,7 +1146,7 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
               variant='outline'
               size='sm'
               onClick={handleBulkDownload}
-              className='h-7 gap-1 text-xs'
+              className='h-5 gap-1 text-[11px]'
             >
               <Download className='h-3 w-3' />
               Download
@@ -1159,7 +1155,7 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
               variant='destructive'
               size='sm'
               onClick={handleBulkDelete}
-              className='h-7 gap-1 text-xs'
+              className='h-5 gap-1 text-[11px]'
             >
               <Trash2 className='h-3 w-3' />
               Delete
@@ -1168,7 +1164,7 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
               variant='outline'
               size='sm'
               onClick={() => setSelectedTokenIds(new Set())}
-              className='h-7 text-xs'
+              className='h-5 text-[11px]'
             >
               Deselect All
             </Button>
@@ -1191,8 +1187,8 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
                         className={cn(
                           'bg-background whitespace-nowrap transition-all duration-300',
                           isCompactMode
-                            ? 'px-2 py-2 text-xs'
-                            : 'px-3 py-3 text-sm'
+                            ? 'px-2 py-1 text-[11px]'
+                            : 'px-3 py-1.5 text-xs'
                         )}
                       >
                         {header.isPlaceholder
