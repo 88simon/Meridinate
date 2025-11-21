@@ -11,7 +11,7 @@ FastAPI-based backend service for Solana token analysis with async task processi
 - **Async Task Queue** (arq + Redis) - Background task processing for long-running operations
 - **Rate Limiting** (slowapi) - Configurable endpoint protection with conditional disabling
 - **Helius Integration** (`helius_api.py`) - Solana blockchain data and token analysis
-- **SQLite Database** (`analyzed_tokens.db`) - Persistent storage for tokens, wallets, and tags
+- **SQLite Database** (`analyzed_tokens.db`) - Persistent storage with 6 tables: tokens, wallets, analysis runs, tags, wallet activity, and multi-token metadata
 
 ## Requirements
 
@@ -150,11 +150,19 @@ The service starts on **http://localhost:5003** with:
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `GET` | `/wallets/{address}` | Get wallet details |
+| `GET` | `/api/multitokens/wallets` | Get multi-token wallets with NEW indicators |
 | `POST` | `/wallets/refresh-balances` | Refresh wallet balances (batch) |
 | `GET` | `/wallets/{address}/tags` | Get wallet tags |
 | `POST` | `/wallets/{address}/tags` | Add tag to wallet |
 | `DELETE` | `/wallets/{address}/tags` | Remove tag from wallet |
 | `POST` | `/wallets/batch-tags` | Get tags for multiple wallets |
+
+**Multi-Token Wallets Features:**
+- Returns wallets appearing in 2+ analyzed tokens
+- Includes `is_new` boolean flag for newly added wallets
+- Includes `marked_at_analysis_id` to identify which token caused multi-token status
+- Tracks NEW status in `multi_token_wallet_metadata` table
+- NEW flags cleared on next analysis completion
 
 ### Watchlist
 

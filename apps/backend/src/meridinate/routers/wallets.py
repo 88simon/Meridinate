@@ -41,9 +41,12 @@ async def get_multi_early_buyer_wallets(request: Request, min_tokens: int = 2):
                 GROUP_CONCAT(DISTINCT t.id) as token_ids,
                 MAX(tw.wallet_balance_usd) as wallet_balance_usd,
                 MAX(tw.wallet_balance_usd_previous) as wallet_balance_usd_previous,
-                MAX(tw.wallet_balance_updated_at) as wallet_balance_updated_at
+                MAX(tw.wallet_balance_updated_at) as wallet_balance_updated_at,
+                COALESCE(mtw.marked_new, 0) as is_new,
+                mtw.marked_at_analysis_id
             FROM early_buyer_wallets tw
             JOIN analyzed_tokens t ON tw.token_id = t.id
+            LEFT JOIN multi_token_wallet_metadata mtw ON tw.wallet_address = mtw.wallet_address
             WHERE t.deleted_at IS NULL
             GROUP BY tw.wallet_address
             HAVING COUNT(DISTINCT tw.token_id) >= ?
@@ -62,6 +65,8 @@ async def get_multi_early_buyer_wallets(request: Request, min_tokens: int = 2):
             wallet_dict["token_ids"] = [
                 int(id) for id in wallet_dict["token_ids"].split(",") if wallet_dict["token_ids"]
             ]
+            # Convert is_new from integer (0/1) to boolean
+            wallet_dict["is_new"] = bool(wallet_dict["is_new"])
             # SQLite returns timestamps as strings; pass through for client consumption
             wallets.append(wallet_dict)
 

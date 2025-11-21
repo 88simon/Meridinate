@@ -96,6 +96,8 @@ class MultiTokenWallet(BaseModel):
     wallet_balance_usd: Optional[float]
     wallet_balance_usd_previous: Optional[float] = None
     wallet_balance_updated_at: Optional[str] = None
+    is_new: bool = False
+    marked_at_analysis_id: Optional[int] = None
 
 
 class MultiTokenWalletsResponse(BaseModel):

@@ -448,6 +448,25 @@ def init_database():
         """
         )
 
+        # Multi-token wallet metadata table - tracks which wallets are "new" to the multi-token panel
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS multi_token_wallet_metadata (
+                wallet_address TEXT PRIMARY KEY,
+                marked_new BOOLEAN DEFAULT 0,
+                marked_at_analysis_id INTEGER,
+                marked_at_timestamp TIMESTAMP
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_multi_token_metadata_marked
+            ON multi_token_wallet_metadata(marked_new, marked_at_timestamp DESC)
+        """
+        )
+
         # Run migrations to add new columns to existing tables
         # Check if total_usd column exists in early_buyer_wallets, if not add it
         cursor.execute("PRAGMA table_info(early_buyer_wallets)")
@@ -1565,6 +1584,81 @@ def update_token_market_cap_with_ath(
             if market_cap_usd
             else f"[Database] Updated market cap for token {token_id}: N/A"
         )
+
+
+def update_multi_token_wallet_metadata(token_id: int, min_tokens: int = 2) -> int:
+    """
+    Update multi-token wallet metadata after an analysis completes.
+
+    This function:
+    1. Identifies wallets that just crossed the multi-token threshold (2+ tokens)
+    2. Marks them as "new" in the multi_token_wallet_metadata table
+    3. Clears the "new" flag from previously marked wallets
+
+    Args:
+        token_id: ID of the token that was just analyzed
+        min_tokens: Minimum number of tokens to be considered multi-token (default: 2)
+
+    Returns:
+        Number of newly marked wallets
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get current multi-token wallets (wallets appearing in 2+ non-deleted tokens)
+        cursor.execute(
+            """
+            SELECT ebw.wallet_address, COUNT(DISTINCT ebw.token_id) as token_count
+            FROM early_buyer_wallets ebw
+            JOIN analyzed_tokens t ON ebw.token_id = t.id
+            WHERE t.deleted_at IS NULL
+            GROUP BY ebw.wallet_address
+            HAVING COUNT(DISTINCT ebw.token_id) >= ?
+        """,
+            (min_tokens,),
+        )
+        current_multi_token_wallets = {row[0] for row in cursor.fetchall()}
+
+        # Get multi-token wallets EXCLUDING the just-analyzed token
+        # (to identify which wallets just crossed the threshold)
+        cursor.execute(
+            """
+            SELECT ebw.wallet_address, COUNT(DISTINCT ebw.token_id) as token_count
+            FROM early_buyer_wallets ebw
+            JOIN analyzed_tokens t ON ebw.token_id = t.id
+            WHERE t.deleted_at IS NULL AND ebw.token_id != ?
+            GROUP BY ebw.wallet_address
+            HAVING COUNT(DISTINCT ebw.token_id) >= ?
+        """,
+            (token_id, min_tokens),
+        )
+        previous_multi_token_wallets = {row[0] for row in cursor.fetchall()}
+
+        # Wallets that just crossed the threshold (new to multi-token panel)
+        newly_added_wallets = current_multi_token_wallets - previous_multi_token_wallets
+
+        # Clear the "new" flag from all previously marked wallets
+        cursor.execute("UPDATE multi_token_wallet_metadata SET marked_new = 0")
+
+        # Mark newly added wallets as new
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for wallet_address in newly_added_wallets:
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO multi_token_wallet_metadata
+                (wallet_address, marked_new, marked_at_analysis_id, marked_at_timestamp)
+                VALUES (?, 1, ?, ?)
+            """,
+                (wallet_address, token_id, timestamp),
+            )
+
+        if newly_added_wallets:
+            print(
+                f"[Database] Marked {len(newly_added_wallets)} wallet(s) as NEW in multi-token panel "
+                f"after analyzing token {token_id}"
+            )
+
+        return len(newly_added_wallets)
 
 
 # Initialize database on module import

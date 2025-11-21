@@ -303,6 +303,12 @@ export default function TokensPage() {
   );
   const walletsPerPage = 5;
 
+  // Sorting state for multi-token wallets table
+  type SortColumn = 'address' | 'balance' | 'tokens' | 'new';
+  type SortDirection = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   // Virtualization state for multi-token wallet table
   const walletContainerRef = useRef<HTMLDivElement>(null);
   const [walletScrollTop, setWalletScrollTop] = useState(0);
@@ -671,20 +677,80 @@ export default function TokensPage() {
     }
   }, [isWalletPanelExpanded]);
 
+  // Sort handler for multi-token wallets table
+  const handleSort = useCallback(
+    (column: SortColumn) => {
+      if (sortColumn === column) {
+        // Toggle direction if clicking same column
+        setSortDirection((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
+      } else {
+        // New column, default to descending
+        setSortColumn(column);
+        setSortDirection('desc');
+      }
+    },
+    [sortColumn]
+  );
+
+  // Sorted wallets (applied before pagination/virtualization)
+  const sortedWallets = useMemo(() => {
+    if (!multiWallets?.wallets) return [];
+
+    const walletsCopy = [...multiWallets.wallets];
+
+    if (!sortColumn) return walletsCopy;
+
+    walletsCopy.sort((a, b) => {
+      let compareValue = 0;
+
+      switch (sortColumn) {
+        case 'address':
+          // Sort by is_new first, then by address
+          if (a.is_new && !b.is_new) compareValue = -1;
+          else if (!a.is_new && b.is_new) compareValue = 1;
+          else compareValue = a.wallet_address.localeCompare(b.wallet_address);
+          break;
+
+        case 'balance':
+          const balanceA = a.wallet_balance_usd ?? 0;
+          const balanceB = b.wallet_balance_usd ?? 0;
+          compareValue = balanceA - balanceB;
+          break;
+
+        case 'tokens':
+          compareValue = a.token_count - b.token_count;
+          break;
+
+        case 'new':
+          // Sort by whether wallet has a new token
+          const hasNewTokenA = a.marked_at_analysis_id !== null;
+          const hasNewTokenB = b.marked_at_analysis_id !== null;
+          if (hasNewTokenA && !hasNewTokenB) compareValue = -1;
+          else if (!hasNewTokenA && hasNewTokenB) compareValue = 1;
+          else compareValue = 0;
+          break;
+      }
+
+      return sortDirection === 'asc' ? compareValue : -compareValue;
+    });
+
+    return walletsCopy;
+  }, [multiWallets, sortColumn, sortDirection]);
+
   // Pagination logic for multi-token wallets (collapsed mode)
   const walletsPaginated = useMemo(() => {
-    if (!multiWallets?.wallets) return [];
-    if (isWalletPanelExpanded) return multiWallets.wallets;
+    if (!sortedWallets.length) return [];
+    if (isWalletPanelExpanded) return sortedWallets;
 
     const start = walletPage * walletsPerPage;
     const end = start + walletsPerPage;
-    return multiWallets.wallets.slice(start, end);
-  }, [multiWallets, isWalletPanelExpanded, walletPage]);
+    return sortedWallets.slice(start, end);
+  }, [sortedWallets, isWalletPanelExpanded, walletPage]);
 
   // Virtualization logic for expanded mode
   const { walletsToDisplay, walletPaddingTop, walletPaddingBottom } =
     useMemo(() => {
-      if (!isWalletPanelExpanded || !multiWallets?.wallets) {
+      if (!isWalletPanelExpanded || !sortedWallets.length) {
         return {
           walletsToDisplay: walletsPaginated,
           walletPaddingTop: 0,
@@ -692,7 +758,7 @@ export default function TokensPage() {
         };
       }
 
-      const allWallets = multiWallets.wallets;
+      const allWallets = sortedWallets;
       const totalWallets = allWallets.length;
       const baseRowHeight = 80; // Average height per wallet row
       const overscan = 5;
@@ -719,7 +785,7 @@ export default function TokensPage() {
         walletPaddingBottom: paddingBottom
       };
     }, [
-      multiWallets,
+      sortedWallets,
       isWalletPanelExpanded,
       walletsPaginated,
       walletScrollTop,
@@ -727,9 +793,9 @@ export default function TokensPage() {
     ]);
 
   const totalWalletPages = useMemo(() => {
-    if (!multiWallets?.wallets) return 0;
-    return Math.ceil(multiWallets.wallets.length / walletsPerPage);
-  }, [multiWallets]);
+    if (!sortedWallets.length) return 0;
+    return Math.ceil(sortedWallets.length / walletsPerPage);
+  }, [sortedWallets]);
 
   const formatWalletTimestamp = (timestamp?: string | null) => {
     if (!timestamp) return 'Not refreshed yet';
@@ -986,11 +1052,33 @@ export default function TokensPage() {
                 >
                   <tr className='border-b'>
                     <th className='pr-4 pb-3 text-left font-medium'>
-                      Wallet Address
+                      <button
+                        onClick={() => handleSort('address')}
+                        className='hover:text-primary flex items-center gap-1 transition-colors'
+                      >
+                        <span>Wallet Address</span>
+                        {sortColumn === 'address' &&
+                          (sortDirection === 'asc' ? (
+                            <ChevronUp className='h-3 w-3' />
+                          ) : (
+                            <ChevronDown className='h-3 w-3' />
+                          ))}
+                      </button>
                     </th>
                     <th className='px-4 pb-3 text-right font-medium'>
                       <div className='flex items-center justify-end gap-1.5'>
-                        <span>Balance (USD)</span>
+                        <button
+                          onClick={() => handleSort('balance')}
+                          className='hover:text-primary flex items-center gap-1 transition-colors'
+                        >
+                          <span>Balance (USD)</span>
+                          {sortColumn === 'balance' &&
+                            (sortDirection === 'asc' ? (
+                              <ChevronUp className='h-3 w-3' />
+                            ) : (
+                              <ChevronDown className='h-3 w-3' />
+                            ))}
+                        </button>
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1038,10 +1126,32 @@ export default function TokensPage() {
                     </th>
                     <th className='px-4 pb-3 text-left font-medium'>Tags</th>
                     <th className='px-4 pb-3 text-center font-medium'>
-                      Tokens
+                      <button
+                        onClick={() => handleSort('tokens')}
+                        className='hover:text-primary mx-auto flex items-center gap-1 transition-colors'
+                      >
+                        <span>Tokens</span>
+                        {sortColumn === 'tokens' &&
+                          (sortDirection === 'asc' ? (
+                            <ChevronUp className='h-3 w-3' />
+                          ) : (
+                            <ChevronDown className='h-3 w-3' />
+                          ))}
+                      </button>
                     </th>
                     <th className='pb-3 pl-4 text-left font-medium'>
-                      Token Names
+                      <button
+                        onClick={() => handleSort('new')}
+                        className='hover:text-primary flex items-center gap-1 transition-colors'
+                      >
+                        <span>Token Names</span>
+                        {sortColumn === 'new' &&
+                          (sortDirection === 'asc' ? (
+                            <ChevronUp className='h-3 w-3' />
+                          ) : (
+                            <ChevronDown className='h-3 w-3' />
+                          ))}
+                      </button>
                     </th>
                   </tr>
                 </thead>
@@ -1096,6 +1206,11 @@ export default function TokensPage() {
                                 {wallet.wallet_address}
                               </a>
                             </WalletAddressWithBotIndicator>
+                            {wallet.is_new && (
+                              <span className='rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase'>
+                                NEW
+                              </span>
+                            )}
                             <a
                               href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
                               target='_blank'
@@ -1192,17 +1307,28 @@ export default function TokensPage() {
                         </td>
                         <td className='py-3 pl-4'>
                           <div className='flex flex-wrap gap-2'>
-                            {wallet.token_names.map((name, idx) => (
-                              <a
-                                key={idx}
-                                href={`https://gmgn.ai/sol/token/${wallet.token_addresses[idx]}?min=0.1&isInputValue=true`}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className='bg-muted hover:bg-muted/80 rounded px-2 py-1 text-xs'
-                              >
-                                {name}
-                              </a>
-                            ))}
+                            {wallet.token_names.map((name, idx) => {
+                              const isNewToken =
+                                wallet.marked_at_analysis_id !== null &&
+                                wallet.token_ids[idx] ===
+                                  wallet.marked_at_analysis_id;
+                              return (
+                                <a
+                                  key={idx}
+                                  href={`https://gmgn.ai/sol/token/${wallet.token_addresses[idx]}?min=0.1&isInputValue=true`}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='bg-muted hover:bg-muted/80 flex items-center gap-1.5 rounded px-2 py-1 text-xs'
+                                >
+                                  {name}
+                                  {isNewToken && (
+                                    <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
+                                      NEW
+                                    </span>
+                                  )}
+                                </a>
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>

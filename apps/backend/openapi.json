@@ -2367,6 +2367,22 @@
               }
             ],
             "title": "Wallet Balance Updated At"
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New",
+            "default": false
+          },
+          "marked_at_analysis_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marked At Analysis Id"
           }
         },
         "type": "object",

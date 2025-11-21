@@ -152,6 +152,15 @@ def run_token_analysis_sync(
             market_cap_usd=result.get("market_cap_usd"),
         )
         log_info("Saved token to database", token_id=token_id, acronym=acronym)
+
+        # Update multi-token wallet metadata to mark newly added wallets as "NEW"
+        try:
+            newly_marked_count = db.update_multi_token_wallet_metadata(token_id)
+            if newly_marked_count > 0:
+                log_info(f"Marked {newly_marked_count} wallet(s) as NEW in multi-token panel")
+        except Exception as meta_err:
+            log_error("Failed to update multi-token wallet metadata", error=str(meta_err))
+
         # Invalidate cached token list so the new analysis shows up immediately
         try:
             from meridinate.routers.tokens import cache as tokens_cache
@@ -159,6 +168,14 @@ def run_token_analysis_sync(
             tokens_cache.invalidate("tokens_history")
         except Exception as cache_err:
             log_error("Failed to invalidate token cache after analysis", error=str(cache_err))
+
+        # Invalidate multi-token wallets cache so NEW badges show up immediately
+        try:
+            from meridinate.routers.wallets import cache as wallets_cache
+
+            wallets_cache.invalidate("multi_early_buyer_wallets")
+        except Exception as cache_err:
+            log_error("Failed to invalidate multi-token wallets cache after analysis", error=str(cache_err))
 
         # Get file paths
         analysis_filepath = db.get_analysis_file_path(token_id, token_name, in_trash=False)

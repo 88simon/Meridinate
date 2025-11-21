@@ -70,11 +70,11 @@ C:\Meridinate\
 - ✅ **Backend (FastAPI)** - Runs on port 5003, all 46 API endpoints functional
 - ✅ **Frontend (Next.js)** - Runs on port 3000, dashboard and token analysis working
 - ✅ **AutoHotkey** - Desktop automation action wheel functional
-- ✅ **Database** - SQLite with 5 tables, all data preserved
+- ✅ **Database** - SQLite with 6 tables, all data preserved
 - ✅ **WebSocket** - Real-time notifications working
 - ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services with automatic process cleanup, uses venv Python explicitly
 - ✅ **Market Cap Refresh** - "Refresh all visible market caps" button fully functional
-- ✅ **Multi-Token Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues
+- ✅ **Multi-Token Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues, NEW badge indicators for recently added wallets and tokens, sortable columns for all data fields
 - ✅ **Legacy cleanup** - Old root `backend/` and `frontend/` folders removed
 - ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
 - ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth
@@ -233,7 +233,7 @@ C:\Meridinate\                                    # PROJECT ROOT
 | File Path | Purpose | CRITICAL Notes |
 |-----------|---------|----------------|
 | `apps/backend/src/meridinate/main.py` | FastAPI app entry point | Import pattern: `python -m meridinate.main` |
-| `apps/backend/src/meridinate/analyzed_tokens_db.py` | All database operations | 54KB file, handles 5 tables |
+| `apps/backend/src/meridinate/analyzed_tokens_db.py` | All database operations | 65KB file, handles 6 tables |
 | `apps/backend/config.json` | API keys (Helius) | **NEVER commit** - contains sensitive data |
 | `apps/backend/data/db/analyzed_tokens.db` | SQLite database | Main data store, 22 columns |
 | `apps/backend/src/meridinate/routers/wallets.py` | Wallet endpoints | Handles balance refresh, now tracks prev/current and timestamps |
@@ -272,7 +272,24 @@ When Simon says...  →  Technical term & Implementation
 - **Location:** `apps/frontend/src/app/dashboard/tokens/page.tsx`
 - **Backend API:** `GET /api/multitokens/wallets` (router: `wallets.py`)
 - **Database Query:** Joins `early_buyer_wallets` table with `analyzed_tokens` table
+- **Database Tracking:** `multi_token_wallet_metadata` table tracks which wallets are newly added
 - **UI Component Type:** Data table (not a "panel" - panels are usually sidebar/floating elements)
+
+**Features:**
+- **NEW Badge Indicators (Nov 2025):**
+  - Green "NEW" badge appears next to wallet addresses that just crossed the 2-token threshold
+  - Green "NEW" badge appears inside the token name box for the specific token that caused the wallet to become multi-token
+  - Badges persist until the next token analysis completes
+  - Backend tracks via `marked_at_analysis_id` field to identify which token triggered multi-token status
+
+- **Sortable Columns (Nov 2025):**
+  - Wallet Address - Sort by NEW status first, then alphabetically
+  - Balance (USD) - Sort by wallet balance amount (high/low)
+  - Tokens - Sort by token count (number of tokens wallet appears in)
+  - Token Names - Sort by whether wallet has a NEW token
+  - Click column header to toggle ascending/descending
+  - Sorting persists across collapsed/expanded modes and pagination
+  - Works with virtualized rendering in expanded mode
 
 **Correct Terminology:**
 - ✅ "Multi-Token Wallets table"

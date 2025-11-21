@@ -51,6 +51,24 @@ Production-ready React application built with modern web technologies:
 - **Instant UI Updates** - No page reload required
 - **CoinGecko Integration** - Real-time SOL/USD pricing (5-min cache)
 
+### Multi-Token Wallets
+
+- **NEW Badge Indicators** - Visual markers for recently added wallets and tokens
+  - Green "NEW" badge on wallet addresses that just crossed the 2-token threshold
+  - Green "NEW" badge inside token name boxes for tokens that caused multi-token status
+  - Badges persist until next analysis completes
+  - Backend tracking via multi_token_wallet_metadata table
+- **Sortable Columns** - Click any column header to sort data
+  - Wallet Address - Sort by NEW status first, then alphabetically
+  - Balance (USD) - Sort by wallet balance amount (ascending/descending)
+  - Tokens - Sort by token count (number of tokens wallet appears in)
+  - Token Names - Sort by whether wallet has a NEW token
+  - Infinite toggle between ascending/descending
+  - Sorting persists across collapsed/expanded modes
+  - Works seamlessly with virtualized rendering
+- **Expanded Mode Virtualization** - Smooth scrolling with 100+ wallets
+- **Balance Tracking** - Real-time SOL balance updates with trend indicators
+
 ### Tags & Codex
 
 - **Wallet Tagging** - Custom tags + nationality tags (US, CN, KR, JP, EU, UK, SG, IN, RU, BR, CA, AU)

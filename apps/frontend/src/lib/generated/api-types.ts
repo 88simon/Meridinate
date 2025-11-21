@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: bb1ec4ce7a85031455dfaef17ad37f934251b57c
+ * Backend Commit: 7177d3fc2be8abc185d898da1125753fc834e5ce
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -1204,6 +1204,13 @@ export interface components {
       wallet_balance_usd_previous?: number | null;
       /** Wallet Balance Updated At */
       wallet_balance_updated_at?: string | null;
+      /**
+       * Is New
+       * @default false
+       */
+      is_new: boolean;
+      /** Marked At Analysis Id */
+      marked_at_analysis_id?: number | null;
     };
     /** MultiTokenWalletsResponse */
     MultiTokenWalletsResponse: {
