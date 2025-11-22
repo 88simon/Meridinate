@@ -1027,6 +1027,7 @@ class HeliusAPI:
         max_transactions: int = 500,
         max_credits: int = 1000,
         max_wallets_to_store: int = 10,
+        top_holders_limit: int = 10,
     ) -> Dict:
         """
         Analyze a token to find early bidders.
@@ -1224,12 +1225,12 @@ class HeliusAPI:
 
         print(f"[Helius] Wallet balances fetched (used {balance_credits} credits)")
 
-        # Fetch top 10 token holders (non-blocking - optional feature)
+        # Fetch top N token holders (non-blocking - optional feature)
         top_holders_data = None
         top_holders_credits = 0
         try:
-            print(f"[Helius] Fetching top 10 token holders...")
-            top_holders_data, top_holders_credits = self.get_top_holders(mint_address, limit=10)
+            print(f"[Helius] Fetching top {top_holders_limit} token holders...")
+            top_holders_data, top_holders_credits = self.get_top_holders(mint_address, limit=top_holders_limit)
             if top_holders_data:
                 print(
                     f"[Helius] Top holders fetched: {len(top_holders_data)} wallets (used {top_holders_credits} credits)"
@@ -1466,6 +1467,7 @@ class TokenAnalyzer:
         max_transactions: int = 500,
         max_credits: int = 1000,
         max_wallets_to_store: int = 10,
+        top_holders_limit: int = 10,
     ) -> Dict:
         """
         Analyze a token to find early bidders.
@@ -1477,6 +1479,7 @@ class TokenAnalyzer:
             max_transactions: Maximum transactions to analyze (default: 500)
             max_credits: Maximum API credits to spend (default: 1000)
             max_wallets_to_store: Maximum wallets to store (default: 10)
+            top_holders_limit: Number of top token holders to fetch (default: 10)
 
         Returns:
             Analysis results dictionary
@@ -1488,6 +1491,7 @@ class TokenAnalyzer:
             max_transactions=max_transactions,
             max_credits=max_credits,
             max_wallets_to_store=max_wallets_to_store,
+            top_holders_limit=top_holders_limit,
         )
 
 

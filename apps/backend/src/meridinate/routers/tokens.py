@@ -555,29 +555,40 @@ async def remove_token_tag(token_id: int, request: Request, data: TokenTagReques
 
 @router.get("/api/tokens/{mint_address}/top-holders", response_model=TopHoldersResponse)
 @conditional_rate_limit(READ_RATE_LIMIT)
-async def get_top_holders(mint_address: str, request: Request):
+async def get_top_holders(mint_address: str, request: Request, limit: int = None):
     """
-    Get top 10 token holders for a given token mint address.
+    Get top N token holders for a given token mint address.
 
     This endpoint:
     1. Calls Helius getTokenLargestAccounts API (1 credit)
-    2. Returns top 10 holders with their balances
+    2. Returns top N holders with their balances
     3. Updates token's cumulative API credits if token exists in DB
 
     Args:
         mint_address: Token mint address to analyze
+        limit: Number of top holders to return (default: from settings, range: 5-50)
 
     Returns:
         TopHoldersResponse with holder addresses and balances
     """
     try:
+        # Get limit from settings if not provided
+        if limit is None:
+            api_settings = get_api_settings()
+            limit = api_settings.topHoldersLimit
+
+        # Validate limit range
+        if limit < 5 or limit > 50:
+            raise HTTPException(status_code=400, detail="Limit must be between 5 and 50")
+
         # Initialize Helius API with separate Top Holders API key
         from meridinate.settings import HELIUS_TOP_HOLDERS_API_KEY
+
         helius = HeliusAPI(HELIUS_TOP_HOLDERS_API_KEY)
 
         # Fetch top holders
-        log_info("Fetching top holders", mint_address=mint_address[:8])
-        holders_data, credits_used = helius.get_top_holders(mint_address, limit=10)
+        log_info("Fetching top holders", mint_address=mint_address[:8], limit=limit)
+        holders_data, credits_used = helius.get_top_holders(mint_address, limit=limit)
 
         if not holders_data:
             log_error("No holders found", mint_address=mint_address[:8])
@@ -612,8 +623,7 @@ async def get_top_holders(mint_address: str, request: Request):
             async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
                 # Check if token exists
                 cursor = await conn.execute(
-                    "SELECT id, credits_used FROM analyzed_tokens WHERE token_address = ?",
-                    (mint_address,)
+                    "SELECT id, credits_used FROM analyzed_tokens WHERE token_address = ?", (mint_address,)
                 )
                 row = await cursor.fetchone()
 
@@ -632,7 +642,7 @@ async def get_top_holders(mint_address: str, request: Request):
                             top_holders_json = ?,
                             top_holders_updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?""",
-                        (new_credits, credits_used, top_holders_json, token_id)
+                        (new_credits, credits_used, top_holders_json, token_id),
                     )
                     await conn.commit()
                     log_info(
@@ -640,7 +650,7 @@ async def get_top_holders(mint_address: str, request: Request):
                         token_id=token_id,
                         credits_added=credits_used,
                         total_credits=new_credits,
-                        holders_count=len(holders_data)
+                        holders_count=len(holders_data),
                     )
 
                     # Invalidate tokens cache to show updated credits
@@ -655,7 +665,7 @@ async def get_top_holders(mint_address: str, request: Request):
             token_symbol=token_symbol,
             holders=holders_data,
             total_holders=len(holders_data),
-            api_credits_used=credits_used
+            api_credits_used=credits_used,
         )
     except HTTPException:
         # Re-raise HTTP exceptions

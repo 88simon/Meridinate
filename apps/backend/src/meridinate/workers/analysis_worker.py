@@ -67,6 +67,7 @@ async def analyze_token_task(
             max_transactions=settings.get("transaction_limit", 500),
             max_credits=settings.get("max_credits", 1000),
             max_wallets_to_store=settings.get("max_wallets", 10),
+            top_holders_limit=settings.get("top_holders_limit", 10),
         )
 
         # Extract token info

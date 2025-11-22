@@ -42,6 +42,7 @@ interface TopHoldersModalProps {
   open: boolean;
   onClose: () => void;
   onRefreshComplete?: () => void;
+  topHoldersLimit?: number;
 }
 
 export function TopHoldersModal({
@@ -51,7 +52,8 @@ export function TopHoldersModal({
   lastUpdated,
   open,
   onClose,
-  onRefreshComplete
+  onRefreshComplete,
+  topHoldersLimit = 10
 }: TopHoldersModalProps) {
   const [holders, setHolders] = useState<TopHolder[] | null>(initialHolders);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,7 +87,7 @@ export function TopHoldersModal({
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const result = await getTopHolders(tokenAddress);
+      const result = await getTopHolders(tokenAddress, topHoldersLimit);
       setHolders(result.holders);
       setCreditsUsed(result.api_credits_used);
       toast.success(
@@ -129,7 +131,7 @@ export function TopHoldersModal({
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className='max-w-4xl'>
           <DialogHeader>
-            <DialogTitle>Top 10 Token Holders</DialogTitle>
+            <DialogTitle>Top {topHoldersLimit} Token Holders</DialogTitle>
             <DialogDescription>
               No top holders data available yet. Click refresh to fetch.
             </DialogDescription>
@@ -158,7 +160,7 @@ export function TopHoldersModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className='max-h-[80vh] max-w-4xl overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>Top 10 Token Holders</DialogTitle>
+          <DialogTitle>Top {topHoldersLimit} Token Holders</DialogTitle>
           <DialogDescription>
             Showing the largest {holders.length} token holders by balance.
             {lastUpdated && (

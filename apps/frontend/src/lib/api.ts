@@ -565,15 +565,19 @@ export async function removeTokenTag(
 }
 
 /**
- * Get top 10 token holders for a given token
+ * Get top N token holders for a given token
  * This triggers a fresh analysis via Helius API (1 credit)
  */
 export async function getTopHolders(
-  mintAddress: string
+  mintAddress: string,
+  limit?: number
 ): Promise<TopHoldersResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/tokens/${mintAddress}/top-holders`
-  );
+  const url = new URL(`${API_BASE_URL}/api/tokens/${mintAddress}/top-holders`);
+  if (limit !== undefined) {
+    url.searchParams.set('limit', limit.toString());
+  }
+
+  const res = await fetch(url.toString());
 
   if (!res.ok) {
     const error = await res

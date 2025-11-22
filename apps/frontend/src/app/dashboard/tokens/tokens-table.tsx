@@ -32,7 +32,8 @@ import {
   Info,
   RefreshCw,
   Twitter,
-  Users
+  Users,
+  Settings
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,18 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import {
   useState,
   useMemo,
@@ -487,7 +500,7 @@ const ActionsCell = memo(
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className='text-xs'>View Top 10 Holders</p>
+              <p className='text-xs'>View Top Holders</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -684,7 +697,77 @@ const createColumns = (
   },
   {
     id: 'actions',
-    header: 'Actions',
+    header: () => (
+      <div className='flex items-center gap-2'>
+        <span>Actions</span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant='ghost'
+              size='sm'
+              className='h-6 w-6 p-0'
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Settings className='h-3.5 w-3.5' />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className='w-64'>
+            <div className='space-y-3'>
+              <div>
+                <h4 className='mb-2 text-sm font-semibold'>
+                  Top Holders Settings
+                </h4>
+                <p className='text-muted-foreground mb-3 text-xs'>
+                  Configure the number of top token holders to fetch
+                </p>
+              </div>
+              <div className='space-y-2'>
+                <label className='text-xs font-medium'>Number of Holders</label>
+                <Select
+                  value={apiSettings?.topHoldersLimit?.toString() ?? '10'}
+                  onValueChange={async (value) => {
+                    const newLimit = parseInt(value);
+                    try {
+                      const response = await fetch(
+                        `${API_BASE_URL}/api/settings`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            ...apiSettings,
+                            topHoldersLimit: newLimit
+                          })
+                        }
+                      );
+                      if (response.ok) {
+                        const settings = await getApiSettings();
+                        setApiSettings(settings);
+                        toast.success(
+                          `Top holders limit updated to ${newLimit}`
+                        );
+                      }
+                    } catch (error) {
+                      toast.error('Failed to update settings');
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((limit) => (
+                      <SelectItem key={limit} value={limit.toString()}>
+                        Top {limit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    ),
     cell: ({ row }) => {
       const token = row.original;
       return (
@@ -838,6 +921,9 @@ export function TokensTable({
   const [selectedTokenForHolders, setSelectedTokenForHolders] =
     useState<Token | null>(null);
   const [isTopHoldersModalOpen, setIsTopHoldersModalOpen] = useState(false);
+
+  // Get top holders limit from API settings (default to 10)
+  const topHoldersLimit = apiSettings?.topHoldersLimit ?? 10;
 
   // Delay compact mode change to sync with Codex animation
   useEffect(() => {
@@ -1526,6 +1612,7 @@ export function TokensTable({
             setSelectedTokenForHolders(null);
           }}
           onRefreshComplete={handleTopHoldersRefreshComplete}
+          topHoldersLimit={topHoldersLimit}
         />
       )}
     </>
