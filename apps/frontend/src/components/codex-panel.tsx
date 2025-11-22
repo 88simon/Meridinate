@@ -244,10 +244,10 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
       {open && (
         <div className='flex h-full flex-col overflow-hidden'>
           {/* Header */}
-          <div className='flex items-center justify-between border-b p-4'>
+          <div className='flex items-center justify-between border-b p-3'>
             <div>
-              <h2 className='text-lg font-semibold'>Codex</h2>
-              <p className='text-muted-foreground text-sm'>
+              <h2 className='text-base font-semibold'>Codex</h2>
+              <p className='text-muted-foreground text-xs'>
                 View all tagged wallets. Click to copy address.
               </p>
             </div>
@@ -261,7 +261,7 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
           </div>
 
           {/* Search and Add Wallet */}
-          <div className='space-y-3 p-4 pb-2'>
+          <div className='space-y-2 p-3 pb-2'>
             {/* Search */}
             <div className='relative'>
               <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform' />
@@ -285,9 +285,9 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
                 Add Wallet to Codex
               </Button>
             ) : (
-              <div className='space-y-2 rounded-lg border p-3'>
-                <div className='mb-2 flex items-center justify-between'>
-                  <h4 className='text-sm font-semibold'>Add New Wallet</h4>
+              <div className='space-y-2 rounded-lg border p-2'>
+                <div className='mb-1.5 flex items-center justify-between'>
+                  <h4 className='text-xs font-semibold'>Add New Wallet</h4>
                   <Button
                     variant='ghost'
                     size='sm'
@@ -445,7 +445,7 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
           </div>
 
           {/* Wallet List */}
-          <div className='flex-1 space-y-2 overflow-y-auto px-4 py-2'>
+          <div className='flex-1 space-y-1.5 overflow-y-auto px-3 py-2'>
             {loading ? (
               <div className='text-muted-foreground py-8 text-center'>
                 Loading...
@@ -460,12 +460,12 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
               filteredWallets.map((wallet) => (
                 <div
                   key={wallet.wallet_address}
-                  className='hover:bg-muted/50 rounded-lg border p-3 transition-colors'
+                  className='hover:bg-muted/50 rounded-lg border p-2 transition-colors'
                 >
                   {editingWallet === wallet.wallet_address ? (
                     // Edit mode
                     <div className='space-y-2'>
-                      <div className='mb-2 flex items-center justify-between'>
+                      <div className='mb-1.5 flex items-center justify-between'>
                         <div className='text-xs font-semibold'>Edit Tag</div>
                         <Button
                           variant='ghost'
@@ -593,9 +593,9 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
                   ) : (
                     // View mode
                     <>
-                      <div className='mb-2 flex items-center justify-between gap-2'>
+                      <div className='mb-1.5 flex items-center justify-between gap-2'>
                         <div
-                          className='flex-1 cursor-pointer font-mono text-sm break-all'
+                          className='flex-1 cursor-pointer font-mono text-xs break-all'
                           onClick={() => copyToClipboard(wallet.wallet_address)}
                         >
                           {wallet.wallet_address}
@@ -635,7 +635,7 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
                           </Button>
                         </div>
                       </div>
-                      <div className='mb-2 flex flex-wrap items-center gap-2'>
+                      <div className='mb-1.5 flex flex-wrap items-center gap-1.5'>
                         <div className='flex items-center gap-1'>
                           <span className='text-muted-foreground text-xs'>
                             Tokens:
@@ -669,7 +669,7 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
           </div>
 
           {/* Footer */}
-          <div className='text-muted-foreground border-t p-4 text-sm'>
+          <div className='text-muted-foreground border-t p-3 text-xs'>
             Showing {filteredWallets.length} of {wallets.length} wallets
           </div>
         </div>

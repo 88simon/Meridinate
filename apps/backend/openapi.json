@@ -1018,7 +1018,7 @@
           "Tokens"
         ],
         "summary": "Get Top Holders",
-        "description": "Get top 10 token holders for a given token mint address.\n\nThis endpoint:\n1. Calls Helius getTokenLargestAccounts API (1 credit)\n2. Returns top 10 holders with their balances\n3. Updates token's cumulative API credits if token exists in DB\n\nArgs:\n    mint_address: Token mint address to analyze\n\nReturns:\n    TopHoldersResponse with holder addresses and balances",
+        "description": "Get top N token holders for a given token mint address.\n\nThis endpoint:\n1. Calls Helius getTokenLargestAccounts API (1 credit)\n2. Returns top N holders with their balances\n3. Updates token's cumulative API credits if token exists in DB\n\nArgs:\n    mint_address: Token mint address to analyze\n    limit: Number of top holders to return (default: from settings, range: 5-50)\n\nReturns:\n    TopHoldersResponse with holder addresses and balances",
         "operationId": "get_top_holders_api_tokens__mint_address__top_holders_get",
         "parameters": [
           {
@@ -1028,6 +1028,15 @@
             "schema": {
               "type": "string",
               "title": "Mint Address"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Limit"
             }
           }
         ],
@@ -2278,6 +2287,14 @@
             "minimum": 0.0,
             "title": "Maxretries",
             "default": 3
+          },
+          "topHoldersLimit": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 5.0,
+            "title": "Topholderslimit",
+            "description": "Number of top token holders to fetch",
+            "default": 10
           }
         },
         "type": "object",

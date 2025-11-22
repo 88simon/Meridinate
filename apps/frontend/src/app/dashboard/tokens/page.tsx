@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { StatusBar } from '@/components/status-bar';
 import { WalletTagsProvider } from '@/contexts/WalletTagsContext';
 import { useAnalysisNotifications } from '@/hooks/useAnalysisNotifications';
+import { ADDITIONAL_TAGS_DISPLAY } from '@/lib/wallet-tags';
 import {
   Tooltip,
   TooltipContent,
@@ -241,7 +242,7 @@ function BulkTagsPopover({
 
       {/* Tag Selection */}
       <div className='space-y-2'>
-        {['Bot', 'Whale', 'Insider'].map((tag) => (
+        {ADDITIONAL_TAGS_DISPLAY.map((tag) => (
           <label key={tag} className='flex cursor-pointer items-center gap-2'>
             <input
               type='checkbox'

@@ -60,6 +60,33 @@ if not HELIUS_API_KEY:
 
 print(f"[Config] Loaded Helius API key: {HELIUS_API_KEY[:8]}..." if HELIUS_API_KEY else "[Config] No API key loaded")
 
+
+def load_top_holders_api_key() -> Optional[str]:
+    """Load separate Helius API key for Top Holders feature from environment or config file"""
+    # Try environment variable first
+    api_key = os.environ.get("HELIUS_TOP_HOLDERS_API_KEY")
+    if api_key:
+        return api_key
+
+    # Try config.json (look in the backend root directory)
+    config_file = os.path.join(BACKEND_ROOT, "config.json")
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                config = json.load(f)
+                return config.get("helius_top_holders_api_key")
+        except Exception as e:
+            print(f"[Config] Error reading config.json for top holders key: {e}")
+
+    return None
+
+
+HELIUS_TOP_HOLDERS_API_KEY = load_top_holders_api_key()
+if not HELIUS_TOP_HOLDERS_API_KEY:
+    raise RuntimeError("HELIUS_TOP_HOLDERS_API_KEY not set. Add it to environment variable or backend/config.json")
+
+print(f"[Config] Loaded Top Holders API key: {HELIUS_TOP_HOLDERS_API_KEY[:8]}..." if HELIUS_TOP_HOLDERS_API_KEY else "[Config] No top holders API key loaded")
+
 # ============================================================================
 # Redis Configuration (for task queue and rate limiting)
 # ============================================================================

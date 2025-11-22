@@ -13,6 +13,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useWalletTags } from '@/contexts/WalletTagsContext';
+import { ADDITIONAL_TAGS, ADDITIONAL_TAGS_DISPLAY } from '@/lib/wallet-tags';
 
 interface AdditionalTagsPopoverProps {
   walletId?: number;
@@ -44,14 +45,10 @@ export function AdditionalTagsPopover({
   const { tags: allTags } = useWalletTags(walletAddress);
   const [loading, setLoading] = useState(false);
 
-  // Extract only additional tags (bot, whale, insider, gunslinger, gambler) from context
+  // Extract only additional tags from context
   const tags = new Set(
     allTags
-      .filter((t) =>
-        ['bot', 'whale', 'insider', 'gunslinger', 'gambler'].includes(
-          t.tag.toLowerCase()
-        )
-      )
+      .filter((t) => ADDITIONAL_TAGS.includes(t.tag.toLowerCase() as any))
       .map((t) => t.tag.toLowerCase())
   );
 
@@ -134,76 +131,25 @@ export function AdditionalTagsPopover({
         <div className='space-y-3'>
           <h4 className='text-sm font-semibold'>Additional Tags</h4>
           <div className='space-y-2'>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id={`bot-${uniqueId}`}
-                checked={tags.has('bot')}
-                onCheckedChange={() => toggleTag('Bot')}
-                disabled={loading}
-              />
-              <Label
-                htmlFor={`bot-${uniqueId}`}
-                className='cursor-pointer text-sm'
-              >
-                Bot
-              </Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id={`whale-${uniqueId}`}
-                checked={tags.has('whale')}
-                onCheckedChange={() => toggleTag('Whale')}
-                disabled={loading}
-              />
-              <Label
-                htmlFor={`whale-${uniqueId}`}
-                className='cursor-pointer text-sm'
-              >
-                Whale
-              </Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id={`insider-${uniqueId}`}
-                checked={tags.has('insider')}
-                onCheckedChange={() => toggleTag('Insider')}
-                disabled={loading}
-              />
-              <Label
-                htmlFor={`insider-${uniqueId}`}
-                className='cursor-pointer text-sm'
-              >
-                Insider
-              </Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id={`gunslinger-${uniqueId}`}
-                checked={tags.has('gunslinger')}
-                onCheckedChange={() => toggleTag('Gunslinger')}
-                disabled={loading}
-              />
-              <Label
-                htmlFor={`gunslinger-${uniqueId}`}
-                className='cursor-pointer text-sm'
-              >
-                Gunslinger
-              </Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id={`gambler-${uniqueId}`}
-                checked={tags.has('gambler')}
-                onCheckedChange={() => toggleTag('Gambler')}
-                disabled={loading}
-              />
-              <Label
-                htmlFor={`gambler-${uniqueId}`}
-                className='cursor-pointer text-sm'
-              >
-                Gambler
-              </Label>
-            </div>
+            {ADDITIONAL_TAGS_DISPLAY.map((tagDisplay, index) => {
+              const tagLower = ADDITIONAL_TAGS[index];
+              return (
+                <div key={tagLower} className='flex items-center space-x-2'>
+                  <Checkbox
+                    id={`${tagLower}-${uniqueId}`}
+                    checked={tags.has(tagLower)}
+                    onCheckedChange={() => toggleTag(tagDisplay)}
+                    disabled={loading}
+                  />
+                  <Label
+                    htmlFor={`${tagLower}-${uniqueId}`}
+                    className='cursor-pointer text-sm'
+                  >
+                    {tagDisplay}
+                  </Label>
+                </div>
+              );
+            })}
           </div>
 
           {/* Nationality Dropdown */}

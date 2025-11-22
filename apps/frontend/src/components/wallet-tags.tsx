@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWalletTags } from '@/contexts/WalletTagsContext';
+import { ADDITIONAL_TAGS } from '@/lib/wallet-tags';
 
 interface WalletTagsProps {
   walletAddress: string;
@@ -23,7 +24,6 @@ export function WalletTags({
 }: WalletTagsProps) {
   const { tags: contextTags } = useWalletTags(walletAddress);
   // Filter out additional tags and nationality tags - those are managed by AdditionalTagsPopover and display under wallet address
-  const additionalTags = ['bot', 'whale', 'insider', 'gunslinger', 'gambler'];
   const nationalityTags = [
     'us',
     'cn',
@@ -40,7 +40,7 @@ export function WalletTags({
   ];
   const tags = contextTags.filter(
     (t) =>
-      !additionalTags.includes(t.tag.toLowerCase()) &&
+      !ADDITIONAL_TAGS.includes(t.tag.toLowerCase() as any) &&
       !nationalityTags.includes(t.tag.toLowerCase())
   );
   const [newTag, setNewTag] = useState('');

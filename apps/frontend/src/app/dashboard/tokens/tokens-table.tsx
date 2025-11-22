@@ -45,7 +45,6 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -558,7 +557,8 @@ const createColumns = (
   refreshingMarketCaps: Set<number>,
   refreshingAll: boolean,
   isCompact: boolean = false,
-  apiSettings: AnalysisSettings | null = null
+  apiSettings: AnalysisSettings | null = null,
+  setApiSettings: (settings: AnalysisSettings | null) => void = () => {}
 ): ColumnDef<Token>[] => [
   {
     accessorKey: 'token_name',
@@ -1365,7 +1365,8 @@ export function TokensTable({
         refreshingMarketCaps,
         refreshingAll,
         isCompactMode,
-        apiSettings
+        apiSettings,
+        setApiSettings
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -1495,21 +1496,21 @@ export function TokensTable({
           </div>
         )}
 
-        <div className='overflow-hidden rounded-md border'>
+        <div className='rounded-md border'>
           <div
-            className='max-h-[calc(100vh-300px)] max-w-full overflow-auto'
+            className='max-h-[calc(100vh-300px)] max-w-full overflow-auto rounded-md'
             ref={tableContainerRef}
             onScroll={handleScroll}
           >
-            <Table className='w-full'>
-              <TableHeader className='bg-background sticky top-0 z-10 shadow-sm'>
+            <table className='w-full caption-bottom text-sm'>
+              <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id} className='border-b-2'>
                     {headerGroup.headers.map((header) => (
                       <TableHead
                         key={header.id}
                         className={cn(
-                          'bg-background whitespace-nowrap transition-all duration-300',
+                          'bg-background sticky top-0 z-20 whitespace-nowrap shadow-sm transition-all duration-300',
                           isCompactMode
                             ? 'px-2 py-1 text-[11px]'
                             : 'px-3 py-1.5 text-xs'
@@ -1569,7 +1570,7 @@ export function TokensTable({
                   </TableRow>
                 )}
               </TableBody>
-            </Table>
+            </table>
           </div>
         </div>
         <div className='flex items-center justify-end space-x-2'>

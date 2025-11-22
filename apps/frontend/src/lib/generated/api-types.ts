@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: b91894e3d40befdb0b4fd0e80d004442dd3c6f7a
+ * Backend Commit: 416ee4880573f33ccea228ac3baaefecead4aff4
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -599,15 +599,16 @@ export interface paths {
     };
     /**
      * Get Top Holders
-     * @description Get top 10 token holders for a given token mint address.
+     * @description Get top N token holders for a given token mint address.
      *
      *     This endpoint:
      *     1. Calls Helius getTokenLargestAccounts API (1 credit)
-     *     2. Returns top 10 holders with their balances
+     *     2. Returns top N holders with their balances
      *     3. Updates token's cumulative API credits if token exists in DB
      *
      *     Args:
      *         mint_address: Token mint address to analyze
+     *         limit: Number of top holders to return (default: from settings, range: 5-50)
      *
      *     Returns:
      *         TopHoldersResponse with holder addresses and balances
@@ -1174,6 +1175,12 @@ export interface components {
        * @default 3
        */
       maxRetries: number;
+      /**
+       * Topholderslimit
+       * @description Number of top token holders to fetch
+       * @default 10
+       */
+      topHoldersLimit: number;
     };
     /**
      * AnalysisStartNotification
@@ -2484,7 +2491,9 @@ export interface operations {
   };
   get_top_holders_api_tokens__mint_address__top_holders_get: {
     parameters: {
-      query?: never;
+      query?: {
+        limit?: number;
+      };
       header?: never;
       path: {
         mint_address: string;
