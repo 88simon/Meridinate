@@ -80,6 +80,7 @@ C:\Meridinate\
 - ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth
 - ✅ **CI/CD Pipeline** - Unified monorepo workflow at `.github/workflows/monorepo-ci.yml` with all checks passing
 - ✅ **UI/UX Enhancements** - GMGN.ai integration, enhanced status bar with detailed metrics, MeridinateLogo component in header, Gunslinger/Gambler tags, removed wallet count cap, horizontal pagination arrows
+- ✅ **Top 10 Token Holders** - Automatically fetched during analysis, cached in database, instant modal display with Twitter/Copy icons, manual refresh updates data and credits
 
 ### What Needs Cleanup ⚠️
 
@@ -127,7 +128,7 @@ C:\Meridinate\                                    # PROJECT ROOT
 │   │   ├── tests/                                # Backend tests
 │   │   ├── data/                                 # DATA FILES (gitignored)
 │   │   │   ├── db/                               # SQLite database
-│   │   │   │   └── analyzed_tokens.db            # Main database (22 columns, 5 tables)
+│   │   │   │   └── analyzed_tokens.db            # Main database (24 columns, 5 tables)
 │   │   │   ├── backups/                          # Database backups
 │   │   │   ├── analysis_results/                 # Analysis result JSON files (authoritative path)
 │   │   │   └── axiom_exports/                    # Axiom.xyz exported data (authoritative path)
@@ -235,7 +236,7 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/backend/src/meridinate/main.py` | FastAPI app entry point | Import pattern: `python -m meridinate.main` |
 | `apps/backend/src/meridinate/analyzed_tokens_db.py` | All database operations | 65KB file, handles 6 tables |
 | `apps/backend/config.json` | API keys (Helius) | **NEVER commit** - contains sensitive data |
-| `apps/backend/data/db/analyzed_tokens.db` | SQLite database | Main data store, 22 columns |
+| `apps/backend/data/db/analyzed_tokens.db` | SQLite database | Main data store, 24 columns (added top_holders_json, top_holders_updated_at) |
 | `apps/backend/src/meridinate/routers/wallets.py` | Wallet endpoints | Handles balance refresh, now tracks prev/current and timestamps |
 | `apps/frontend/src/lib/api.ts` | API client | All backend API calls go through this |
 | `apps/frontend/src/lib/generated/api-types.ts` | TypeScript types | Auto-generated from OpenAPI, DO NOT edit manually |
@@ -394,6 +395,36 @@ When Simon says...  →  Technical term & Implementation
   - Token Table - Buttons in market cap cell, badges next to token name
   - Multi-Token Wallets Panel - Badges shown inline with token names
 - **Legacy Field:** `gem_status` column kept for backwards compatibility during migration
+
+#### **"Top 10 Token Holders"**
+- **Technical Term:** Token Holder Analysis System
+- **What it is:** Displays the top 10 largest wallet holders of a specific token with real-time balance data
+- **Location (Backend):** `apps/backend/src/meridinate/helius_api.py` (lines 393-599), `apps/backend/src/meridinate/routers/tokens.py` (lines 558-660)
+- **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/top-holders-modal.tsx`
+- **Database Columns:** `top_holders_json`, `top_holders_updated_at` in `analyzed_tokens` table
+- **API Endpoints:**
+  - `GET /api/tokens/{token_address}/top-holders` - Fetch and refresh top holders
+- **How it works:**
+  1. Automatically fetches during token analysis using `getTokenLargestAccounts` RPC
+  2. Resolves token account addresses to wallet owner addresses using `getAccountInfo`
+  3. Filters out program-derived addresses (PDAs) - only shows on-curve wallets
+  4. Calculates token balance in USD using DexScreener price API
+  5. Fetches total wallet balance in USD via Helius API
+  6. Stores in database as JSON with timestamp
+  7. Modal opens instantly with cached data
+  8. Manual refresh button updates data and adds credits to cumulative total
+- **Data Displayed:**
+  - Wallet address (clickable with Solscan filters applied)
+  - Token balance in USD (calculated from token price)
+  - Total wallet balance in USD
+  - Twitter search link for each wallet
+  - Copy to clipboard button
+- **API Credits:** Adds 11-21 credits per fetch (1 for token accounts + up to 10 for owner lookups + 1 for metadata + up to 10 for wallet balances)
+- **UI Features:**
+  - Inline Twitter and Copy icons (same pattern as multi-token wallets panel)
+  - Bottom-center refresh button
+  - Last updated timestamp
+  - Graceful fallback if no data available
 
 #### **"Market Cap Tracking"**
 - **Technical Term:** Market Capitalization Monitoring

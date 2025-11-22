@@ -330,6 +330,57 @@ class HeliusAPI:
                 print(f"[DexScreener] Error fetching market cap: {str(e)}")
             return None
 
+    def get_token_price_from_dexscreener(self, mint_address: str) -> Optional[float]:
+        """
+        Get token price from DexScreener API (free, no API credits).
+
+        Args:
+            mint_address: Token mint address
+
+        Returns:
+            Price per token in USD, or None if not available
+        """
+        # Check cache first
+        cache_key = f"dexscreener_price:{mint_address}"
+        cached_value, _ = self._dexscreener_cache.get(cache_key)
+        if cached_value is not None:
+            print(f"[DexScreener] Price cache hit for {mint_address}: ${cached_value} USD")
+            return cached_value
+
+        try:
+            url = f"https://api.dexscreener.com/token-pairs/v1/solana/{mint_address}"
+            response = self.session.get(url, timeout=10)
+
+            if response.status_code == 429:
+                print("[DexScreener] Rate limit exceeded (429) - try again in ~1 minute")
+                return None
+
+            response.raise_for_status()
+
+            data = response.json()
+            if isinstance(data, list) and len(data) > 0:
+                # DexScreener returns array of pairs, take the first one (usually the main pool)
+                pair = data[0]
+                price_usd = pair.get("priceUsd")
+
+                if price_usd is not None:
+                    price_float = float(price_usd)
+                    print(f"[DexScreener] Token price found: ${price_float} USD")
+                    # Cache the result
+                    self._dexscreener_cache.set(cache_key, price_float)
+                    return price_float
+                else:
+                    print("[DexScreener] Price not available")
+                    return None
+            else:
+                print("[DexScreener] No pairs found for this token")
+                return None
+
+        except Exception as e:
+            if "429" not in str(e):
+                print(f"[DexScreener] Error fetching price: {str(e)}")
+            return None
+
     def get_market_cap_with_fallback(self, mint_address: str) -> tuple[Optional[float], int]:
         """
         Get market cap with DexScreener primary + Helius fallback.
@@ -389,6 +440,146 @@ class HeliusAPI:
         # tens of thousands of signatures just to find the first one
         print(f"[Helius] Skipping token creation time lookup (too expensive)")
         return None, 0
+
+    def get_account_owner(self, account_address: str) -> tuple[Optional[str], int]:
+        """
+        Get the owner (wallet address) of a token account.
+
+        Uses Solana's getAccountInfo RPC method with jsonParsed encoding.
+
+        Args:
+            account_address: Token account address
+
+        Returns:
+            Tuple of (owner_address, credits_used)
+        """
+        try:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": "owner-lookup",
+                "method": "getAccountInfo",
+                "params": [
+                    account_address,
+                    {
+                        "encoding": "jsonParsed"
+                    }
+                ]
+            }
+
+            response = self.session.post(self.rpc_url, json=payload, timeout=30)
+            result = response.json()
+
+            if "result" in result and result["result"] and result["result"]["value"]:
+                account_data = result["result"]["value"]
+                # For token accounts, the data.parsed.info.owner field contains the wallet owner
+                if "data" in account_data and isinstance(account_data["data"], dict):
+                    if "parsed" in account_data["data"]:
+                        owner = account_data["data"]["parsed"]["info"]["owner"]
+                        print(f"[Helius] Token account {account_address[:8]} -> Owner: {owner[:8]}")
+                        return owner, 1
+
+            print(f"[Helius] Could not determine owner for {account_address[:8]}")
+            return None, 1
+
+        except Exception as e:
+            print(f"[Helius] Error getting account owner for {account_address[:8]}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None, 0
+
+    def get_top_holders(self, mint_address: str, limit: int = 10) -> tuple[Optional[List[Dict]], int]:
+        """
+        Get the top token holders for a given token mint address.
+        Uses getTokenLargestAccounts RPC method which returns top 20 token accounts,
+        then fetches the owner (wallet address) for each token account.
+
+        Args:
+            mint_address: Token mint address to analyze
+            limit: Number of top holders to return (default 10, max 20)
+
+        Returns:
+            Tuple of (list of holder dicts, credits_used)
+            Each holder dict contains:
+            - address: Wallet address of token holder (owner of token account)
+            - token_account: Token account address
+            - amount: Raw token balance
+            - decimals: Token decimal places
+            - uiAmount: Human-readable balance (calculated)
+            - uiAmountString: Human-readable balance as string
+        """
+        try:
+            # Call getTokenLargestAccounts RPC method
+            payload = {
+                "jsonrpc": "2.0",
+                "id": "top-holders",
+                "method": "getTokenLargestAccounts",
+                "params": [mint_address],
+            }
+
+            print(f"[Helius] Fetching top holders for {mint_address[:8]}...")
+            response = self.session.post(self.rpc_url, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+
+            credits_used = 1  # getTokenLargestAccounts costs 1 credit
+
+            if "result" in result and "value" in result["result"]:
+                token_accounts = result["result"]["value"]
+
+                # Fetch token price from DexScreener (free, no credits)
+                token_price_usd = self.get_token_price_from_dexscreener(mint_address)
+                if token_price_usd:
+                    print(f"[Helius] Token price: ${token_price_usd} USD")
+                else:
+                    print(f"[Helius] Warning: Token price not available, token balances will show in native units")
+
+                # Fetch all 20 top accounts (API limit) to ensure we get enough after filtering
+                # We'll limit the final on-curve wallets to the requested amount
+                accounts_to_check = token_accounts[:20]
+
+                # For each token account, get the owner (actual wallet address)
+                holders = []
+                skipped_programs = 0
+                for account in accounts_to_check:
+                    # Stop if we already have enough on-curve wallets
+                    if len(holders) >= limit:
+                        break
+                    owner, owner_credits = self.get_account_owner(account["address"])
+                    credits_used += owner_credits
+
+                    if owner:
+                        # CRITICAL: Only include on-curve wallets (wallets that can sign transactions)
+                        # This filters out program accounts, PDAs, liquidity pools, etc.
+                        if not self.is_wallet_on_curve(owner):
+                            print(f"[Helius] Skipping off-curve wallet (program/pool): {owner[:8]}")
+                            skipped_programs += 1
+                            continue
+
+                        # Calculate token balance in USD
+                        token_balance_usd = None
+                        if token_price_usd and account.get("uiAmount"):
+                            token_balance_usd = account["uiAmount"] * token_price_usd
+
+                        holders.append({
+                            "address": owner,  # The wallet address that owns this token account
+                            "token_account": account["address"],  # The token account address
+                            "amount": account["amount"],
+                            "decimals": account.get("decimals", 0),
+                            "uiAmount": account.get("uiAmount"),
+                            "uiAmountString": account.get("uiAmountString", "0"),
+                            "token_balance_usd": token_balance_usd,  # USD value of tokens held
+                        })
+
+                print(f"[Helius] Found {len(holders)} on-curve wallet holders (skipped {skipped_programs} program accounts)")
+
+                return holders, credits_used
+            else:
+                print(f"[Helius] No holders found in response")
+                return None, 1
+
+        except Exception as e:
+            print(f"[Helius] Error fetching top holders: {str(e)}")
+            return None, 0
 
     def get_parsed_transactions(
         self,
@@ -1024,14 +1215,33 @@ class HeliusAPI:
 
         print(f"[Helius] Wallet balances fetched (used {balance_credits} credits)")
 
+        # Fetch top 10 token holders (non-blocking - optional feature)
+        top_holders_data = None
+        top_holders_credits = 0
+        try:
+            print(f"[Helius] Fetching top 10 token holders...")
+            top_holders_data, top_holders_credits = self.get_top_holders(mint_address, limit=10)
+            if top_holders_data:
+                print(f"[Helius] Top holders fetched: {len(top_holders_data)} wallets (used {top_holders_credits} credits)")
+            else:
+                print(f"[Helius] No top holders found")
+        except Exception as e:
+            print(f"[Helius] Warning: Failed to fetch top holders (non-critical): {str(e)}")
+            # Continue without top holders - this is an optional feature
+
         # Calculate actual API credits used
         total_credits = (
-            metadata_credits + market_cap_credits + creation_time_credits + transaction_credits + balance_credits
+            metadata_credits + market_cap_credits + creation_time_credits + transaction_credits + balance_credits + top_holders_credits
         )
 
-        print(
-            f"[Helius] Total API credits used: {total_credits} ({metadata_credits} metadata + {market_cap_credits} market cap + {creation_time_credits} creation time lookup + {transaction_credits} transactions + {balance_credits} wallet balances)"
-        )
+        if top_holders_credits > 0:
+            print(
+                f"[Helius] Total API credits used: {total_credits} ({metadata_credits} metadata + {market_cap_credits} market cap + {creation_time_credits} creation time lookup + {transaction_credits} transactions + {balance_credits} wallet balances + {top_holders_credits} top holders)"
+            )
+        else:
+            print(
+                f"[Helius] Total API credits used: {total_credits} ({metadata_credits} metadata + {market_cap_credits} market cap + {creation_time_credits} creation time lookup + {transaction_credits} transactions + {balance_credits} wallet balances)"
+            )
 
         return {
             "token_address": mint_address,
@@ -1043,6 +1253,7 @@ class HeliusAPI:
             "total_unique_buyers": len(early_bidders),
             "total_transactions_analyzed": len(transactions),
             "api_credits_used": total_credits,
+            "top_holders": top_holders_data,
         }
 
     def _extract_buy_info(self, tx: dict, mint_address: str, debug_first: bool = False) -> tuple:
@@ -1397,3 +1608,4 @@ class WebhookManager:
             return response.json()
         except Exception as e:
             raise Exception(f"Failed to list webhooks: {str(e)}")
+

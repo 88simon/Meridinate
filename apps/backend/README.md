@@ -147,6 +147,7 @@ The service starts on **http://localhost:5003** with:
 | `GET` | `/api/tokens/{id}/tags` | Get token tags (GEM/DUD) | - |
 | `POST` | `/api/tokens/{id}/tags` | Add tag to token | - |
 | `DELETE` | `/api/tokens/{id}/tags` | Remove tag from token | - |
+| `GET` | `/api/tokens/{mint_address}/top-holders` | Get top 10 token holders with USD balances | 30/hour |
 
 ### Wallet Management
 
@@ -166,6 +167,16 @@ The service starts on **http://localhost:5003** with:
 - Includes `marked_at_analysis_id` to identify which token caused multi-token status
 - Tracks NEW status in `multi_token_wallet_metadata` table
 - NEW flags cleared on next analysis completion
+
+**Top 10 Token Holders Feature:**
+- Automatically fetched during token analysis (non-blocking)
+- Resolves token account addresses to wallet owner addresses
+- Filters out program-derived addresses (only on-curve wallets)
+- Calculates token balance in USD using DexScreener price API
+- Fetches total wallet balance in USD via Helius API
+- Stored in database as JSON with timestamp (`top_holders_json`, `top_holders_updated_at`)
+- Manual refresh updates data and adds credits to cumulative total
+- API Credits: 11-21 credits per fetch (varies based on caching)
 
 ### Watchlist
 
@@ -433,6 +444,26 @@ Each token has dual market cap tracking:
 - `market_cap_usd_current`: Latest refreshed value
 - `market_cap_updated_at`: Timestamp of last refresh
 - `market_cap_ath`: All-time high market cap
+
+### Top 10 Holders Fields
+
+Each token stores top holders data:
+- `top_holders_json`: JSON array of top 10 wallet holders with balances
+- `top_holders_updated_at`: Timestamp of last fetch/refresh
+
+Structure of `top_holders_json`:
+```json
+[
+  {
+    "address": "wallet_owner_address",
+    "amount": "raw_token_balance",
+    "decimals": 9,
+    "uiAmountString": "human_readable_balance",
+    "token_balance_usd": 1234.56,
+    "wallet_balance_usd": 98765.43
+  }
+]
+```
 
 ## Testing
 

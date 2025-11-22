@@ -35,6 +35,8 @@ class Token(BaseModel):
     gem_status: Optional[str] = None  # Keeping for backwards compatibility during migration
     state_version: int = 0  # Keeping for backwards compatibility during migration
     tags: List[str] = []  # New: token tags (gem, dud, etc.)
+    top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
+    top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
 
 
 class Wallet(BaseModel):
@@ -72,6 +74,8 @@ class TokenDetail(BaseModel):
     gem_status: Optional[str] = None  # Keeping for backwards compatibility during migration
     state_version: int = 0  # Keeping for backwards compatibility during migration
     tags: List[str] = []  # New: token tags (gem, dud, etc.)
+    top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
+    top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
     wallets: List[Wallet]
     axiom_json: List[Any]
 
@@ -408,3 +412,33 @@ class UpdateGemStatusRequest(BaseModel):
     """Request to update gem status of a token"""
 
     gem_status: Optional[str] = None  # 'gem', 'dud', or null to clear
+
+
+# ============================================================================
+# Top Holders Models
+# ============================================================================
+
+
+class TopHolder(BaseModel):
+    """Individual token holder information"""
+
+    address: str  # Wallet address
+    amount: str  # Raw token balance
+    decimals: int  # Token decimal places
+    uiAmountString: str  # Human-readable token balance
+    token_balance_usd: Optional[float] = None  # USD value of tokens held
+    wallet_balance_usd: Optional[float] = None  # Total wallet balance in USD
+
+    model_config = {"extra": "ignore"}  # Allow extra fields from Helius API
+
+
+class TopHoldersResponse(BaseModel):
+    """Response containing top token holders"""
+
+    token_address: str  # Token mint address
+    token_symbol: Optional[str] = None  # Token symbol/ticker
+    holders: List[TopHolder]  # List of top holders
+    total_holders: int  # Number of holders returned
+    api_credits_used: int  # API credits consumed
+
+    model_config = {"extra": "ignore"}  # Allow extra fields

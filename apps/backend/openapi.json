@@ -1012,6 +1012,49 @@
         }
       }
     },
+    "/api/tokens/{mint_address}/top-holders": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Top Holders",
+        "description": "Get top 10 token holders for a given token mint address.\n\nThis endpoint:\n1. Calls Helius getTokenLargestAccounts API (1 credit)\n2. Returns top 10 holders with their balances\n3. Updates token's cumulative API credits if token exists in DB\n\nArgs:\n    mint_address: Token mint address to analyze\n\nReturns:\n    TopHoldersResponse with holder addresses and balances",
+        "operationId": "get_top_holders_api_tokens__mint_address__top_holders_get",
+        "parameters": [
+          {
+            "name": "mint_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mint Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopHoldersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/analyze/token/redis": {
       "post": {
         "tags": [
@@ -3158,6 +3201,31 @@
             "type": "array",
             "title": "Tags",
             "default": []
+          },
+          "top_holders": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopHolder"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Holders"
+          },
+          "top_holders_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Holders Updated At"
           }
         },
         "type": "object",
@@ -3351,6 +3419,31 @@
             "title": "Tags",
             "default": []
           },
+          "top_holders": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopHolder"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Holders"
+          },
+          "top_holders_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Holders Updated At"
+          },
           "wallets": {
             "items": {
               "$ref": "#/components/schemas/Wallet"
@@ -3436,6 +3529,100 @@
           "tokens"
         ],
         "title": "TokensResponse"
+      },
+      "TopHolder": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "decimals": {
+            "type": "integer",
+            "title": "Decimals"
+          },
+          "uiAmountString": {
+            "type": "string",
+            "title": "Uiamountstring"
+          },
+          "token_balance_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Balance Usd"
+          },
+          "wallet_balance_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet Balance Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "amount",
+          "decimals",
+          "uiAmountString"
+        ],
+        "title": "TopHolder",
+        "description": "Individual token holder information"
+      },
+      "TopHoldersResponse": {
+        "properties": {
+          "token_address": {
+            "type": "string",
+            "title": "Token Address"
+          },
+          "token_symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Symbol"
+          },
+          "holders": {
+            "items": {
+              "$ref": "#/components/schemas/TopHolder"
+            },
+            "type": "array",
+            "title": "Holders"
+          },
+          "total_holders": {
+            "type": "integer",
+            "title": "Total Holders"
+          },
+          "api_credits_used": {
+            "type": "integer",
+            "title": "Api Credits Used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token_address",
+          "holders",
+          "total_holders",
+          "api_credits_used"
+        ],
+        "title": "TopHoldersResponse",
+        "description": "Response containing top token holders"
       },
       "UpdateGemStatusRequest": {
         "properties": {

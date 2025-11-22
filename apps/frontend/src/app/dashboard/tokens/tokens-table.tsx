@@ -31,7 +31,8 @@ import {
   Copy,
   Info,
   RefreshCw,
-  Twitter
+  Twitter,
+  Users
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -69,6 +70,15 @@ const TokenDetailsModal = dynamic(
   () =>
     import('./token-details-modal').then((mod) => ({
       default: mod.TokenDetailsModal
+    })),
+  { ssr: false }
+);
+
+// Lazy-load the top holders modal to reduce initial JS bundle size
+const TopHoldersModal = dynamic(
+  () =>
+    import('./top-holders-modal').then((mod) => ({
+      default: mod.TopHoldersModal
     })),
   { ssr: false }
 );
@@ -433,42 +443,88 @@ const ActionsCell = memo(
     isCompact,
     onViewDetails,
     onDownload,
-    onDelete
+    onDelete,
+    onViewTopHolders
   }: {
     isCompact: boolean;
     onViewDetails: () => void;
     onDownload: () => void;
     onDelete: () => void;
+    onViewTopHolders: () => void;
   }) => {
     const btnSize = isCompact ? 'h-7 w-7' : 'h-8 w-8';
     const iconSize = isCompact ? 'h-3 w-3' : 'h-4 w-4';
 
     return (
       <div className={cn('flex', isCompact ? 'gap-1' : 'gap-2')}>
-        <Button
-          variant='outline'
-          size='sm'
-          className={cn('p-0', btnSize)}
-          onClick={onViewDetails}
-        >
-          <Eye className={iconSize} />
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          className={cn('p-0', btnSize)}
-          onClick={onDownload}
-        >
-          <Download className={iconSize} />
-        </Button>
-        <Button
-          variant='destructive'
-          size='sm'
-          className={cn('p-0', btnSize)}
-          onClick={onDelete}
-        >
-          <Trash2 className={iconSize} />
-        </Button>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='outline'
+                size='sm'
+                className={cn('p-0', btnSize)}
+                onClick={onViewDetails}
+              >
+                <Eye className={iconSize} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className='text-xs'>View Details</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='outline'
+                size='sm'
+                className={cn('p-0', btnSize)}
+                onClick={onViewTopHolders}
+              >
+                <Users className={iconSize} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className='text-xs'>View Top 10 Holders</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='outline'
+                size='sm'
+                className={cn('p-0', btnSize)}
+                onClick={onDownload}
+              >
+                <Download className={iconSize} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className='text-xs'>Download Analysis</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='destructive'
+                size='sm'
+                className={cn('p-0', btnSize)}
+                onClick={onDelete}
+              >
+                <Trash2 className={iconSize} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className='text-xs'>Delete Token</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     );
   },
@@ -485,6 +541,7 @@ const createColumns = (
     tokenId: number,
     status: 'gem' | 'dud' | null
   ) => Promise<void>,
+  handleViewTopHolders: (token: Token) => void,
   refreshingMarketCaps: Set<number>,
   refreshingAll: boolean,
   isCompact: boolean = false,
@@ -642,6 +699,7 @@ const createColumns = (
               handleDelete(token.id);
             }
           }}
+          onViewTopHolders={() => handleViewTopHolders(token)}
         />
       );
     }
@@ -775,6 +833,10 @@ export function TokensTable({
   const [gemStatusUpdates, setGemStatusUpdates] = useState<
     Map<number, string | null>
   >(new Map());
+
+  // Top holders state
+  const [selectedTokenForHolders, setSelectedTokenForHolders] = useState<Token | null>(null);
+  const [isTopHoldersModalOpen, setIsTopHoldersModalOpen] = useState(false);
 
   // Delay compact mode change to sync with Codex animation
   useEffect(() => {
@@ -1087,6 +1149,18 @@ export function TokensTable({
     [router]
   );
 
+  // Handle viewing top holders - just open modal with existing data
+  const handleViewTopHolders = useCallback((token: Token) => {
+    setSelectedTokenForHolders(token);
+    setIsTopHoldersModalOpen(true);
+  }, []);
+
+  // Handle refresh completion from modal
+  const handleTopHoldersRefreshComplete = useCallback(() => {
+    // Refresh the table to show updated credits
+    router.refresh();
+  }, [router]);
+
   const handleBulkDownload = () => {
     if (selectedTokenIds.size === 0) {
       toast.error('No tokens selected');
@@ -1200,6 +1274,7 @@ export function TokensTable({
         handleRefreshMarketCap,
         handleRefreshAllMarketCaps,
         handleGemStatusChange,
+        handleViewTopHolders,
         refreshingMarketCaps,
         refreshingAll,
         isCompactMode,
@@ -1212,7 +1287,8 @@ export function TokensTable({
       refreshingAll,
       apiSettings,
       handleRefreshAllMarketCaps,
-      handleGemStatusChange
+      handleGemStatusChange,
+      handleViewTopHolders
     ]
   );
 
@@ -1435,6 +1511,22 @@ export function TokensTable({
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* Top Holders Modal */}
+      {selectedTokenForHolders && (
+        <TopHoldersModal
+          tokenAddress={selectedTokenForHolders.token_address}
+          tokenSymbol={selectedTokenForHolders.token_symbol}
+          initialHolders={selectedTokenForHolders.top_holders || null}
+          lastUpdated={selectedTokenForHolders.top_holders_updated_at || null}
+          open={isTopHoldersModalOpen}
+          onClose={() => {
+            setIsTopHoldersModalOpen(false);
+            setSelectedTokenForHolders(null);
+          }}
+          onRefreshComplete={handleTopHoldersRefreshComplete}
+        />
+      )}
     </>
   );
 }

@@ -95,6 +95,19 @@ Production-ready React application built with modern web technologies:
 - **Tag Architecture** - Uses same simple pattern as wallet tags (no optimistic locking)
 - **Automatic Sync** - Changes reflected in both Token Table and Multi-Token Wallets panel
 
+### Top 10 Token Holders
+
+- **Instant Modal Display** - Opens immediately with cached data (no loading)
+- **Automatic Fetching** - Runs during token analysis and stores in database
+- **Wallet Details** - Shows token balance in USD and total wallet balance
+- **Interactive Elements**:
+  - Clickable wallet addresses with Solscan filters applied
+  - Twitter search icon for each wallet
+  - Copy to clipboard button
+- **Manual Refresh** - Bottom-center button to update data (11-21 API credits)
+- **Last Updated Timestamp** - Shows relative time (e.g., "2h 15m ago")
+- **On-Curve Filtering** - Only displays real wallet addresses (excludes PDAs)
+
 ### External Token Explorer
 
 - **GMGN.ai Integration** - Direct links from token addresses and names to GMGN.ai

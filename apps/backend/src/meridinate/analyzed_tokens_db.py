@@ -563,6 +563,14 @@ def init_database():
             # Backfill existing rows with 0 (ALTER TABLE DEFAULT only applies to new rows)
             cursor.execute("UPDATE analyzed_tokens SET state_version = 0 WHERE state_version IS NULL")
 
+        if "top_holders_json" not in at_columns:
+            print("[Database] Migrating: Adding top_holders_json column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN top_holders_json TEXT")
+
+        if "top_holders_updated_at" not in at_columns:
+            print("[Database] Migrating: Adding top_holders_updated_at column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN top_holders_updated_at TIMESTAMP")
+
         # Fix ISO-format timestamps (convert to SQLite format)
         # Old format: 2025-01-15T12:34:56.123456
         # New format: 2025-01-15 12:34:56
@@ -695,6 +703,8 @@ def init_database():
             "market_cap_ath",
             "market_cap_ath_timestamp",
             "market_cap_usd_previous",
+            "top_holders_json",
+            "top_holders_updated_at",
         }
 
         missing_columns = required_columns - columns
@@ -721,6 +731,7 @@ def save_analyzed_token(
     credits_used: int = 0,
     max_wallets: int = 10,
     market_cap_usd: Optional[float] = None,
+    top_holders: Optional[List[Dict]] = None,
 ) -> int:
     """
     Save analyzed token and its early buyers.
@@ -736,6 +747,7 @@ def save_analyzed_token(
         credits_used: Helius API credits used for this analysis
         max_wallets: Maximum number of wallets to save
         market_cap_usd: Market capitalization in USD (optional)
+        top_holders: List of top token holders data (optional)
 
     Returns:
         token_id: Database ID of the saved token
@@ -743,14 +755,18 @@ def save_analyzed_token(
     with get_db_connection() as conn:
         cursor = conn.cursor()
 
+        # Prepare top holders JSON
+        top_holders_json_str = json.dumps(top_holders) if top_holders else None
+
         # Insert or update analyzed token
         cursor.execute(
             """
             INSERT INTO analyzed_tokens (
                 token_address, token_name, token_symbol, acronym,
                 first_buy_timestamp, wallets_found, axiom_json, credits_used, last_analysis_credits,
-                market_cap_usd, market_cap_usd_current, market_cap_ath, market_cap_ath_timestamp, market_cap_updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                market_cap_usd, market_cap_usd_current, market_cap_ath, market_cap_ath_timestamp, market_cap_updated_at,
+                top_holders_json, top_holders_updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(token_address) DO UPDATE SET
                 token_name = excluded.token_name,
                 token_symbol = excluded.token_symbol,
@@ -761,7 +777,9 @@ def save_analyzed_token(
                 axiom_json = excluded.axiom_json,
                 credits_used = analyzed_tokens.credits_used + excluded.credits_used,
                 last_analysis_credits = excluded.last_analysis_credits,
-                market_cap_usd = excluded.market_cap_usd
+                market_cap_usd = excluded.market_cap_usd,
+                top_holders_json = excluded.top_holders_json,
+                top_holders_updated_at = CASE WHEN excluded.top_holders_json IS NOT NULL THEN CURRENT_TIMESTAMP ELSE analyzed_tokens.top_holders_updated_at END
         """,
             (
                 token_address,
@@ -776,6 +794,7 @@ def save_analyzed_token(
                 market_cap_usd,
                 market_cap_usd,  # Initialize current to same as analysis value
                 market_cap_usd,  # Initialize ATH to same as analysis value
+                top_holders_json_str,
             ),
         )
 

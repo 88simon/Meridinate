@@ -27,6 +27,7 @@ from meridinate.utils.models import (
     TokensResponse,
     TokenTagRequest,
     TokenTagsResponse,
+    TopHoldersResponse,
     UpdateGemStatusRequest,
 )
 from meridinate.helius_api import HeliusAPI
@@ -73,7 +74,9 @@ async def get_tokens_history(request: Request, response: Response):
                     COUNT(DISTINCT ebw.wallet_address) as wallets_found,
                     t.credits_used, t.last_analysis_credits,
                     t.gem_status,
-                    COALESCE(t.state_version, 0) as state_version
+                    COALESCE(t.state_version, 0) as state_version,
+                    t.top_holders_json,
+                    t.top_holders_updated_at
                 FROM analyzed_tokens t
                 LEFT JOIN early_buyer_wallets ebw ON ebw.token_id = t.id
                 WHERE t.deleted_at IS NULL OR t.deleted_at = ''
@@ -107,6 +110,11 @@ async def get_tokens_history(request: Request, response: Response):
             for row in rows:
                 token_dict = dict(row)
                 token_dict["tags"] = tags_by_token.get(token_dict["id"], [])
+
+                # Parse top holders JSON
+                top_holders_json = token_dict.get("top_holders_json")
+                token_dict["top_holders"] = json.loads(top_holders_json) if top_holders_json else None
+
                 tokens.append(token_dict)
                 total_wallets += token_dict.get("wallets_found", 0)
 
@@ -126,7 +134,8 @@ async def get_deleted_tokens(request: Request):
         conn.row_factory = aiosqlite.Row
         query = """
             SELECT
-                t.*, COUNT(DISTINCT ebw.wallet_address) as wallets_found
+                t.*,
+                COUNT(DISTINCT ebw.wallet_address) as wallets_found
             FROM analyzed_tokens t
             LEFT JOIN early_buyer_wallets ebw ON ebw.token_id = t.id
             WHERE t.deleted_at IS NOT NULL
@@ -157,6 +166,11 @@ async def get_deleted_tokens(request: Request):
         for row in rows:
             token_dict = dict(row)
             token_dict["tags"] = tags_by_token.get(token_dict["id"], [])
+
+            # Parse top holders JSON
+            top_holders_json = token_dict.get("top_holders_json")
+            token_dict["top_holders"] = json.loads(top_holders_json) if top_holders_json else None
+
             tokens.append(token_dict)
 
         return {"total": len(tokens), "total_wallets": sum(t.get("wallets_found", 0) for t in tokens), "tokens": tokens}
@@ -376,6 +390,10 @@ async def get_token_by_id(token_id: int):
         tag_rows = await cursor.fetchall()
         token["tags"] = [row[0] for row in tag_rows]
 
+        # Parse top holders JSON
+        top_holders_json = token.get("top_holders_json")
+        token["top_holders"] = json.loads(top_holders_json) if top_holders_json else None
+
         return token
 
 
@@ -533,3 +551,115 @@ async def remove_token_tag(token_id: int, request: Request, data: TokenTagReques
     cache.invalidate("multi_early_buyer_wallets")
 
     return {"message": f"Tag '{data.tag}' removed successfully"}
+
+
+@router.get("/api/tokens/{mint_address}/top-holders", response_model=TopHoldersResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_top_holders(mint_address: str, request: Request):
+    """
+    Get top 10 token holders for a given token mint address.
+
+    This endpoint:
+    1. Calls Helius getTokenLargestAccounts API (1 credit)
+    2. Returns top 10 holders with their balances
+    3. Updates token's cumulative API credits if token exists in DB
+
+    Args:
+        mint_address: Token mint address to analyze
+
+    Returns:
+        TopHoldersResponse with holder addresses and balances
+    """
+    try:
+        # Initialize Helius API with separate Top Holders API key
+        from meridinate.settings import HELIUS_TOP_HOLDERS_API_KEY
+        helius = HeliusAPI(HELIUS_TOP_HOLDERS_API_KEY)
+
+        # Fetch top holders
+        log_info("Fetching top holders", mint_address=mint_address[:8])
+        holders_data, credits_used = helius.get_top_holders(mint_address, limit=10)
+
+        if not holders_data:
+            log_error("No holders found", mint_address=mint_address[:8])
+            raise HTTPException(status_code=404, detail="No holders found for this token")
+
+        # Fetch token metadata to get symbol
+        token_symbol = None
+        try:
+            token_metadata, metadata_credits = helius.get_token_metadata(mint_address)
+            credits_used += metadata_credits
+            if token_metadata:
+                # Extract symbol from onChainMetadata
+                on_chain = token_metadata.get("onChainMetadata", {})
+                metadata = on_chain.get("metadata", {})
+                token_symbol = metadata.get("symbol", "TOKEN")
+        except Exception as e:
+            log_error(f"Failed to fetch token metadata: {str(e)}", mint_address=mint_address[:8])
+            token_symbol = "TOKEN"  # Fallback
+
+        # Fetch wallet balances in USD for each holder
+        for holder in holders_data:
+            try:
+                wallet_balance_usd, balance_credits = helius.get_wallet_balance(holder["address"])
+                holder["wallet_balance_usd"] = wallet_balance_usd
+                credits_used += balance_credits
+            except Exception as e:
+                log_error(f"Failed to fetch wallet balance for {holder['address'][:8]}: {str(e)}")
+                holder["wallet_balance_usd"] = None
+
+        # Update API credits for this token if it exists in database
+        try:
+            async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+                # Check if token exists
+                cursor = await conn.execute(
+                    "SELECT id, credits_used FROM analyzed_tokens WHERE token_address = ?",
+                    (mint_address,)
+                )
+                row = await cursor.fetchone()
+
+                if row:
+                    token_id, current_credits = row
+                    new_credits = (current_credits or 0) + credits_used
+
+                    # Prepare top holders JSON for storage
+                    top_holders_json = json.dumps(holders_data)
+
+                    # Update cumulative credits and top holders data
+                    await conn.execute(
+                        """UPDATE analyzed_tokens
+                        SET credits_used = ?,
+                            last_analysis_credits = ?,
+                            top_holders_json = ?,
+                            top_holders_updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?""",
+                        (new_credits, credits_used, top_holders_json, token_id)
+                    )
+                    await conn.commit()
+                    log_info(
+                        "Updated token credits and top holders data",
+                        token_id=token_id,
+                        credits_added=credits_used,
+                        total_credits=new_credits,
+                        holders_count=len(holders_data)
+                    )
+
+                    # Invalidate tokens cache to show updated credits
+                    cache.invalidate("tokens_history")
+        except Exception as db_error:
+            # Log database error but don't fail the request
+            log_error(f"Failed to update token credits: {str(db_error)}", mint_address=mint_address[:8])
+
+        # Format response
+        return TopHoldersResponse(
+            token_address=mint_address,
+            token_symbol=token_symbol,
+            holders=holders_data,
+            total_holders=len(holders_data),
+            api_credits_used=credits_used
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        log_error(f"Error in get_top_holders: {str(e)}", mint_address=mint_address[:8])
+        raise HTTPException(status_code=500, detail=f"Failed to fetch top holders: {str(e)}")

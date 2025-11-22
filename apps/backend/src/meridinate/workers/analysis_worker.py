@@ -122,6 +122,7 @@ async def analyze_token_task(
             credits_used=result.get("api_credits_used", 0),
             max_wallets=settings.get("max_wallets", 10),
             market_cap_usd=result.get("market_cap_usd"),
+            top_holders=result.get("top_holders"),
         )
         log_info("Saved token to database", token_id=token_id, acronym=acronym)
 
