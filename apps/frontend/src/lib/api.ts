@@ -474,11 +474,14 @@ export async function updateGemStatus(
   tokenId: number,
   gemStatus: 'gem' | 'dud' | null
 ): Promise<{ message: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/gem-status`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ gem_status: gemStatus })
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/tokens/${tokenId}/gem-status`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gem_status: gemStatus })
+    }
+  );
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -507,10 +510,7 @@ export async function getTokenTags(tokenId: number): Promise<string[]> {
 /**
  * Add a tag to a token (e.g., 'gem', 'dud')
  */
-export async function addTokenTag(
-  tokenId: number,
-  tag: string
-): Promise<void> {
+export async function addTokenTag(tokenId: number, tag: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/tags`, {
     method: 'POST',
     headers: {

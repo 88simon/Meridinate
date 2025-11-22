@@ -371,9 +371,9 @@ const MarketCapCell = memo(
         )}
 
         {/* GEM/DUD Buttons */}
-        <div className='flex items-center gap-1 mt-1'>
+        <div className='mt-1 flex items-center gap-1'>
           <button
-            type="button"
+            type='button'
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -382,7 +382,7 @@ const MarketCapCell = memo(
               onGemStatusChange(token.id, newStatus);
             }}
             className={cn(
-              'px-2 py-0.5 text-[10px] font-bold rounded transition-colors cursor-pointer',
+              'cursor-pointer rounded px-2 py-0.5 text-[10px] font-bold transition-colors',
               token.tags?.includes('gem')
                 ? 'bg-green-500 text-white hover:bg-green-600'
                 : 'bg-muted text-muted-foreground hover:bg-green-100 hover:text-green-700'
@@ -391,7 +391,7 @@ const MarketCapCell = memo(
             GEM
           </button>
           <button
-            type="button"
+            type='button'
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -400,7 +400,7 @@ const MarketCapCell = memo(
               onGemStatusChange(token.id, newStatus);
             }}
             className={cn(
-              'px-2 py-0.5 text-[10px] font-bold rounded transition-colors cursor-pointer',
+              'cursor-pointer rounded px-2 py-0.5 text-[10px] font-bold transition-colors',
               token.tags?.includes('dud')
                 ? 'bg-red-500 text-white hover:bg-red-600'
                 : 'bg-muted text-muted-foreground hover:bg-red-100 hover:text-red-700'
@@ -481,7 +481,10 @@ const createColumns = (
   handleDelete: (id: number) => void,
   handleRefreshMarketCap: (id: number) => Promise<void>,
   handleRefreshAllMarketCaps: () => Promise<void>,
-  handleGemStatusChange: (tokenId: number, status: 'gem' | 'dud' | null) => Promise<void>,
+  handleGemStatusChange: (
+    tokenId: number,
+    status: 'gem' | 'dud' | null
+  ) => Promise<void>,
   refreshingMarketCaps: Set<number>,
   refreshingAll: boolean,
   isCompact: boolean = false,
@@ -498,15 +501,20 @@ const createColumns = (
       const hasDudTag = tags.includes('dud');
       return (
         <div className='min-w-[120px]'>
-          <div className={cn('font-medium flex items-center gap-1', isCompact ? 'text-xs' : 'text-sm')}>
+          <div
+            className={cn(
+              'flex items-center gap-1 font-medium',
+              isCompact ? 'text-xs' : 'text-sm'
+            )}
+          >
             {name}
             {hasGemTag && (
-              <span className='rounded bg-green-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white'>
+              <span className='rounded bg-green-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase'>
                 GEM
               </span>
             )}
             {hasDudTag && (
-              <span className='rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white'>
+              <span className='rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase'>
                 DUD
               </span>
             )}
@@ -726,7 +734,11 @@ interface TokensTableProps {
   onGemStatusUpdate?: () => Promise<void>;
 }
 
-export function TokensTable({ tokens, onDelete, onGemStatusUpdate }: TokensTableProps) {
+export function TokensTable({
+  tokens,
+  onDelete,
+  onGemStatusUpdate
+}: TokensTableProps) {
   const router = useRouter();
   const { isCodexOpen } = useCodex();
   const [selectedToken, setSelectedToken] = useState<TokenDetail | null>(null);
@@ -886,49 +898,61 @@ export function TokensTable({ tokens, onDelete, onGemStatusUpdate }: TokensTable
     }
   };
 
-  const handleGemStatusChange = useCallback(async (tokenId: number, status: 'gem' | 'dud' | null) => {
-    try {
-      // Optimistically update UI immediately (like wallet tags)
-      setGemStatusUpdates((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(tokenId, status);
-        return newMap;
-      });
+  const handleGemStatusChange = useCallback(
+    async (tokenId: number, status: 'gem' | 'dud' | null) => {
+      try {
+        // Optimistically update UI immediately (like wallet tags)
+        setGemStatusUpdates((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(tokenId, status);
+          return newMap;
+        });
 
-      // Use tag system - fire and forget like wallet tags
-      if (status === 'gem') {
-        // Remove 'dud' if it exists, then add 'gem'
-        try { await removeTokenTag(tokenId, 'dud'); } catch {}
-        await addTokenTag(tokenId, 'gem');
-      } else if (status === 'dud') {
-        // Remove 'gem' if it exists, then add 'dud'
-        try { await removeTokenTag(tokenId, 'gem'); } catch {}
-        await addTokenTag(tokenId, 'dud');
-      } else {
-        // Clear both tags
-        try { await removeTokenTag(tokenId, 'gem'); } catch {}
-        try { await removeTokenTag(tokenId, 'dud'); } catch {}
+        // Use tag system - fire and forget like wallet tags
+        if (status === 'gem') {
+          // Remove 'dud' if it exists, then add 'gem'
+          try {
+            await removeTokenTag(tokenId, 'dud');
+          } catch {}
+          await addTokenTag(tokenId, 'gem');
+        } else if (status === 'dud') {
+          // Remove 'gem' if it exists, then add 'dud'
+          try {
+            await removeTokenTag(tokenId, 'gem');
+          } catch {}
+          await addTokenTag(tokenId, 'dud');
+        } else {
+          // Clear both tags
+          try {
+            await removeTokenTag(tokenId, 'gem');
+          } catch {}
+          try {
+            await removeTokenTag(tokenId, 'dud');
+          } catch {}
+        }
+
+        const statusText = status === null ? 'cleared' : status.toUpperCase();
+        toast.success(`Token marked as ${statusText}`);
+
+        // Refetch multi-token wallets to update the panel
+        if (onGemStatusUpdate) {
+          await onGemStatusUpdate();
+        }
+      } catch (error: any) {
+        // Revert optimistic update on error
+        setGemStatusUpdates((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(tokenId);
+          return newMap;
+        });
+
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        toast.error(`Failed to update gem status: ${errorMessage}`);
       }
-
-      const statusText = status === null ? 'cleared' : status.toUpperCase();
-      toast.success(`Token marked as ${statusText}`);
-
-      // Refetch multi-token wallets to update the panel
-      if (onGemStatusUpdate) {
-        await onGemStatusUpdate();
-      }
-    } catch (error: any) {
-      // Revert optimistic update on error
-      setGemStatusUpdates((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(tokenId);
-        return newMap;
-      });
-
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to update gem status: ${errorMessage}`);
-    }
-  }, [onGemStatusUpdate]);
+    },
+    [onGemStatusUpdate]
+  );
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(event.currentTarget.scrollTop);
@@ -1151,7 +1175,7 @@ export function TokensTable({ tokens, onDelete, onGemStatusUpdate }: TokensTable
         let newTags = [...currentTags];
 
         // Remove existing gem/dud tags
-        newTags = newTags.filter(tag => tag !== 'gem' && tag !== 'dud');
+        newTags = newTags.filter((tag) => tag !== 'gem' && tag !== 'dud');
 
         // Add new tag if not null
         if (gemStatusUpdate !== null) {

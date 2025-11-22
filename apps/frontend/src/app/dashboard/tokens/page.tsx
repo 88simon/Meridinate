@@ -1351,7 +1351,8 @@ export default function TokensPage() {
                             {wallet.token_names.map((name, idx) => {
                               // Show NEW badge for the latest scanned token (regardless of multi-token threshold)
                               const latestTokenId = data.tokens[0]?.id;
-                              const isNewToken = wallet.token_ids[idx] === latestTokenId;
+                              const isNewToken =
+                                wallet.token_ids[idx] === latestTokenId;
                               const gemStatus = wallet.gem_statuses?.[idx];
 
                               return (
