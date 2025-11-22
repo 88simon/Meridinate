@@ -82,10 +82,12 @@ def load_top_holders_api_key() -> Optional[str]:
 
 
 HELIUS_TOP_HOLDERS_API_KEY = load_top_holders_api_key()
+# Fallback to main API key if top holders key not set
 if not HELIUS_TOP_HOLDERS_API_KEY:
-    raise RuntimeError("HELIUS_TOP_HOLDERS_API_KEY not set. Add it to environment variable or backend/config.json")
-
-print(f"[Config] Loaded Top Holders API key: {HELIUS_TOP_HOLDERS_API_KEY[:8]}..." if HELIUS_TOP_HOLDERS_API_KEY else "[Config] No top holders API key loaded")
+    HELIUS_TOP_HOLDERS_API_KEY = HELIUS_API_KEY
+    print("[Config] Using main Helius API key for Top Holders feature")
+else:
+    print(f"[Config] Loaded Top Holders API key: {HELIUS_TOP_HOLDERS_API_KEY[:8]}...")
 
 # ============================================================================
 # Redis Configuration (for task queue and rate limiting)
