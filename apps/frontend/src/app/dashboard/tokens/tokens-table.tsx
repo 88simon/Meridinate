@@ -835,7 +835,8 @@ export function TokensTable({
   >(new Map());
 
   // Top holders state
-  const [selectedTokenForHolders, setSelectedTokenForHolders] = useState<Token | null>(null);
+  const [selectedTokenForHolders, setSelectedTokenForHolders] =
+    useState<Token | null>(null);
   const [isTopHoldersModalOpen, setIsTopHoldersModalOpen] = useState(false);
 
   // Delay compact mode change to sync with Codex animation

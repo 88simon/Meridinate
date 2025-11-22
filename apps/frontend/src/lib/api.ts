@@ -40,6 +40,24 @@ export type RefreshMarketCapResult =
 export type RefreshMarketCapsResponse =
   components['schemas']['RefreshMarketCapsResponse'];
 
+// Top Holders types (manually defined until OpenAPI schema regeneration)
+export interface TopHolder {
+  address: string;
+  amount: string;
+  decimals: number;
+  uiAmountString: string;
+  token_balance_usd?: number | null;
+  wallet_balance_usd?: number | null;
+}
+
+export interface TopHoldersResponse {
+  token_address: string;
+  token_symbol?: string | null;
+  holders: TopHolder[];
+  total_holders: number;
+  api_credits_used: number;
+}
+
 // Backwards compatibility - ApiSettings is now AnalysisSettings
 export type ApiSettings = AnalysisSettings;
 
@@ -544,6 +562,27 @@ export async function removeTokenTag(
     const error = await res.json();
     throw new Error(error.detail || 'Failed to remove tag');
   }
+}
+
+/**
+ * Get top 10 token holders for a given token
+ * This triggers a fresh analysis via Helius API (1 credit)
+ */
+export async function getTopHolders(
+  mintAddress: string
+): Promise<TopHoldersResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/tokens/${mintAddress}/top-holders`
+  );
+
+  if (!res.ok) {
+    const error = await res
+      .json()
+      .catch(() => ({ detail: 'Failed to fetch top holders' }));
+    throw new Error(error.detail || 'Failed to fetch top holders');
+  }
+
+  return res.json();
 }
 
 /**

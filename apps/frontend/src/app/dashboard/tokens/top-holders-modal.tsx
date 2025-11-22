@@ -56,7 +56,8 @@ export function TopHoldersModal({
   const [holders, setHolders] = useState<TopHolder[] | null>(initialHolders);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [creditsUsed, setCreditsUsed] = useState<number>(0);
-  const [solscanSettings, setSolscanSettings] = useState<SolscanSettings | null>(null);
+  const [solscanSettings, setSolscanSettings] =
+    useState<SolscanSettings | null>(null);
 
   // Update holders when initialHolders changes (e.g., after page refresh)
   useEffect(() => {
@@ -155,7 +156,7 @@ export function TopHoldersModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className='max-w-4xl max-h-[80vh] overflow-y-auto'>
+      <DialogContent className='max-h-[80vh] max-w-4xl overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>Top 10 Token Holders</DialogTitle>
           <DialogDescription>
@@ -206,7 +207,11 @@ export function TopHoldersModal({
                         target='_blank'
                         rel='noopener noreferrer'
                       >
-                        <Button variant='outline' size='sm' className='h-8 w-8 p-0'>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          className='h-8 w-8 p-0'
+                        >
                           <ExternalLink className='h-3 w-3' />
                         </Button>
                       </a>
@@ -241,7 +246,10 @@ export function TopHoldersModal({
                       <div className='flex items-center gap-1'>
                         {solscanSettings ? (
                           <a
-                            href={buildSolscanUrl(holder.address, solscanSettings)}
+                            href={buildSolscanUrl(
+                              holder.address,
+                              solscanSettings
+                            )}
                             target='_blank'
                             rel='noopener noreferrer'
                             className='text-primary truncate font-mono text-xs hover:underline'
@@ -249,7 +257,9 @@ export function TopHoldersModal({
                             {holder.address}
                           </a>
                         ) : (
-                          <span className='font-mono text-xs'>{holder.address}</span>
+                          <span className='font-mono text-xs'>
+                            {holder.address}
+                          </span>
                         )}
                         <a
                           href={`https://twitter.com/search?q=${encodeURIComponent(holder.address)}`}
@@ -287,10 +297,13 @@ export function TopHoldersModal({
                     </TableCell>
                     <TableCell className='text-right font-semibold'>
                       {holder.wallet_balance_usd != null
-                        ? `$${holder.wallet_balance_usd.toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}`
+                        ? `$${holder.wallet_balance_usd.toLocaleString(
+                            'en-US',
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            }
+                          )}`
                         : '-'}
                     </TableCell>
                   </TableRow>
