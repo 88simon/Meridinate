@@ -711,7 +711,7 @@ const createColumns = (
               <Settings className='h-3.5 w-3.5' />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className='w-64'>
+          <PopoverContent className='w-64' side='top' align='end'>
             <div className='space-y-3'>
               <div>
                 <h4 className='mb-2 text-sm font-semibold'>
