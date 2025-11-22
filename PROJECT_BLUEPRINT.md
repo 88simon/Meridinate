@@ -77,10 +77,10 @@ C:\Meridinate\
 - ✅ **Multi-Token Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues, NEW badge indicators for recently added wallets and tokens, sortable columns for all data fields, compressed layout with 40-50% vertical space savings and fixed column widths
 - ✅ **Legacy cleanup** - Old root `backend/` and `frontend/` folders removed
 - ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
-- ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth
+- ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth, sticky table header keeps column names visible during scroll
 - ✅ **CI/CD Pipeline** - Unified monorepo workflow at `.github/workflows/monorepo-ci.yml` with all checks passing
 - ✅ **UI/UX Enhancements** - GMGN.ai integration, enhanced status bar with detailed metrics, MeridinateLogo component in header, Gunslinger/Gambler tags, removed wallet count cap, horizontal pagination arrows
-- ✅ **Top 10 Token Holders** - Automatically fetched during analysis, cached in database, instant modal display with Twitter/Copy icons, manual refresh updates data and credits
+- ✅ **Top Holders Feature** - Configurable limit (5-50, default 10) via settings UI in Actions column header, automatically fetched during analysis, cached in database, instant modal display with Twitter/Copy icons, manual refresh updates data and credits, uses dedicated or fallback API key
 
 ### What Needs Cleanup ⚠️
 
@@ -396,23 +396,31 @@ When Simon says...  →  Technical term & Implementation
   - Multi-Token Wallets Panel - Badges shown inline with token names
 - **Legacy Field:** `gem_status` column kept for backwards compatibility during migration
 
-#### **"Top 10 Token Holders"**
-- **Technical Term:** Token Holder Analysis System
-- **What it is:** Displays the top 10 largest wallet holders of a specific token with real-time balance data
+#### **"Top Holders Feature"**
+- **Technical Term:** Token Holder Analysis System with Configurable Limit
+- **What it is:** Displays the top N largest wallet holders (configurable 5-50, default 10) of a specific token with real-time balance data
 - **Location (Backend):** `apps/backend/src/meridinate/helius_api.py` (lines 393-599), `apps/backend/src/meridinate/routers/tokens.py` (lines 558-660)
 - **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/top-holders-modal.tsx`
 - **Database Columns:** `top_holders_json`, `top_holders_updated_at` in `analyzed_tokens` table
 - **API Endpoints:**
-  - `GET /api/tokens/{token_address}/top-holders` - Fetch and refresh top holders
+  - `GET /api/tokens/{token_address}/top-holders?limit={N}` - Fetch and refresh top N holders
+  - `POST /api/settings` - Update topHoldersLimit setting (persisted to api_settings.json)
+- **Configuration:**
+  - Settings UI in Actions column header of tokens table (gear icon)
+  - Dropdown with preset values: 5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+  - Default: 10 holders
+  - Persisted to backend api_settings.json file
+  - API key: uses HELIUS_TOP_HOLDERS_API_KEY if set, otherwise falls back to main HELIUS_API_KEY
 - **How it works:**
-  1. Automatically fetches during token analysis using `getTokenLargestAccounts` RPC
-  2. Resolves token account addresses to wallet owner addresses using `getAccountInfo`
-  3. Filters out program-derived addresses (PDAs) - only shows on-curve wallets
-  4. Calculates token balance in USD using DexScreener price API
-  5. Fetches total wallet balance in USD via Helius API
-  6. Stores in database as JSON with timestamp
-  7. Modal opens instantly with cached data
-  8. Manual refresh button updates data and adds credits to cumulative total
+  1. User configures limit via settings UI or uses default of 10
+  2. Automatically fetches during token analysis using `getTokenLargestAccounts` RPC with configured limit
+  3. Resolves token account addresses to wallet owner addresses using `getAccountInfo`
+  4. Filters out program-derived addresses (PDAs) - only shows on-curve wallets
+  5. Calculates token balance in USD using DexScreener price API
+  6. Fetches total wallet balance in USD via Helius API
+  7. Stores in database as JSON with timestamp
+  8. Modal opens instantly with cached data, dynamically showing "Top N Token Holders" title
+  9. Manual refresh button updates data using configured limit and adds credits to cumulative total
 - **Data Displayed:**
   - Wallet address (clickable with Solscan filters applied)
   - Token balance in USD (calculated from token price)
