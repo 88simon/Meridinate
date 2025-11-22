@@ -66,6 +66,12 @@ Production-ready React application built with modern web technologies:
   - Infinite toggle between ascending/descending
   - Sorting persists across collapsed/expanded modes
   - Works seamlessly with virtualized rendering
+- **Compressed Layout** - Optimized for vertical space efficiency
+  - 40-50% vertical space savings per row
+  - Fixed column widths prevent drift (320px address, 220px balance, 140px tags, 80px tokens, auto token names)
+  - Refresh balance button positioned left of balance values for horizontal layout
+  - Reduced padding, margins, and text sizes throughout
+  - Table minimum width: 1000px with horizontal scroll
 - **Expanded Mode Virtualization** - Smooth scrolling with 100+ wallets
 - **Balance Tracking** - Real-time SOL balance updates with trend indicators
 
@@ -76,6 +82,18 @@ Production-ready React application built with modern web technologies:
 - **Codex Panel** - Wallet directory with token counts (excludes deleted tokens)
 - **Tag Filtering** - Filter tokens by wallet tags
 - **KOL Marking** - Flag Key Opinion Leaders for special tracking
+
+### Token Classification
+
+- **GEM/DUD Tagging** - Fire-and-forget classification system for tokens
+- **Quick Toggle Buttons** - Click to mark tokens as "gem" or "dud", click again to clear
+- **Instant UI Updates** - Optimistic rendering with no version conflicts
+- **Multi-location Display**:
+  - GEM/DUD badges next to token names in token table
+  - Classification buttons in market cap column for quick access
+  - Badges shown inline with token names in Multi-Token Wallets panel
+- **Tag Architecture** - Uses same simple pattern as wallet tags (no optimistic locking)
+- **Automatic Sync** - Changes reflected in both Token Table and Multi-Token Wallets panel
 
 ### External Token Explorer
 
@@ -128,18 +146,9 @@ Production-ready React application built with modern web technologies:
 
 ### UI & Branding
 
-- **MeridinateLogo Component** - Reusable SVG logo component
-  - Light/dark theme variants
-  - Configurable size via className prop
-  - Professional meridian-inspired design
-- **Header Layout** - Logo prominently displayed in main header
-  - "Meridinate" title + "Blockchain Intelligence Desk" tagline
-  - Logo visible regardless of sidebar state
-  - Cleaner visual hierarchy
-- **Sidebar Navigation** - Collapsible sidebar with integrated toggle
-  - Toggle button moved inside sidebar as first menu item
-  - Overview section (Dashboard, Tokens, Trash, etc.)
-  - Tools section (Codex, Settings)
+- Reusable `MeridinateLogo` SVG supports light/dark themes and any size via `className`
+- Header keeps the logo + “Blockchain Intelligence Desk” tagline visible even when the sidebar collapses
+- Sidebar toggle lives inside the menu with concise Overview (Dashboard/Tokens/Trash) and Tools (Codex/Settings) groupings
 
 ### API Settings
 
@@ -153,7 +162,7 @@ Production-ready React application built with modern web technologies:
 
 ### Performance Optimizations
 
-- **CSS Transitions** - Replaced Framer Motion with native CSS for better performance
+- **CSS Transitions** - All UI animations now rely on native transitions (Framer Motion packages stay only for future experiments)
 - **Memoization** - Heavy table cells memoized to prevent unnecessary re-renders
 - **Deferred State Updates** - Selection updates batched for smooth UX
 - **Optimistic Updates** - Instant UI feedback for user actions
@@ -443,9 +452,9 @@ NODE_ENV=production
 
 ### Optimizations Applied
 
-1. **Replaced Framer Motion with CSS Transitions**
+1. **CSS Transitions for Animations**
 
-   - Native browser animations
+   - All interactive transitions use native CSS (Framer Motion libs remain in package.json but are no longer imported)
    - Lower JavaScript overhead
    - Smoother 60fps animations
 

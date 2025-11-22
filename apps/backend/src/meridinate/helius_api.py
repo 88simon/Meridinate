@@ -495,7 +495,8 @@ class HeliusAPI:
             # getTransactionsForAddress costs 100 credits per call
             # Can fetch up to 100 transactions with full details per call
             # We'll need multiple calls if limit > 100
-            remaining_limit = min(limit, 500)  # Cap at 500 for safety
+            # The max_api_calls (derived from max_credits) is the actual limiting factor
+            remaining_limit = limit
 
             while remaining_limit > 0 and api_calls < max_api_calls:
                 batch_limit = min(remaining_limit, 100)  # Max 100 per call with full details
@@ -871,7 +872,9 @@ class HeliusAPI:
                     f"[Helius] Token info: {token_name} (Market Cap: ${market_cap_usd:,.2f}, used {metadata_credits} metadata + {market_cap_credits} market cap credits)"
                 )
             else:
-                print(f"[Helius] Token info: {token_name} (Market Cap: N/A, used {metadata_credits} metadata + {market_cap_credits} market cap credits)")
+                print(
+                    f"[Helius] Token info: {token_name} (Market Cap: N/A, used {metadata_credits} metadata + {market_cap_credits} market cap credits)"
+                )
         else:
             print(f"[Helius] Token info: Unknown (metadata not available)")
 
@@ -1022,7 +1025,9 @@ class HeliusAPI:
         print(f"[Helius] Wallet balances fetched (used {balance_credits} credits)")
 
         # Calculate actual API credits used
-        total_credits = metadata_credits + market_cap_credits + creation_time_credits + transaction_credits + balance_credits
+        total_credits = (
+            metadata_credits + market_cap_credits + creation_time_credits + transaction_credits + balance_credits
+        )
 
         print(
             f"[Helius] Total API credits used: {total_credits} ({metadata_credits} metadata + {market_cap_credits} market cap + {creation_time_credits} creation time lookup + {transaction_credits} transactions + {balance_credits} wallet balances)"

@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional, Tuple
 # This is optional - if not available, metrics won't be recorded
 try:
     from meridinate.observability import metrics_collector
+
     METRICS_AVAILABLE = True
 except ImportError:
     METRICS_AVAILABLE = False

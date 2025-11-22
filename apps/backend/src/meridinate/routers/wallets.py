@@ -33,27 +33,61 @@ async def get_multi_early_buyer_wallets(request: Request, min_tokens: int = 2):
     async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
         conn.row_factory = aiosqlite.Row
         query = """
+            WITH distinct_wallet_tokens AS (
+                SELECT DISTINCT
+                    tw.wallet_address,
+                    tw.token_id,
+                    t.id as token_table_id,
+                    t.token_name,
+                    t.token_address,
+                    tw.wallet_balance_usd,
+                    tw.wallet_balance_usd_previous,
+                    tw.wallet_balance_updated_at
+                FROM early_buyer_wallets tw
+                JOIN analyzed_tokens t ON tw.token_id = t.id
+                WHERE t.deleted_at IS NULL
+            )
             SELECT
-                tw.wallet_address,
-                COUNT(DISTINCT tw.token_id) as token_count,
-                GROUP_CONCAT(DISTINCT t.token_name) as token_names,
-                GROUP_CONCAT(DISTINCT t.token_address) as token_addresses,
-                GROUP_CONCAT(DISTINCT t.id) as token_ids,
-                MAX(tw.wallet_balance_usd) as wallet_balance_usd,
-                MAX(tw.wallet_balance_usd_previous) as wallet_balance_usd_previous,
-                MAX(tw.wallet_balance_updated_at) as wallet_balance_updated_at,
+                dwt.wallet_address,
+                COUNT(DISTINCT dwt.token_id) as token_count,
+                GROUP_CONCAT(dwt.token_name ORDER BY dwt.token_table_id DESC) as token_names,
+                GROUP_CONCAT(dwt.token_address ORDER BY dwt.token_table_id DESC) as token_addresses,
+                GROUP_CONCAT(dwt.token_table_id ORDER BY dwt.token_table_id DESC) as token_ids,
+                MAX(dwt.wallet_balance_usd) as wallet_balance_usd,
+                MAX(dwt.wallet_balance_usd_previous) as wallet_balance_usd_previous,
+                MAX(dwt.wallet_balance_updated_at) as wallet_balance_updated_at,
                 COALESCE(mtw.marked_new, 0) as is_new,
                 mtw.marked_at_analysis_id
-            FROM early_buyer_wallets tw
-            JOIN analyzed_tokens t ON tw.token_id = t.id
-            LEFT JOIN multi_token_wallet_metadata mtw ON tw.wallet_address = mtw.wallet_address
-            WHERE t.deleted_at IS NULL
-            GROUP BY tw.wallet_address
-            HAVING COUNT(DISTINCT tw.token_id) >= ?
+            FROM distinct_wallet_tokens dwt
+            LEFT JOIN multi_token_wallet_metadata mtw ON dwt.wallet_address = mtw.wallet_address
+            GROUP BY dwt.wallet_address
+            HAVING COUNT(DISTINCT dwt.token_id) >= ?
             ORDER BY token_count DESC, wallet_balance_usd DESC
         """
         cursor = await conn.execute(query, (min_tokens,))
         rows = await cursor.fetchall()
+
+        # Fetch all token tags for tokens that appear in the results
+        all_token_ids = set()
+        for row in rows:
+            wallet_dict = dict(row)
+            token_ids_str = wallet_dict.get("token_ids", "")
+            if token_ids_str:
+                all_token_ids.update([int(id) for id in token_ids_str.split(",")])
+
+        # Fetch tags for all tokens at once
+        tags_by_token = {}
+        if all_token_ids:
+            tags_query = "SELECT token_id, tag FROM token_tags WHERE token_id IN ({})".format(
+                ",".join(str(tid) for tid in all_token_ids)
+            )
+            tag_cursor = await conn.execute(tags_query)
+            tag_rows = await tag_cursor.fetchall()
+            for tag_row in tag_rows:
+                token_id, tag = tag_row[0], tag_row[1]
+                if token_id not in tags_by_token:
+                    tags_by_token[token_id] = []
+                tags_by_token[token_id].append(tag)
 
         wallets = []
         for row in rows:
@@ -62,9 +96,22 @@ async def get_multi_early_buyer_wallets(request: Request, min_tokens: int = 2):
             wallet_dict["token_addresses"] = (
                 wallet_dict["token_addresses"].split(",") if wallet_dict["token_addresses"] else []
             )
-            wallet_dict["token_ids"] = [
-                int(id) for id in wallet_dict["token_ids"].split(",") if wallet_dict["token_ids"]
-            ]
+            token_ids = [int(id) for id in wallet_dict["token_ids"].split(",") if wallet_dict["token_ids"]]
+            wallet_dict["token_ids"] = token_ids
+
+            # Build gem_statuses from token tags
+            # For each token, check if it has 'gem' or 'dud' tag
+            gem_statuses = []
+            for token_id in token_ids:
+                tags = tags_by_token.get(token_id, [])
+                if "gem" in tags:
+                    gem_statuses.append("gem")
+                elif "dud" in tags:
+                    gem_statuses.append("dud")
+                else:
+                    gem_statuses.append(None)
+            wallet_dict["gem_statuses"] = gem_statuses
+
             # Convert is_new from integer (0/1) to boolean
             wallet_dict["is_new"] = bool(wallet_dict["is_new"])
             # SQLite returns timestamps as strings; pass through for client consumption
@@ -103,7 +150,9 @@ async def refresh_wallet_balances(request: Request, data: RefreshBalancesRequest
             loop = asyncio.get_event_loop()
             # Use the same get_wallet_balance method that properly converts lamports to USD
             # force_refresh=True bypasses cache since this is a manual user-triggered refresh
-            balance_usd, credits = await loop.run_in_executor(None, lambda: helius.get_wallet_balance(wallet_address, force_refresh=True))
+            balance_usd, credits = await loop.run_in_executor(
+                None, lambda: helius.get_wallet_balance(wallet_address, force_refresh=True)
+            )
 
             if balance_usd is not None:
                 return {

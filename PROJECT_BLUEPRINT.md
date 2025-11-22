@@ -70,7 +70,7 @@ C:\Meridinate\
 - ✅ **Backend (FastAPI)** - Runs on port 5003, all 46 API endpoints functional
 - ✅ **Frontend (Next.js)** - Runs on port 3000, dashboard and token analysis working
 - ✅ **AutoHotkey** - Desktop automation action wheel functional
-- ✅ **Database** - SQLite with 6 tables, all data preserved
+- ✅ **Database** - SQLite with 7 tables, all data preserved
 - ✅ **WebSocket** - Real-time notifications working
 - ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services with automatic process cleanup, uses venv Python explicitly
 - ✅ **Market Cap Refresh** - "Refresh all visible market caps" button fully functional
@@ -335,6 +335,8 @@ When Simon says...  →  Technical term & Implementation
   - `analyzed_tokens` - Token metadata
   - `early_buyer_wallets` - Wallet addresses + purchase data
   - `analysis_runs` - Historical analysis runs
+  - `token_tags` - Token classification tags (GEM/DUD)
+  - `wallet_tags` - Wallet categorization tags
 
 #### **"Action Wheel"**
 - **Technical Term:** AutoHotkey Context Menu / Radial Menu
@@ -371,6 +373,28 @@ When Simon says...  →  Technical term & Implementation
 - **Database Table:** `wallet_tags`
 - **Context Provider:** `WalletTagsContext.tsx` (React Context for state management)
 
+#### **"Token Classification (GEM/DUD)"**
+- **Technical Term:** Token Tagging System
+- **What it is:** Fire-and-forget classification system for tokens using tags ("gem" for promising tokens, "dud" for poor performers)
+- **Architecture:** Uses same pattern as wallet tags - no optimistic locking, instant UI updates, simple add/remove operations
+- **Location (Backend):** `apps/backend/src/meridinate/routers/tokens.py` (token tag endpoints)
+- **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` (GEM/DUD buttons)
+- **Database Table:** `token_tags` (token_id, tag, created_at)
+- **API Endpoints:**
+  - `GET /api/tokens/{token_id}/tags` - Get all tags for a token
+  - `POST /api/tokens/{token_id}/tags` - Add a tag to a token
+  - `DELETE /api/tokens/{token_id}/tags` - Remove a tag from a token
+- **How it works:**
+  1. Click GEM button - Removes "dud" tag if exists, adds "gem" tag
+  2. Click DUD button - Removes "gem" tag if exists, adds "dud" tag
+  3. Click again - Removes the tag (clears classification)
+  4. Optimistic UI updates - Changes appear instantly before API confirms
+  5. Cache invalidation - Both `tokens_history` and `multi_early_buyer_wallets` caches cleared
+- **Display Locations:**
+  - Token Table - Buttons in market cap cell, badges next to token name
+  - Multi-Token Wallets Panel - Badges shown inline with token names
+- **Legacy Field:** `gem_status` column kept for backwards compatibility during migration
+
 #### **"Market Cap Tracking"**
 - **Technical Term:** Market Capitalization Monitoring
 - **What it stores:**
@@ -378,8 +402,9 @@ When Simon says...  →  Technical term & Implementation
   - `market_cap_usd_current` - Latest refreshed value
   - `market_cap_ath` - All-time high
   - `market_cap_ath_timestamp` - When ATH occurred
-- **Auto-refresh:** Background job refreshes every 30 minutes
-- **API:** `POST /api/tokens/refresh` triggers manual refresh
+- **Refresh mechanism:** Manual only - no background job
+- **API:** `POST /api/tokens/refresh-market-caps` (user-triggered via "Refresh all visible market caps" button)
+- **How it works:** User clicks refresh button, frontend sends token IDs to endpoint, backend fetches latest prices from Helius DAS API
 
 #### **"Watchlist"**
 - **Technical Term:** Wallet Watchlist Service

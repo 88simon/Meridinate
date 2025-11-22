@@ -314,7 +314,9 @@ def init_database():
                 axiom_file_path TEXT,
                 market_cap_usd REAL,
                 market_cap_usd_current REAL,
-                market_cap_updated_at TIMESTAMP
+                market_cap_updated_at TIMESTAMP,
+                gem_status TEXT,
+                state_version INTEGER DEFAULT 0
             )
         """
         )
@@ -390,6 +392,20 @@ def init_database():
         """
         )
 
+        # Token tags table (for GEM/DUD and other token classifications)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_id INTEGER NOT NULL,
+                tag TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(token_id, tag),
+                FOREIGN KEY (token_id) REFERENCES analyzed_tokens(id) ON DELETE CASCADE
+            )
+        """
+        )
+
         # Create indices for better query performance
         cursor.execute(
             """
@@ -416,6 +432,13 @@ def init_database():
             """
             CREATE INDEX IF NOT EXISTS idx_wallet_tags_address
             ON wallet_tags(wallet_address)
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_token_tags_token_id
+            ON token_tags(token_id)
         """
         )
 
@@ -530,6 +553,16 @@ def init_database():
             print("[Database] Migrating: Adding market_cap_usd_previous column...")
             cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN market_cap_usd_previous REAL")
 
+        if "gem_status" not in at_columns:
+            print("[Database] Migrating: Adding gem_status column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN gem_status TEXT")
+
+        if "state_version" not in at_columns:
+            print("[Database] Migrating: Adding state_version column for optimistic locking...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN state_version INTEGER DEFAULT 0")
+            # Backfill existing rows with 0 (ALTER TABLE DEFAULT only applies to new rows)
+            cursor.execute("UPDATE analyzed_tokens SET state_version = 0 WHERE state_version IS NULL")
+
         # Fix ISO-format timestamps (convert to SQLite format)
         # Old format: 2025-01-15T12:34:56.123456
         # New format: 2025-01-15 12:34:56
@@ -640,12 +673,28 @@ def init_database():
         columns = {row[1] for row in cursor.fetchall()}
 
         required_columns = {
-            "id", "token_address", "token_name", "token_symbol", "acronym",
-            "analysis_timestamp", "first_buy_timestamp", "wallets_found",
-            "axiom_json", "webhook_id", "credits_used", "last_analysis_credits",
-            "is_deleted", "deleted_at", "analysis_file_path", "axiom_file_path",
-            "market_cap_usd", "market_cap_usd_current", "market_cap_updated_at",
-            "market_cap_ath", "market_cap_ath_timestamp", "market_cap_usd_previous"
+            "id",
+            "token_address",
+            "token_name",
+            "token_symbol",
+            "acronym",
+            "analysis_timestamp",
+            "first_buy_timestamp",
+            "wallets_found",
+            "axiom_json",
+            "webhook_id",
+            "credits_used",
+            "last_analysis_credits",
+            "is_deleted",
+            "deleted_at",
+            "analysis_file_path",
+            "axiom_file_path",
+            "market_cap_usd",
+            "market_cap_usd_current",
+            "market_cap_updated_at",
+            "market_cap_ath",
+            "market_cap_ath_timestamp",
+            "market_cap_usd_previous",
         }
 
         missing_columns = required_columns - columns

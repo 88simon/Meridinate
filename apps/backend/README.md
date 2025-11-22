@@ -11,7 +11,7 @@ FastAPI-based backend service for Solana token analysis with async task processi
 - **Async Task Queue** (arq + Redis) - Background task processing for long-running operations
 - **Rate Limiting** (slowapi) - Configurable endpoint protection with conditional disabling
 - **Helius Integration** (`helius_api.py`) - Solana blockchain data and token analysis
-- **SQLite Database** (`analyzed_tokens.db`) - Persistent storage with 6 tables: tokens, wallets, analysis runs, tags, wallet activity, and multi-token metadata
+- **SQLite Database** (`analyzed_tokens.db`) - Persistent storage with 7 tables: tokens, wallets, analysis runs, wallet tags, token tags, wallet activity, and multi-token metadata
 
 ## Requirements
 
@@ -144,6 +144,9 @@ The service starts on **http://localhost:5003** with:
 | `POST` | `/api/tokens/refresh-market-caps` | Refresh market caps (batch) | 30/hour |
 | `GET` | `/api/tokens/trash` | List deleted tokens | - |
 | `POST` | `/api/analysis` | Start new analysis job | 20/hour |
+| `GET` | `/api/tokens/{id}/tags` | Get token tags (GEM/DUD) | - |
+| `POST` | `/api/tokens/{id}/tags` | Add tag to token | - |
+| `DELETE` | `/api/tokens/{id}/tags` | Remove tag from token | - |
 
 ### Wallet Management
 

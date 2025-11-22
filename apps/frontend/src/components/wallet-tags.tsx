@@ -11,18 +11,37 @@ import { useWalletTags } from '@/contexts/WalletTagsContext';
 interface WalletTagsProps {
   walletAddress: string;
   compact?: boolean;
+  iconOnly?: boolean;
 }
 
 type InputStep = 'tag' | 'kol';
 
 export function WalletTags({
   walletAddress,
-  compact = false
+  compact = false,
+  iconOnly = false
 }: WalletTagsProps) {
   const { tags: contextTags } = useWalletTags(walletAddress);
-  // Filter out additional tags (bot, whale, insider) - those are managed by AdditionalTagsPopover
+  // Filter out additional tags and nationality tags - those are managed by AdditionalTagsPopover and display under wallet address
+  const additionalTags = ['bot', 'whale', 'insider', 'gunslinger', 'gambler'];
+  const nationalityTags = [
+    'us',
+    'cn',
+    'kr',
+    'jp',
+    'eu',
+    'uk',
+    'sg',
+    'in',
+    'ru',
+    'br',
+    'ca',
+    'au'
+  ];
   const tags = contextTags.filter(
-    (t) => !['bot', 'whale', 'insider'].includes(t.tag.toLowerCase())
+    (t) =>
+      !additionalTags.includes(t.tag.toLowerCase()) &&
+      !nationalityTags.includes(t.tag.toLowerCase())
   );
   const [newTag, setNewTag] = useState('');
   const [kolValue, setKolValue] = useState<boolean>(false);
@@ -130,31 +149,32 @@ export function WalletTags({
 
   return (
     <div className='flex flex-wrap items-center gap-1'>
-      {tags.map((tagObj) => (
-        <div
-          key={tagObj.tag}
-          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
-            tagObj.is_kol
-              ? 'bg-amber-500/20 font-semibold text-amber-700 dark:text-amber-400'
-              : 'bg-primary/10 text-primary'
-          }`}
-        >
-          <Tag className='h-3 w-3' />
-          <span>
-            {tagObj.is_kol && '★ '}
-            {tagObj.tag}
-          </span>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='h-3 w-3 p-0 hover:bg-transparent'
-            onClick={() => handleRemoveTag(tagObj.tag)}
-            disabled={loading}
+      {/* Show existing tags with remove buttons (skip if iconOnly mode) */}
+      {!showInput &&
+        !iconOnly &&
+        tags.map((tagObj) => (
+          <div
+            key={tagObj.tag}
+            className='bg-muted flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs'
           >
-            <X className='h-2.5 w-2.5' />
-          </Button>
-        </div>
-      ))}
+            <span className='text-xs'>
+              {tagObj.is_kol && '★ '}
+              {tagObj.tag}
+            </span>
+            <Button
+              variant='ghost'
+              size='sm'
+              className='h-3 w-3 p-0 hover:bg-transparent'
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemoveTag(tagObj.tag);
+              }}
+              disabled={loading}
+            >
+              <X className='h-2.5 w-2.5' />
+            </Button>
+          </div>
+        ))}
 
       {showInput ? (
         <div ref={inputRef} className='flex items-center gap-1'>

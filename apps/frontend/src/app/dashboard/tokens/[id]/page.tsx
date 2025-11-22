@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getTokenById, TokenDetail } from '@/lib/api';
 import { TokenDetailsView } from './token-details-view';
+import { WalletTagsProvider } from '@/contexts/WalletTagsContext';
 
 export default function TokenDetailPage() {
   const params = useParams();
@@ -11,6 +12,12 @@ export default function TokenDetailPage() {
   const [token, setToken] = useState<TokenDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Extract all wallet addresses for WalletTagsProvider
+  const walletAddresses = useMemo(() => {
+    if (!token) return [];
+    return token.wallets.map((w) => w.wallet_address);
+  }, [token]);
 
   useEffect(() => {
     const id = params.id as string;
@@ -56,5 +63,9 @@ export default function TokenDetailPage() {
     );
   }
 
-  return <TokenDetailsView token={token} />;
+  return (
+    <WalletTagsProvider walletAddresses={walletAddresses}>
+      <TokenDetailsView token={token} />
+    </WalletTagsProvider>
+  );
 }

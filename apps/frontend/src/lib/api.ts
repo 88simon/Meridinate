@@ -468,6 +468,85 @@ function normalizeActivityType(activityType: string): string {
 }
 
 /**
+ * Update gem status of a token (DEPRECATED - use token tags instead)
+ */
+export async function updateGemStatus(
+  tokenId: number,
+  gemStatus: 'gem' | 'dud' | null
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/gem-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gem_status: gemStatus })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to update gem status');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get tags for a token
+ */
+export async function getTokenTags(tokenId: number): Promise<string[]> {
+  const res = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/tags`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch token tags');
+  }
+
+  const data = await res.json();
+  return data.tags;
+}
+
+/**
+ * Add a tag to a token (e.g., 'gem', 'dud')
+ */
+export async function addTokenTag(
+  tokenId: number,
+  tag: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/tags`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ tag })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to add tag');
+  }
+}
+
+/**
+ * Remove a tag from a token
+ */
+export async function removeTokenTag(
+  tokenId: number,
+  tag: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/tags`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ tag })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to remove tag');
+  }
+}
+
+/**
  * Build Solscan URL synchronously from provided settings
  * Use this when settings are already available
  */

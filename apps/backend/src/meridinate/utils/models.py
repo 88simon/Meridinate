@@ -32,6 +32,9 @@ class Token(BaseModel):
     market_cap_updated_at: Optional[str] = None
     market_cap_ath: Optional[float] = None
     market_cap_ath_timestamp: Optional[str] = None
+    gem_status: Optional[str] = None  # Keeping for backwards compatibility during migration
+    state_version: int = 0  # Keeping for backwards compatibility during migration
+    tags: List[str] = []  # New: token tags (gem, dud, etc.)
 
 
 class Wallet(BaseModel):
@@ -66,6 +69,9 @@ class TokenDetail(BaseModel):
     market_cap_updated_at: Optional[str] = None
     market_cap_ath: Optional[float] = None
     market_cap_ath_timestamp: Optional[str] = None
+    gem_status: Optional[str] = None  # Keeping for backwards compatibility during migration
+    state_version: int = 0  # Keeping for backwards compatibility during migration
+    tags: List[str] = []  # New: token tags (gem, dud, etc.)
     wallets: List[Wallet]
     axiom_json: List[Any]
 
@@ -93,6 +99,7 @@ class MultiTokenWallet(BaseModel):
     token_names: List[str]
     token_addresses: List[str]
     token_ids: List[int]
+    gem_statuses: List[Optional[str]]
     wallet_balance_usd: Optional[float]
     wallet_balance_usd_previous: Optional[float] = None
     wallet_balance_updated_at: Optional[str] = None
@@ -173,6 +180,18 @@ class CodexWallet(BaseModel):
 
 class CodexResponse(BaseModel):
     wallets: List[CodexWallet]
+
+
+class TokenTagRequest(BaseModel):
+    """Request model for adding a token tag"""
+
+    tag: str
+
+
+class TokenTagsResponse(BaseModel):
+    """Response model for token tags"""
+
+    tags: List[str]
 
 
 # ============================================================================
@@ -383,3 +402,9 @@ class AnalysisStartNotification(BaseModel):
     job_id: str
     token_name: str
     token_symbol: str
+
+
+class UpdateGemStatusRequest(BaseModel):
+    """Request to update gem status of a token"""
+
+    gem_status: Optional[str] = None  # 'gem', 'dud', or null to clear

@@ -236,3 +236,235 @@ class TestTokenTrash:
         data = response.json()
         token_ids = [t["id"] for t in data["tokens"]]
         assert token_id not in token_ids
+
+
+@pytest.mark.integration
+class TestTokenTags:
+    """Test token tagging system (GEM/DUD classification)"""
+
+    def test_get_empty_token_tags(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test getting tags for a token with no tags"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        response = test_client.get(f"/api/tokens/{token_id}/tags")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "tags" in data
+        assert data["tags"] == []
+
+    def test_add_gem_tag(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test adding a 'gem' tag to a token"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add gem tag
+        response = test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+        assert response.status_code == 200
+        assert "message" in response.json()
+
+        # Verify tag was added
+        response = test_client.get(f"/api/tokens/{token_id}/tags")
+        data = response.json()
+        assert "gem" in data["tags"]
+
+    def test_add_dud_tag(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test adding a 'dud' tag to a token"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add dud tag
+        response = test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "dud"})
+        assert response.status_code == 200
+
+        # Verify tag was added
+        response = test_client.get(f"/api/tokens/{token_id}/tags")
+        data = response.json()
+        assert "dud" in data["tags"]
+
+    def test_add_duplicate_tag(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test adding duplicate tag returns error"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add gem tag
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+
+        # Try to add same tag again
+        response = test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+        assert response.status_code == 400
+        assert "already exists" in response.json()["detail"].lower()
+
+    def test_remove_tag(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test removing a tag from a token"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add gem tag
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+
+        # Remove gem tag
+        response = test_client.request("DELETE", f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+        assert response.status_code == 200
+
+        # Verify tag was removed
+        response = test_client.get(f"/api/tokens/{token_id}/tags")
+        data = response.json()
+        assert "gem" not in data["tags"]
+
+    def test_remove_nonexistent_tag(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test removing a tag that doesn't exist (should succeed silently)"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Remove tag that doesn't exist
+        response = test_client.request("DELETE", f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+        assert response.status_code == 200
+
+    def test_tags_in_token_history(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test that tags appear in token history endpoint"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add gem tag
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+
+        # Get token history
+        response = test_client.get("/api/tokens/history")
+        data = response.json()
+
+        # Find our token
+        token = next((t for t in data["tokens"] if t["id"] == token_id), None)
+        assert token is not None
+        assert "tags" in token
+        assert "gem" in token["tags"]
+
+    def test_tags_in_token_detail(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test that tags appear in token detail endpoint"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add dud tag
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "dud"})
+
+        # Get token detail
+        response = test_client.get(f"/api/tokens/{token_id}")
+        data = response.json()
+
+        assert "tags" in data
+        assert "dud" in data["tags"]
+
+    def test_multiple_tags(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test adding multiple different tags to a token"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Add multiple tags
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "trending"})
+
+        # Verify both tags exist
+        response = test_client.get(f"/api/tokens/{token_id}/tags")
+        data = response.json()
+        assert "gem" in data["tags"]
+        assert "trending" in data["tags"]
+
+    def test_cache_invalidation_on_tag_add(self, test_client: TestClient, test_db: str, sample_token_data, sample_early_bidders):
+        """Test that adding a tag invalidates the tokens cache"""
+        token_id = db.save_analyzed_token(
+            token_address=sample_token_data["token_address"],
+            token_name=sample_token_data["token_name"],
+            token_symbol=sample_token_data["token_symbol"],
+            acronym=sample_token_data["acronym"],
+            early_bidders=sample_early_bidders,
+            axiom_json=[],
+            credits_used=50,
+            max_wallets=10,
+        )
+
+        # Get initial history (caches result)
+        response1 = test_client.get("/api/tokens/history")
+        etag1 = response1.headers.get("etag")
+
+        # Add tag (should invalidate cache)
+        test_client.post(f"/api/tokens/{token_id}/tags", json={"tag": "gem"})
+
+        # Get history again (should have new ETag)
+        response2 = test_client.get("/api/tokens/history")
+        etag2 = response2.headers.get("etag")
+
+        # ETags should be different after tag was added
+        assert etag1 != etag2

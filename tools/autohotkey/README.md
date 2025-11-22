@@ -24,22 +24,11 @@ The **Action Wheel** is a Windows-only AutoHotkey v2 script that provides instan
 5. **Analyze** (Wedge 5) - Reserved for quick token analysis
 6. **Cancel** (Wedge 6) - Closes menu without action
 
-### Solscan Integration
+### Solscan Integration & Settings Sync
 
-- **Dynamic URL Generation** - Builds Solscan URLs with filters from settings
-- **Activity Type Filtering** - Transfer, Mint, Burn, Create Account, Close Account, Set Authority, Staking operations
-- **Minimum Value Filter** - Excludes transactions below specified USD value
-- **Token Address Filter** - Filter by SOL or any SPL token (defaults to SOL)
-- **Exclude Amount Zero** - Hide zero-amount transactions
-- **Remove Spam** - Filter out spam transactions
-- **Page Size Control** - Results per page (10, 20, 30, 40, 60, 100)
-
-### Settings Synchronization
-
-- **Web UI Integration** - Settings configured in Meridinate dashboard auto-sync to AutoHotkey
-- **Shared Settings File** - `apps/backend/action_wheel_settings.ini` used by both web app and AutoHotkey
-- **Auto-reload** - Changes from web UI take effect after script reload
-- **UTF-16 LE Encoding** - Proper encoding for Windows INI file format
+- **Shared Settings File** - `apps/backend/action_wheel_settings.ini` drives both the dashboard and AutoHotkey (activity type, min value, spam toggle, page size, token address). The file is UTF-16 LE because Windows INI editors expect it.
+- **Web UI Control** - Adjust filters inside the dashboard Settings modal; reload the script afterward to pick up the new values.
+- **URL Builder** - The script always emits Solscan URLs with the same parameter order (`token_address` before `value` plus the final `value=undefined`) so the filters behave exactly like the web app.
 
 ## Requirements
 
@@ -105,9 +94,9 @@ Wedge6=Cancel
 activity_type=ACTIVITY_SPL_TRANSFER
 exclude_amount_zero=true
 remove_spam=true
-value=80
+value=100
 token_address=So11111111111111111111111111111111111111111
-page_size=30
+page_size=10
 ```
 
 ### Changing Settings

@@ -134,6 +134,7 @@ def conditional_rate_limit(rate_limit_string: str):
 
     When disabled, returns a no-op decorator that doesn't interfere with the endpoint
     """
+
     def decorator(func):
         if not RATE_LIMIT_ENABLED:
             # When disabled, just return the original function unchanged

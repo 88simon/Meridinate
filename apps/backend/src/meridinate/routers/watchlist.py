@@ -9,7 +9,13 @@ from fastapi import APIRouter, HTTPException
 from meridinate.services.watchlist_service import get_watchlist_service
 from meridinate.utils.models import AddressNoteRequest, ImportAddressesRequest, RegisterAddressRequest
 from meridinate.utils.validators import is_valid_solana_address
-from meridinate.secure_logging import log_address_registered, log_address_removed, log_success, log_warning, sanitize_address
+from meridinate.secure_logging import (
+    log_address_registered,
+    log_address_removed,
+    log_success,
+    log_warning,
+    sanitize_address,
+)
 
 router = APIRouter()
 

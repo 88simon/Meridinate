@@ -56,10 +56,10 @@ const AdditionalTagsPopover = dynamic(
     })),
   { ssr: false }
 );
-const WalletAddressWithBotIndicator = dynamic(
+const WalletTagLabels = dynamic(
   () =>
-    import('@/components/additional-tags').then((mod) => ({
-      default: mod.WalletAddressWithBotIndicator
+    import('@/components/wallet-tag-labels').then((mod) => ({
+      default: mod.WalletTagLabels
     })),
   { ssr: false }
 );
@@ -314,6 +314,9 @@ export default function TokensPage() {
   const [walletScrollTop, setWalletScrollTop] = useState(0);
   const [walletViewportHeight, setWalletViewportHeight] = useState(0);
 
+  // Track latest refetch request to prevent race conditions
+  const latestRefetchId = useRef(0);
+
   // Use API settings from context
 
   const fetchData = useCallback(() => {
@@ -332,6 +335,26 @@ export default function TokensPage() {
         })
         .finally(() => setLoading(false));
     });
+  }, []);
+
+  // Refetch only multi-token wallets (used after gem/dud updates)
+  // Uses request ID tracking to prevent race conditions when rapidly clicking GEM/DUD buttons
+  const refetchMultiWallets = useCallback(async () => {
+    // Increment and capture the request ID for this fetch
+    latestRefetchId.current += 1;
+    const thisRequestId = latestRefetchId.current;
+
+    try {
+      const walletsData = await getMultiTokenWallets(2);
+
+      // Only update state if this is still the most recent request
+      // This prevents stale responses from overwriting newer data
+      if (thisRequestId === latestRefetchId.current) {
+        setMultiWallets(walletsData);
+      }
+    } catch (error) {
+      console.error('Failed to refetch multi-token wallets:', error);
+    }
   }, []);
 
   // WebSocket notifications for real-time analysis updates
@@ -760,7 +783,7 @@ export default function TokensPage() {
 
       const allWallets = sortedWallets;
       const totalWallets = allWallets.length;
-      const baseRowHeight = 80; // Average height per wallet row
+      const baseRowHeight = 60; // Average height per wallet row (compressed)
       const overscan = 5;
       const visibleCount =
         walletViewportHeight > 0
@@ -972,32 +995,31 @@ export default function TokensPage() {
 
         {/* Multi-Token Wallets Section */}
         {multiWallets && multiWallets.total > 0 && (
-          <div className='bg-card rounded-lg border p-6'>
-            <div className='mb-2 flex items-center gap-3'>
-              <h2 className='text-xl font-bold'>Multi-Token Wallets</h2>
-              <span className='bg-primary/10 text-primary rounded-full px-3 py-1 text-sm font-semibold'>
+          <div className='bg-card rounded-lg border p-3'>
+            <div className='mb-1 flex items-center gap-2'>
+              <h2 className='text-base font-bold'>Multi-Token Wallets</h2>
+              <span className='bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-semibold'>
                 {multiWallets.total}
               </span>
             </div>
-            <p className='text-muted-foreground mb-4 text-sm'>
-              Wallets that appear in multiple analyzed tokens (potential
-              whale/insider wallets)
+            <p className='text-muted-foreground mb-2 text-xs'>
+              Wallets appearing in multiple analyzed tokens
             </p>
 
             {/* Top Selection Controls - Sticky Bar */}
             {selectedWallets.size > 0 && (
-              <div className='bg-primary/10 border-primary/20 sticky top-0 z-20 mb-4 flex flex-col items-center gap-2 rounded-md border p-3 shadow-md backdrop-blur-sm'>
-                <span className='text-primary text-sm font-medium'>
+              <div className='bg-primary/10 border-primary/20 sticky top-0 z-20 mb-2 flex items-center justify-center gap-2 rounded-md border p-2 shadow-md backdrop-blur-sm'>
+                <span className='text-primary text-xs font-medium'>
                   {selectedWallets.size} wallet
                   {selectedWallets.size !== 1 ? 's' : ''} selected
                 </span>
-                <div className='flex items-center gap-2'>
+                <div className='flex items-center gap-1.5'>
                   {/* Bulk Refresh Balance */}
                   <Button
                     variant='outline'
                     size='sm'
                     onClick={() => handleRefreshBalances()}
-                    className='h-7 gap-1.5 text-xs'
+                    className='h-6 gap-1 px-2 text-xs'
                     title={`Refresh ${selectedWallets.size} wallet balance(s) - ${selectedWallets.size} API credit(s)`}
                   >
                     <RefreshCw className='h-3 w-3' />
@@ -1010,7 +1032,7 @@ export default function TokensPage() {
                       <Button
                         variant='outline'
                         size='sm'
-                        className='h-7 gap-1.5 text-xs'
+                        className='h-6 gap-1 px-2 text-xs'
                       >
                         <Tags className='h-3 w-3' />
                         Tags ({selectedWallets.size})
@@ -1031,7 +1053,7 @@ export default function TokensPage() {
                     variant='outline'
                     size='sm'
                     onClick={() => setSelectedWallets(new Set())}
-                    className='h-7 text-xs'
+                    className='h-6 px-2 text-xs'
                   >
                     Deselect All
                   </Button>
@@ -1044,14 +1066,24 @@ export default function TokensPage() {
               onScroll={handleWalletScroll}
               className={`overflow-x-auto ${isWalletPanelExpanded ? 'max-h-[600px] overflow-y-auto' : ''}`}
             >
-              <table className='w-full'>
+              <table
+                className='w-full table-fixed'
+                style={{ minWidth: '1000px' }}
+              >
+                <colgroup>
+                  <col style={{ width: '320px' }} />
+                  <col style={{ width: '220px' }} />
+                  <col style={{ width: '140px' }} />
+                  <col style={{ width: '80px' }} />
+                  <col style={{ width: 'auto' }} />
+                </colgroup>
                 <thead
                   className={
                     isWalletPanelExpanded ? 'bg-card sticky top-0 z-10' : ''
                   }
                 >
                   <tr className='border-b'>
-                    <th className='pr-4 pb-3 text-left font-medium'>
+                    <th className='pr-4 pb-2 text-left text-xs font-medium'>
                       <button
                         onClick={() => handleSort('address')}
                         className='hover:text-primary flex items-center gap-1 transition-colors'
@@ -1065,8 +1097,8 @@ export default function TokensPage() {
                           ))}
                       </button>
                     </th>
-                    <th className='px-4 pb-3 text-right font-medium'>
-                      <div className='flex items-center justify-end gap-1.5'>
+                    <th className='px-4 pb-2 text-left text-xs font-medium'>
+                      <div className='flex items-center justify-start gap-1'>
                         <button
                           onClick={() => handleSort('balance')}
                           className='hover:text-primary flex items-center gap-1 transition-colors'
@@ -1124,8 +1156,10 @@ export default function TokensPage() {
                         </TooltipProvider>
                       </div>
                     </th>
-                    <th className='px-4 pb-3 text-left font-medium'>Tags</th>
-                    <th className='px-4 pb-3 text-center font-medium'>
+                    <th className='px-4 pb-2 text-left text-xs font-medium'>
+                      Tags
+                    </th>
+                    <th className='px-4 pb-2 text-center text-xs font-medium'>
                       <button
                         onClick={() => handleSort('tokens')}
                         className='hover:text-primary mx-auto flex items-center gap-1 transition-colors'
@@ -1139,7 +1173,7 @@ export default function TokensPage() {
                           ))}
                       </button>
                     </th>
-                    <th className='pb-3 pl-4 text-left font-medium'>
+                    <th className='pb-2 pl-4 text-left text-xs font-medium'>
                       <button
                         onClick={() => handleSort('new')}
                         className='hover:text-primary flex items-center gap-1 transition-colors'
@@ -1189,11 +1223,9 @@ export default function TokensPage() {
                           handleWalletRowClick(wallet.wallet_address, e)
                         }
                       >
-                        <td className='py-3 pr-4'>
-                          <div className='flex items-center gap-2'>
-                            <WalletAddressWithBotIndicator
-                              walletAddress={wallet.wallet_address}
-                            >
+                        <td className='py-1.5 pr-4'>
+                          <div className='flex flex-col gap-0.5'>
+                            <div className='flex items-center gap-1.5 overflow-hidden'>
                               <a
                                 href={buildSolscanUrl(
                                   wallet.wallet_address,
@@ -1201,86 +1233,56 @@ export default function TokensPage() {
                                 )}
                                 target='_blank'
                                 rel='noopener noreferrer'
-                                className='text-primary font-sans text-xs hover:underline'
+                                className='text-primary truncate font-sans text-xs hover:underline'
                               >
                                 {wallet.wallet_address}
                               </a>
-                            </WalletAddressWithBotIndicator>
-                            {wallet.is_new && (
-                              <span className='rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase'>
-                                NEW
-                              </span>
-                            )}
-                            <a
-                              href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              title='Search on Twitter/X'
-                            >
+                              {wallet.is_new && (
+                                <span className='flex-shrink-0 rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase'>
+                                  NEW
+                                </span>
+                              )}
+                              <a
+                                href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                title='Search on Twitter/X'
+                                className='flex-shrink-0'
+                              >
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-6 w-6 p-0'
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Twitter className='h-3 w-3' />
+                                </Button>
+                              </a>
                               <Button
                                 variant='ghost'
                                 size='sm'
-                                className='h-6 w-6 p-0'
-                                onClick={(e) => e.stopPropagation()}
+                                className='h-6 w-6 flex-shrink-0 p-0'
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    wallet.wallet_address
+                                  );
+                                  toast.success('Address copied to clipboard');
+                                }}
                               >
-                                <Twitter className='h-3 w-3' />
+                                <Copy className='h-3 w-3' />
                               </Button>
-                            </a>
-                            <Button
-                              variant='ghost'
-                              size='sm'
-                              className='h-6 w-6 p-0'
-                              onClick={() => {
-                                navigator.clipboard.writeText(
-                                  wallet.wallet_address
-                                );
-                                toast.success('Address copied to clipboard');
-                              }}
-                            >
-                              <Copy className='h-3 w-3' />
-                            </Button>
+                            </div>
+                            <WalletTagLabels
+                              walletAddress={wallet.wallet_address}
+                            />
                           </div>
                         </td>
-                        <td className='px-4 py-3 text-right font-mono text-sm'>
-                          <div className='flex flex-col items-end gap-1'>
-                            <div className='flex items-center gap-1'>
-                              {(() => {
-                                const trend = getWalletTrend(wallet);
-                                const current = wallet.wallet_balance_usd;
-                                const formatted =
-                                  current !== null && current !== undefined
-                                    ? `$${Math.round(current).toLocaleString()}`
-                                    : 'N/A';
-                                if (trend === 'up') {
-                                  return (
-                                    <span className='flex items-center gap-1 text-green-600'>
-                                      <span>▲</span>
-                                      <span>{formatted}</span>
-                                    </span>
-                                  );
-                                }
-                                if (trend === 'down') {
-                                  return (
-                                    <span className='flex items-center gap-1 text-red-600'>
-                                      <span>▼</span>
-                                      <span>{formatted}</span>
-                                    </span>
-                                  );
-                                }
-                                return <span>{formatted}</span>;
-                              })()}
-                            </div>
-                            <div className='text-muted-foreground text-[11px]'>
-                              {formatWalletTimestamp(
-                                wallet.wallet_balance_updated_at as
-                                  | string
-                                  | null
-                              )}
-                            </div>
+                        <td className='px-4 py-1.5 font-mono text-xs'>
+                          <div className='flex items-center gap-1.5'>
                             <Button
                               variant='ghost'
                               size='sm'
-                              className='h-6 w-6 p-0'
+                              className='h-5 w-5 flex-shrink-0 p-0'
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleRefreshBalances([wallet.wallet_address]);
@@ -1289,38 +1291,88 @@ export default function TokensPage() {
                             >
                               <RefreshCw className='h-3 w-3' />
                             </Button>
+                            <div className='flex min-w-0 flex-col gap-0.5'>
+                              <div className='flex items-center gap-1'>
+                                {(() => {
+                                  const trend = getWalletTrend(wallet);
+                                  const current = wallet.wallet_balance_usd;
+                                  const formatted =
+                                    current !== null && current !== undefined
+                                      ? `$${Math.round(current).toLocaleString()}`
+                                      : 'N/A';
+                                  if (trend === 'up') {
+                                    return (
+                                      <span className='flex items-center gap-1 text-green-600'>
+                                        <span>▲</span>
+                                        <span>{formatted}</span>
+                                      </span>
+                                    );
+                                  }
+                                  if (trend === 'down') {
+                                    return (
+                                      <span className='flex items-center gap-1 text-red-600'>
+                                        <span>▼</span>
+                                        <span>{formatted}</span>
+                                      </span>
+                                    );
+                                  }
+                                  return <span>{formatted}</span>;
+                                })()}
+                              </div>
+                              <div className='text-muted-foreground truncate text-[11px]'>
+                                {formatWalletTimestamp(
+                                  wallet.wallet_balance_updated_at as
+                                    | string
+                                    | null
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td className='px-4 py-3'>
-                          <div className='flex items-center gap-2'>
-                            <WalletTags walletAddress={wallet.wallet_address} />
+                        <td className='px-4 py-1.5'>
+                          <div className='flex items-center gap-1.5'>
+                            <WalletTags
+                              walletAddress={wallet.wallet_address}
+                              iconOnly
+                            />
                             <AdditionalTagsPopover
                               walletAddress={wallet.wallet_address}
                               compact
                             />
                           </div>
                         </td>
-                        <td className='px-4 py-3 text-center'>
-                          <span className='bg-primary text-primary-foreground rounded-full px-3 py-1 text-sm font-bold'>
+                        <td className='px-4 py-1.5 text-center'>
+                          <span className='bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-bold'>
                             {wallet.token_count}
                           </span>
                         </td>
-                        <td className='py-3 pl-4'>
-                          <div className='flex flex-wrap gap-2'>
+                        <td className='py-1.5 pl-4'>
+                          <div className='flex flex-wrap gap-1.5 overflow-hidden'>
                             {wallet.token_names.map((name, idx) => {
-                              const isNewToken =
-                                wallet.marked_at_analysis_id !== null &&
-                                wallet.token_ids[idx] ===
-                                  wallet.marked_at_analysis_id;
+                              // Show NEW badge for the latest scanned token (regardless of multi-token threshold)
+                              const latestTokenId = data.tokens[0]?.id;
+                              const isNewToken = wallet.token_ids[idx] === latestTokenId;
+                              const gemStatus = wallet.gem_statuses?.[idx];
+
                               return (
                                 <a
                                   key={idx}
                                   href={`https://gmgn.ai/sol/token/${wallet.token_addresses[idx]}?min=0.1&isInputValue=true`}
                                   target='_blank'
                                   rel='noopener noreferrer'
-                                  className='bg-muted hover:bg-muted/80 flex items-center gap-1.5 rounded px-2 py-1 text-xs'
+                                  className='bg-muted hover:bg-muted/80 flex items-center gap-1 rounded px-1.5 py-0.5 text-xs'
                                 >
                                   {name}
+                                  {gemStatus === 'gem' && (
+                                    <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
+                                      GEM
+                                    </span>
+                                  )}
+                                  {gemStatus === 'dud' && (
+                                    <span className='rounded bg-red-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
+                                      DUD
+                                    </span>
+                                  )}
                                   {isNewToken && (
                                     <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
                                       NEW
@@ -1348,10 +1400,10 @@ export default function TokensPage() {
             </div>
 
             {/* Collapse/Expand Controls */}
-            <div className='mt-4 border-t pt-4'>
+            <div className='mt-1 border-t pt-1'>
               {/* Wallet count info */}
-              <div className='mb-3 flex items-center justify-center'>
-                <div className='text-muted-foreground text-sm'>
+              <div className='mb-1 flex items-center justify-center'>
+                <div className='text-muted-foreground text-[11px]'>
                   {isWalletPanelExpanded ? (
                     <>Showing all {multiWallets.wallets.length} wallets</>
                   ) : (
@@ -1365,8 +1417,8 @@ export default function TokensPage() {
 
               {/* Bottom Selection Controls */}
               {selectedWallets.size > 0 && (
-                <div className='bg-primary/10 border-primary/20 mb-3 flex items-center justify-center gap-2 rounded-md border p-2'>
-                  <span className='text-primary text-sm font-medium'>
+                <div className='bg-primary/10 border-primary/20 mb-1 flex items-center justify-center gap-2 rounded-md border p-1'>
+                  <span className='text-primary text-[11px] font-medium'>
                     {selectedWallets.size} wallet
                     {selectedWallets.size !== 1 ? 's' : ''} selected
                   </span>
@@ -1374,7 +1426,7 @@ export default function TokensPage() {
                     variant='outline'
                     size='sm'
                     onClick={() => setSelectedWallets(new Set())}
-                    className='h-7 text-xs'
+                    className='h-5 px-1.5 text-[11px]'
                   >
                     Deselect All
                   </Button>
@@ -1382,7 +1434,7 @@ export default function TokensPage() {
               )}
 
               {/* Centered pagination and expand/collapse */}
-              <div className='flex items-center justify-center gap-3'>
+              <div className='flex items-center justify-center gap-2'>
                 {/* Pagination controls (only when collapsed) */}
                 {!isWalletPanelExpanded && totalWalletPages > 1 && (
                   <div className='flex items-center gap-1'>
@@ -1391,11 +1443,11 @@ export default function TokensPage() {
                       size='sm'
                       onClick={() => setWalletPage((p) => Math.max(0, p - 1))}
                       disabled={walletPage === 0}
-                      className='h-7 px-2'
+                      className='h-5 px-1'
                     >
                       <ChevronLeft className='h-3 w-3' />
                     </Button>
-                    <span className='text-muted-foreground px-2 text-xs'>
+                    <span className='text-muted-foreground px-1 text-[11px]'>
                       Page {walletPage + 1} / {totalWalletPages}
                     </span>
                     <Button
@@ -1407,7 +1459,7 @@ export default function TokensPage() {
                         )
                       }
                       disabled={walletPage >= totalWalletPages - 1}
-                      className='h-7 px-2'
+                      className='h-5 px-1'
                     >
                       <ChevronRight className='h-3 w-3' />
                     </Button>
@@ -1419,16 +1471,16 @@ export default function TokensPage() {
                   variant='outline'
                   size='sm'
                   onClick={() => setIsWalletPanelExpanded((prev) => !prev)}
-                  className='h-7'
+                  className='h-5 gap-1 px-1.5 text-[11px]'
                 >
                   {isWalletPanelExpanded ? (
                     <>
-                      <ChevronUp className='mr-1 h-4 w-4' />
+                      <ChevronUp className='h-3 w-3' />
                       Collapse
                     </>
                   ) : (
                     <>
-                      <ChevronDown className='mr-1 h-4 w-4' />
+                      <ChevronDown className='h-3 w-3' />
                       Expand All
                     </>
                   )}
@@ -1439,7 +1491,11 @@ export default function TokensPage() {
         )}
 
         {/* Tokens Table */}
-        <TokensTable tokens={filteredTokens} onDelete={handleTokenDelete} />
+        <TokensTable
+          tokens={filteredTokens}
+          onDelete={handleTokenDelete}
+          onGemStatusUpdate={refetchMultiWallets}
+        />
       </div>
 
       {/* Sticky Bottom Status Bar */}

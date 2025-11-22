@@ -32,7 +32,13 @@ from meridinate.observability import (
 from meridinate import settings
 from meridinate.settings import CURRENT_API_SETTINGS, HELIUS_API_KEY, REDIS_ENABLED, REDIS_URL
 from meridinate.middleware.rate_limit import ANALYSIS_RATE_LIMIT, conditional_rate_limit
-from meridinate.state import ANALYSIS_EXECUTOR, get_all_analysis_jobs, get_analysis_job, set_analysis_job, update_analysis_job
+from meridinate.state import (
+    ANALYSIS_EXECUTOR,
+    get_all_analysis_jobs,
+    get_analysis_job,
+    set_analysis_job,
+    update_analysis_job,
+)
 from meridinate.utils.models import (
     AnalysisJob,
     AnalysisJobSummary,

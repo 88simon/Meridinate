@@ -44,10 +44,14 @@ export function AdditionalTagsPopover({
   const { tags: allTags } = useWalletTags(walletAddress);
   const [loading, setLoading] = useState(false);
 
-  // Extract only additional tags (bot, whale, insider) from context
+  // Extract only additional tags (bot, whale, insider, gunslinger, gambler) from context
   const tags = new Set(
     allTags
-      .filter((t) => ['bot', 'whale', 'insider'].includes(t.tag.toLowerCase()))
+      .filter((t) =>
+        ['bot', 'whale', 'insider', 'gunslinger', 'gambler'].includes(
+          t.tag.toLowerCase()
+        )
+      )
       .map((t) => t.tag.toLowerCase())
   );
 
@@ -170,6 +174,34 @@ export function AdditionalTagsPopover({
                 className='cursor-pointer text-sm'
               >
                 Insider
+              </Label>
+            </div>
+            <div className='flex items-center space-x-2'>
+              <Checkbox
+                id={`gunslinger-${uniqueId}`}
+                checked={tags.has('gunslinger')}
+                onCheckedChange={() => toggleTag('Gunslinger')}
+                disabled={loading}
+              />
+              <Label
+                htmlFor={`gunslinger-${uniqueId}`}
+                className='cursor-pointer text-sm'
+              >
+                Gunslinger
+              </Label>
+            </div>
+            <div className='flex items-center space-x-2'>
+              <Checkbox
+                id={`gambler-${uniqueId}`}
+                checked={tags.has('gambler')}
+                onCheckedChange={() => toggleTag('Gambler')}
+                disabled={loading}
+              />
+              <Label
+                htmlFor={`gambler-${uniqueId}`}
+                className='cursor-pointer text-sm'
+              >
+                Gambler
               </Label>
             </div>
           </div>

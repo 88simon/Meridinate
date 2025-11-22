@@ -12,6 +12,7 @@ import aiosqlite
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from meridinate.middleware.rate_limit import MARKET_CAP_RATE_LIMIT, READ_RATE_LIMIT, conditional_rate_limit
+from meridinate.observability import log_error, log_info
 
 from meridinate import analyzed_tokens_db as db
 from meridinate import settings
@@ -24,6 +25,9 @@ from meridinate.utils.models import (
     RefreshMarketCapsResponse,
     TokenDetail,
     TokensResponse,
+    TokenTagRequest,
+    TokenTagsResponse,
+    UpdateGemStatusRequest,
 )
 from meridinate.helius_api import HeliusAPI
 
@@ -67,7 +71,9 @@ async def get_tokens_history(request: Request, response: Response):
                     t.market_cap_ath,
                     t.market_cap_ath_timestamp,
                     COUNT(DISTINCT ebw.wallet_address) as wallets_found,
-                    t.credits_used, t.last_analysis_credits
+                    t.credits_used, t.last_analysis_credits,
+                    t.gem_status,
+                    COALESCE(t.state_version, 0) as state_version
                 FROM analyzed_tokens t
                 LEFT JOIN early_buyer_wallets ebw ON ebw.token_id = t.id
                 WHERE t.deleted_at IS NULL OR t.deleted_at = ''
@@ -77,10 +83,30 @@ async def get_tokens_history(request: Request, response: Response):
             cursor = await conn.execute(query)
             rows = await cursor.fetchall()
 
+            # Fetch all token tags in one query
+            tag_cursor = await conn.execute(
+                "SELECT token_id, tag FROM token_tags WHERE token_id IN ({})".format(
+                    ",".join(str(dict(row)["id"]) for row in rows)
+                )
+                if rows
+                else "SELECT token_id, tag FROM token_tags WHERE 0=1"
+            )
+            tag_rows = await tag_cursor.fetchall()
+
+            # Group tags by token_id
+            tags_by_token = {}
+            for tag_row in tag_rows:
+                token_id = tag_row[0]
+                tag = tag_row[1]
+                if token_id not in tags_by_token:
+                    tags_by_token[token_id] = []
+                tags_by_token[token_id].append(tag)
+
             tokens = []
             total_wallets = 0
             for row in rows:
                 token_dict = dict(row)
+                token_dict["tags"] = tags_by_token.get(token_dict["id"], [])
                 tokens.append(token_dict)
                 total_wallets += token_dict.get("wallets_found", 0)
 
@@ -110,7 +136,29 @@ async def get_deleted_tokens(request: Request):
         cursor = await conn.execute(query)
         rows = await cursor.fetchall()
 
-        tokens = [dict(row) for row in rows]
+        # Fetch all token tags
+        if rows:
+            tag_cursor = await conn.execute(
+                "SELECT token_id, tag FROM token_tags WHERE token_id IN ({})".format(
+                    ",".join(str(dict(row)["id"]) for row in rows)
+                )
+            )
+            tag_rows = await tag_cursor.fetchall()
+            tags_by_token = {}
+            for tag_row in tag_rows:
+                token_id, tag = tag_row[0], tag_row[1]
+                if token_id not in tags_by_token:
+                    tags_by_token[token_id] = []
+                tags_by_token[token_id].append(tag)
+        else:
+            tags_by_token = {}
+
+        tokens = []
+        for row in rows:
+            token_dict = dict(row)
+            token_dict["tags"] = tags_by_token.get(token_dict["id"], [])
+            tokens.append(token_dict)
+
         return {"total": len(tokens), "total_wallets": sum(t.get("wallets_found", 0) for t in tokens), "tokens": tokens}
 
 
@@ -288,6 +336,8 @@ async def refresh_market_caps(request: Request, data: RefreshMarketCapsRequest):
         "successful": successful,
         "api_credits_used": total_credits,
     }
+
+
 @router.get("/api/tokens/{token_id}", response_model=TokenDetail)
 async def get_token_by_id(token_id: int):
     """Get token details with wallets and axiom export"""
@@ -319,6 +369,12 @@ async def get_token_by_id(token_id: int):
         cursor = await conn.execute(axiom_query, (token_id,))
         axiom_row = await cursor.fetchone()
         token["axiom_json"] = json.loads(axiom_row[0]) if axiom_row and axiom_row[0] else []
+
+        # Get token tags
+        tags_query = "SELECT tag FROM token_tags WHERE token_id = ?"
+        cursor = await conn.execute(tags_query, (token_id,))
+        tag_rows = await cursor.fetchall()
+        token["tags"] = [row[0] for row in tag_rows]
 
         return token
 
@@ -400,3 +456,80 @@ async def permanent_delete_token(token_id: int):
     return {"message": "Token permanently deleted"}
 
 
+@router.post("/api/tokens/{token_id}/gem-status", response_model=MessageResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def update_gem_status(token_id: int, request: Request, data: UpdateGemStatusRequest):
+    """Update the gem status of a token (gem, dud, or null to clear)"""
+    gem_status = data.gem_status
+
+    # Validate gem_status value
+    if gem_status is not None and gem_status not in ["gem", "dud"]:
+        raise HTTPException(status_code=400, detail="gem_status must be 'gem', 'dud', or null")
+
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        # Simple update - no version checking needed
+        await conn.execute("UPDATE analyzed_tokens SET gem_status = ? WHERE id = ?", (gem_status, token_id))
+        await conn.commit()
+
+    # Invalidate both tokens cache and multi-token wallets cache
+    cache.invalidate("tokens_history")
+    cache.invalidate("multi_early_buyer_wallets")
+
+    status_msg = "cleared" if gem_status is None else f"set to {gem_status}"
+    return {"message": f"Token gem status {status_msg}"}
+
+
+# ============================================================================
+# Token Tags Endpoints
+# ============================================================================
+
+
+@router.get("/api/tokens/{token_id}/tags", response_model=TokenTagsResponse)
+async def get_token_tags(token_id: int):
+    """Get tags for a token"""
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+        query = "SELECT tag FROM token_tags WHERE token_id = ?"
+        cursor = await conn.execute(query, (token_id,))
+        rows = await cursor.fetchall()
+        tags = [row[0] for row in rows]
+        return {"tags": tags}
+
+
+@router.post("/api/tokens/{token_id}/tags", response_model=MessageResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def add_token_tag(token_id: int, request: Request, data: TokenTagRequest):
+    """Add a tag to a token (e.g., gem, dud)"""
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        try:
+            await conn.execute(
+                "INSERT INTO token_tags (token_id, tag) VALUES (?, ?)",
+                (token_id, data.tag),
+            )
+            await conn.commit()
+            log_info("Token tag added", token_id=token_id, tag=data.tag)
+        except aiosqlite.IntegrityError:
+            log_error("Failed to add token tag - tag already exists", token_id=token_id, tag=data.tag)
+            raise HTTPException(status_code=400, detail="Tag already exists for this token")
+
+    # Invalidate caches
+    cache.invalidate("tokens_history")
+    cache.invalidate("multi_early_buyer_wallets")
+
+    return {"message": f"Tag '{data.tag}' added successfully"}
+
+
+@router.delete("/api/tokens/{token_id}/tags", response_model=MessageResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def remove_token_tag(token_id: int, request: Request, data: TokenTagRequest):
+    """Remove a tag from a token"""
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        await conn.execute("DELETE FROM token_tags WHERE token_id = ? AND tag = ?", (token_id, data.tag))
+        await conn.commit()
+        log_info("Token tag removed", token_id=token_id, tag=data.tag)
+
+    # Invalidate caches
+    cache.invalidate("tokens_history")
+    cache.invalidate("multi_early_buyer_wallets")
+
+    return {"message": f"Tag '{data.tag}' removed successfully"}

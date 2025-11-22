@@ -814,6 +814,204 @@
         }
       }
     },
+    "/api/tokens/{token_id}/gem-status": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Update Gem Status",
+        "description": "Update the gem status of a token (gem, dud, or null to clear)",
+        "operationId": "update_gem_status_api_tokens__token_id__gem_status_post",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGemStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/{token_id}/tags": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Token Tags",
+        "description": "Get tags for a token",
+        "operationId": "get_token_tags_api_tokens__token_id__tags_get",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenTagsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Add Token Tag",
+        "description": "Add a tag to a token (e.g., gem, dud)",
+        "operationId": "add_token_tag_api_tokens__token_id__tags_post",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenTagRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Remove Token Tag",
+        "description": "Remove a tag from a token",
+        "operationId": "remove_token_tag_api_tokens__token_id__tags_delete",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenTagRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/analyze/token/redis": {
       "post": {
         "tags": [
@@ -2335,6 +2533,20 @@
             "type": "array",
             "title": "Token Ids"
           },
+          "gem_statuses": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Gem Statuses"
+          },
           "wallet_balance_usd": {
             "anyOf": [
               {
@@ -2392,6 +2604,7 @@
           "token_names",
           "token_addresses",
           "token_ids",
+          "gem_statuses",
           "wallet_balance_usd"
         ],
         "title": "MultiTokenWallet"
@@ -2921,6 +3134,30 @@
               }
             ],
             "title": "Market Cap Ath Timestamp"
+          },
+          "gem_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gem Status"
+          },
+          "state_version": {
+            "type": "integer",
+            "title": "State Version",
+            "default": 0
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
           }
         },
         "type": "object",
@@ -3090,6 +3327,30 @@
             ],
             "title": "Market Cap Ath Timestamp"
           },
+          "gem_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gem Status"
+          },
+          "state_version": {
+            "type": "integer",
+            "title": "State Version",
+            "default": 0
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
+          },
           "wallets": {
             "items": {
               "$ref": "#/components/schemas/Wallet"
@@ -3119,6 +3380,37 @@
         "title": "TokenDetail",
         "description": "Token with wallet details and axiom data"
       },
+      "TokenTagRequest": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "title": "Tag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag"
+        ],
+        "title": "TokenTagRequest",
+        "description": "Request model for adding a token tag"
+      },
+      "TokenTagsResponse": {
+        "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "title": "TokenTagsResponse",
+        "description": "Response model for token tags"
+      },
       "TokensResponse": {
         "properties": {
           "total": {
@@ -3144,6 +3436,24 @@
           "tokens"
         ],
         "title": "TokensResponse"
+      },
+      "UpdateGemStatusRequest": {
+        "properties": {
+          "gem_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gem Status"
+          }
+        },
+        "type": "object",
+        "title": "UpdateGemStatusRequest",
+        "description": "Request to update gem status of a token"
       },
       "UpdateSettingsRequest": {
         "properties": {

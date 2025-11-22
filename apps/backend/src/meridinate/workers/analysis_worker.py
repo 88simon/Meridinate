@@ -28,7 +28,9 @@ from meridinate.observability import (
 from meridinate.settings import HELIUS_API_KEY, REDIS_URL
 
 
-async def analyze_token_task(ctx: Dict[str, Any], job_id: str, token_address: str, settings: Dict[str, Any]) -> Dict[str, Any]:
+async def analyze_token_task(
+    ctx: Dict[str, Any], job_id: str, token_address: str, settings: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Background task for token analysis
 
@@ -101,7 +103,10 @@ async def analyze_token_task(ctx: Dict[str, Any], job_id: str, token_address: st
 
         # Generate Axiom export
         axiom_export = generate_axiom_export(
-            early_bidders=early_bidders, token_name=token_name, token_symbol=token_symbol, limit=settings.get("max_wallets", 10)
+            early_bidders=early_bidders,
+            token_name=token_name,
+            token_symbol=token_symbol,
+            limit=settings.get("max_wallets", 10),
         )
 
         # Save to database (run in thread to avoid blocking)

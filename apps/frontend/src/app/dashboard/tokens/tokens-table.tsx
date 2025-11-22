@@ -18,7 +18,9 @@ import {
   refreshMarketCaps,
   getApiSettings,
   AnalysisSettings,
-  API_BASE_URL
+  API_BASE_URL,
+  addTokenTag,
+  removeTokenTag
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -128,12 +130,14 @@ const MarketCapCell = memo(
     token,
     isRefreshing,
     isCompact,
-    onRefresh
+    onRefresh,
+    onGemStatusChange
   }: {
     token: Token;
     isRefreshing: boolean;
     isCompact: boolean;
     onRefresh: (e: React.MouseEvent) => void;
+    onGemStatusChange: (tokenId: number, status: 'gem' | 'dud' | null) => void;
   }) => {
     const marketCapOriginal = token.market_cap_usd;
     const marketCapCurrent = token.market_cap_usd_current;
@@ -365,6 +369,46 @@ const MarketCapCell = memo(
             )}
           </div>
         )}
+
+        {/* GEM/DUD Buttons */}
+        <div className='flex items-center gap-1 mt-1'>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const hasGemTag = token.tags?.includes('gem');
+              const newStatus = hasGemTag ? null : 'gem';
+              onGemStatusChange(token.id, newStatus);
+            }}
+            className={cn(
+              'px-2 py-0.5 text-[10px] font-bold rounded transition-colors cursor-pointer',
+              token.tags?.includes('gem')
+                ? 'bg-green-500 text-white hover:bg-green-600'
+                : 'bg-muted text-muted-foreground hover:bg-green-100 hover:text-green-700'
+            )}
+          >
+            GEM
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const hasDudTag = token.tags?.includes('dud');
+              const newStatus = hasDudTag ? null : 'dud';
+              onGemStatusChange(token.id, newStatus);
+            }}
+            className={cn(
+              'px-2 py-0.5 text-[10px] font-bold rounded transition-colors cursor-pointer',
+              token.tags?.includes('dud')
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-muted text-muted-foreground hover:bg-red-100 hover:text-red-700'
+            )}
+          >
+            DUD
+          </button>
+        </div>
       </div>
     );
   },
@@ -377,6 +421,7 @@ const MarketCapCell = memo(
     prev.token.market_cap_ath === next.token.market_cap_ath &&
     prev.token.market_cap_ath_timestamp ===
       next.token.market_cap_ath_timestamp &&
+    JSON.stringify(prev.token.tags) === JSON.stringify(next.token.tags) &&
     prev.isRefreshing === next.isRefreshing &&
     prev.isCompact === next.isCompact
 );
@@ -436,6 +481,7 @@ const createColumns = (
   handleDelete: (id: number) => void,
   handleRefreshMarketCap: (id: number) => Promise<void>,
   handleRefreshAllMarketCaps: () => Promise<void>,
+  handleGemStatusChange: (tokenId: number, status: 'gem' | 'dud' | null) => Promise<void>,
   refreshingMarketCaps: Set<number>,
   refreshingAll: boolean,
   isCompact: boolean = false,
@@ -447,10 +493,23 @@ const createColumns = (
     cell: ({ row }) => {
       const name = row.original.token_name || 'Unknown';
       const symbol = row.original.token_symbol || '-';
+      const tags = row.original.tags || [];
+      const hasGemTag = tags.includes('gem');
+      const hasDudTag = tags.includes('dud');
       return (
         <div className='min-w-[120px]'>
-          <div className={cn('font-medium', isCompact ? 'text-xs' : 'text-sm')}>
+          <div className={cn('font-medium flex items-center gap-1', isCompact ? 'text-xs' : 'text-sm')}>
             {name}
+            {hasGemTag && (
+              <span className='rounded bg-green-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white'>
+                GEM
+              </span>
+            )}
+            {hasDudTag && (
+              <span className='rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white'>
+                DUD
+              </span>
+            )}
           </div>
           <div
             className={cn(
@@ -554,6 +613,7 @@ const createColumns = (
           e.stopPropagation();
           handleRefreshMarketCap(row.original.id);
         }}
+        onGemStatusChange={handleGemStatusChange}
       />
     )
   },
@@ -663,9 +723,10 @@ const createColumns = (
 interface TokensTableProps {
   tokens: Token[];
   onDelete?: (tokenId: number) => void;
+  onGemStatusUpdate?: () => Promise<void>;
 }
 
-export function TokensTable({ tokens, onDelete }: TokensTableProps) {
+export function TokensTable({ tokens, onDelete, onGemStatusUpdate }: TokensTableProps) {
   const router = useRouter();
   const { isCodexOpen } = useCodex();
   const [selectedToken, setSelectedToken] = useState<TokenDetail | null>(null);
@@ -696,6 +757,11 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
         market_cap_ath_timestamp: string | null;
       }
     >
+  >(new Map());
+
+  // Local state for optimistic gem status updates
+  const [gemStatusUpdates, setGemStatusUpdates] = useState<
+    Map<number, string | null>
   >(new Map());
 
   // Delay compact mode change to sync with Codex animation
@@ -819,6 +885,50 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
       });
     }
   };
+
+  const handleGemStatusChange = useCallback(async (tokenId: number, status: 'gem' | 'dud' | null) => {
+    try {
+      // Optimistically update UI immediately (like wallet tags)
+      setGemStatusUpdates((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(tokenId, status);
+        return newMap;
+      });
+
+      // Use tag system - fire and forget like wallet tags
+      if (status === 'gem') {
+        // Remove 'dud' if it exists, then add 'gem'
+        try { await removeTokenTag(tokenId, 'dud'); } catch {}
+        await addTokenTag(tokenId, 'gem');
+      } else if (status === 'dud') {
+        // Remove 'gem' if it exists, then add 'dud'
+        try { await removeTokenTag(tokenId, 'gem'); } catch {}
+        await addTokenTag(tokenId, 'dud');
+      } else {
+        // Clear both tags
+        try { await removeTokenTag(tokenId, 'gem'); } catch {}
+        try { await removeTokenTag(tokenId, 'dud'); } catch {}
+      }
+
+      const statusText = status === null ? 'cleared' : status.toUpperCase();
+      toast.success(`Token marked as ${statusText}`);
+
+      // Refetch multi-token wallets to update the panel
+      if (onGemStatusUpdate) {
+        await onGemStatusUpdate();
+      }
+    } catch (error: any) {
+      // Revert optimistic update on error
+      setGemStatusUpdates((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(tokenId);
+        return newMap;
+      });
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to update gem status: ${errorMessage}`);
+    }
+  }, [onGemStatusUpdate]);
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(event.currentTarget.scrollTop);
@@ -1016,22 +1126,47 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
     }
   };
 
-  // Merge tokens with local market cap updates for instant UI feedback
+  // Merge tokens with local market cap and gem status updates for instant UI feedback
   const tokensWithUpdates = useMemo(() => {
     return tokens.map((token) => {
-      const update = marketCapUpdates.get(token.id);
-      if (update) {
-        return {
-          ...token,
-          market_cap_usd_current: update.market_cap_usd_current,
-          market_cap_updated_at: update.market_cap_updated_at,
-          market_cap_ath: update.market_cap_ath,
-          market_cap_ath_timestamp: update.market_cap_ath_timestamp
+      const marketCapUpdate = marketCapUpdates.get(token.id);
+      const gemStatusUpdate = gemStatusUpdates.get(token.id);
+
+      let updatedToken = { ...token };
+
+      // Apply market cap updates
+      if (marketCapUpdate) {
+        updatedToken = {
+          ...updatedToken,
+          market_cap_usd_current: marketCapUpdate.market_cap_usd_current,
+          market_cap_updated_at: marketCapUpdate.market_cap_updated_at,
+          market_cap_ath: marketCapUpdate.market_cap_ath,
+          market_cap_ath_timestamp: marketCapUpdate.market_cap_ath_timestamp
         };
       }
-      return token;
+
+      // Apply gem status updates (convert to tags)
+      if (gemStatusUpdate !== undefined) {
+        const currentTags = updatedToken.tags || [];
+        let newTags = [...currentTags];
+
+        // Remove existing gem/dud tags
+        newTags = newTags.filter(tag => tag !== 'gem' && tag !== 'dud');
+
+        // Add new tag if not null
+        if (gemStatusUpdate !== null) {
+          newTags.push(gemStatusUpdate);
+        }
+
+        updatedToken = {
+          ...updatedToken,
+          tags: newTags
+        };
+      }
+
+      return updatedToken;
     });
-  }, [tokens, marketCapUpdates]);
+  }, [tokens, marketCapUpdates, gemStatusUpdates]);
 
   const columns = useMemo(
     () =>
@@ -1040,6 +1175,7 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
         handleDelete,
         handleRefreshMarketCap,
         handleRefreshAllMarketCaps,
+        handleGemStatusChange,
         refreshingMarketCaps,
         refreshingAll,
         isCompactMode,
@@ -1051,7 +1187,8 @@ export function TokensTable({ tokens, onDelete }: TokensTableProps) {
       refreshingMarketCaps,
       refreshingAll,
       apiSettings,
-      handleRefreshAllMarketCaps
+      handleRefreshAllMarketCaps,
+      handleGemStatusChange
     ]
   );
 

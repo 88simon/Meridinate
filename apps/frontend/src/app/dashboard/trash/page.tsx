@@ -141,8 +141,8 @@ export default function TrashPage() {
     <div className='flex h-full flex-col space-y-4'>
       <div className='flex items-center justify-between'>
         <div>
-          <h1 className='text-3xl font-bold tracking-tight'>Trash</h1>
-          <p className='text-muted-foreground'>
+          <h1 className='text-xl font-bold tracking-tight'>Trash</h1>
+          <p className='text-muted-foreground text-sm'>
             Restore or permanently delete tokens
           </p>
         </div>
@@ -205,7 +205,7 @@ export default function TrashPage() {
                     <TableCell>
                       <div className='flex items-center gap-2'>
                         <a
-                          href={`https://solscan.io/token/${token.token_address}`}
+                          href={`https://gmgn.ai/sol/token/${token.token_address}?min=0.1&isInputValue=true`}
                           target='_blank'
                           rel='noopener noreferrer'
                           className='text-primary font-mono text-sm hover:underline'

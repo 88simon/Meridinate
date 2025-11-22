@@ -23,6 +23,8 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { WalletTags } from '@/components/wallet-tags';
+import { AdditionalTagsPopover } from '@/components/additional-tags';
+import { WalletTagLabels } from '@/components/wallet-tag-labels';
 
 interface TokenDetailsViewProps {
   token: TokenDetail;
@@ -273,13 +275,12 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                             #{index + 1}
                           </TableCell>
                           <TableCell>
-                            <div className='flex flex-col gap-1'>
+                            <div className='flex flex-col gap-0.5'>
                               <div className='font-mono text-sm'>
                                 {wallet.wallet_address}
                               </div>
-                              <WalletTags
+                              <WalletTagLabels
                                 walletAddress={wallet.wallet_address}
-                                compact
                               />
                             </div>
                           </TableCell>
@@ -338,9 +339,14 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                               : 'N/A'}
                           </TableCell>
                           <TableCell className='text-right'>
-                            <div className='flex items-center gap-2'>
+                            <div className='flex items-center justify-end gap-2'>
                               <WalletTags
                                 walletAddress={wallet.wallet_address}
+                              />
+                              <AdditionalTagsPopover
+                                walletId={wallet.id}
+                                walletAddress={wallet.wallet_address}
+                                compact
                               />
                               <Button
                                 variant='ghost'

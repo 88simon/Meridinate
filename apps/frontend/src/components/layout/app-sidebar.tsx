@@ -18,14 +18,14 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail
+  SidebarRail,
+  SidebarTrigger
 } from '@/components/ui/sidebar';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navItems } from '@/constants/data';
@@ -36,7 +36,6 @@ import { useApiSettings } from '@/contexts/ApiSettingsContext';
 import {
   IconChevronRight,
   IconChevronsDown,
-  IconPhotoUp,
   IconTags,
   IconSettings
 } from '@tabler/icons-react';
@@ -62,18 +61,16 @@ export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible='icon'>
-      <SidebarHeader>
-        <div className='flex items-center gap-2 px-4 py-2'>
-          <IconPhotoUp className='h-8 w-8 shrink-0' />
-          <div className='flex flex-col group-data-[collapsible=icon]:hidden'>
-            <span className='text-lg font-semibold'>Gun Del Sol</span>
-            <span className='text-muted-foreground text-xs'>
-              Token Analysis
-            </span>
-          </div>
-        </div>
-      </SidebarHeader>
       <SidebarContent className='overflow-x-hidden'>
+        <SidebarGroup>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip='Toggle Sidebar'>
+                <SidebarTrigger className='w-full justify-start' />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarMenu>
@@ -203,7 +200,7 @@ export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled>
                   <span className='text-muted-foreground text-sm'>
-                    Gun Del Sol
+                    Meridinate
                   </span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
