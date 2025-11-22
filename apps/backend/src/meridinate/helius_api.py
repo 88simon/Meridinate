@@ -458,12 +458,7 @@ class HeliusAPI:
                 "jsonrpc": "2.0",
                 "id": "owner-lookup",
                 "method": "getAccountInfo",
-                "params": [
-                    account_address,
-                    {
-                        "encoding": "jsonParsed"
-                    }
-                ]
+                "params": [account_address, {"encoding": "jsonParsed"}],
             }
 
             response = self.session.post(self.rpc_url, json=payload, timeout=30)
@@ -484,6 +479,7 @@ class HeliusAPI:
         except Exception as e:
             print(f"[Helius] Error getting account owner for {account_address[:8]}: {str(e)}")
             import traceback
+
             traceback.print_exc()
             return None, 0
 
@@ -560,17 +556,30 @@ class HeliusAPI:
                         if token_price_usd and account.get("uiAmount"):
                             token_balance_usd = account["uiAmount"] * token_price_usd
 
-                        holders.append({
-                            "address": owner,  # The wallet address that owns this token account
-                            "token_account": account["address"],  # The token account address
-                            "amount": account["amount"],
-                            "decimals": account.get("decimals", 0),
-                            "uiAmount": account.get("uiAmount"),
-                            "uiAmountString": account.get("uiAmountString", "0"),
-                            "token_balance_usd": token_balance_usd,  # USD value of tokens held
-                        })
+                        # Fetch wallet balance in USD
+                        wallet_balance_usd = None
+                        try:
+                            wallet_balance_usd, balance_credits = self.get_wallet_balance(owner)
+                            credits_used += balance_credits
+                        except Exception as e:
+                            print(f"[Helius] Warning: Failed to fetch wallet balance for {owner[:8]}: {str(e)}")
 
-                print(f"[Helius] Found {len(holders)} on-curve wallet holders (skipped {skipped_programs} program accounts)")
+                        holders.append(
+                            {
+                                "address": owner,  # The wallet address that owns this token account
+                                "token_account": account["address"],  # The token account address
+                                "amount": account["amount"],
+                                "decimals": account.get("decimals", 0),
+                                "uiAmount": account.get("uiAmount"),
+                                "uiAmountString": account.get("uiAmountString", "0"),
+                                "token_balance_usd": token_balance_usd,  # USD value of tokens held
+                                "wallet_balance_usd": wallet_balance_usd,  # Total wallet balance in USD
+                            }
+                        )
+
+                print(
+                    f"[Helius] Found {len(holders)} on-curve wallet holders (skipped {skipped_programs} program accounts)"
+                )
 
                 return holders, credits_used
             else:
@@ -1222,7 +1231,9 @@ class HeliusAPI:
             print(f"[Helius] Fetching top 10 token holders...")
             top_holders_data, top_holders_credits = self.get_top_holders(mint_address, limit=10)
             if top_holders_data:
-                print(f"[Helius] Top holders fetched: {len(top_holders_data)} wallets (used {top_holders_credits} credits)")
+                print(
+                    f"[Helius] Top holders fetched: {len(top_holders_data)} wallets (used {top_holders_credits} credits)"
+                )
             else:
                 print(f"[Helius] No top holders found")
         except Exception as e:
@@ -1231,7 +1242,12 @@ class HeliusAPI:
 
         # Calculate actual API credits used
         total_credits = (
-            metadata_credits + market_cap_credits + creation_time_credits + transaction_credits + balance_credits + top_holders_credits
+            metadata_credits
+            + market_cap_credits
+            + creation_time_credits
+            + transaction_credits
+            + balance_credits
+            + top_holders_credits
         )
 
         if top_holders_credits > 0:
@@ -1608,4 +1624,3 @@ class WebhookManager:
             return response.json()
         except Exception as e:
             raise Exception(f"Failed to list webhooks: {str(e)}")
-
