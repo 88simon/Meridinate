@@ -5,7 +5,8 @@ import {
   getTopHolders,
   SolscanSettings,
   getSolscanSettings,
-  buildSolscanUrl
+  buildSolscanUrl,
+  getApiSettings
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Copy, ExternalLink, RefreshCw, Twitter } from 'lucide-react';
@@ -37,6 +38,7 @@ import { cn } from '@/lib/utils';
 interface TopHoldersModalProps {
   tokenAddress: string;
   tokenSymbol?: string | null;
+  tokenName?: string | null;
   initialHolders: TopHolder[] | null;
   lastUpdated: string | null;
   open: boolean;
@@ -48,6 +50,7 @@ interface TopHoldersModalProps {
 export function TopHoldersModal({
   tokenAddress,
   tokenSymbol,
+  tokenName,
   initialHolders,
   lastUpdated,
   open,
@@ -61,9 +64,20 @@ export function TopHoldersModal({
   const [solscanSettings, setSolscanSettings] =
     useState<SolscanSettings | null>(null);
 
+  // Local state for current limit and last updated (can differ from props after refresh)
+  // Initialize with the actual number of holders we have, not the setting
+  const [currentLimit, setCurrentLimit] = useState(
+    initialHolders?.length || topHoldersLimit
+  );
+  const [currentLastUpdated, setCurrentLastUpdated] = useState<string | null>(lastUpdated);
+
   // Update holders when initialHolders changes (e.g., after page refresh)
   useEffect(() => {
     setHolders(initialHolders);
+    // Also update the limit to match the actual data we have
+    if (initialHolders) {
+      setCurrentLimit(initialHolders.length);
+    }
   }, [initialHolders]);
 
   // Fetch Solscan settings on mount
@@ -87,9 +101,20 @@ export function TopHoldersModal({
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const result = await getTopHolders(tokenAddress, topHoldersLimit);
+      // Fetch latest settings to get current topHoldersLimit
+      const settings = await getApiSettings();
+      const latestLimit = settings.topHoldersLimit || 10;
+
+      // Refresh with latest limit
+      const result = await getTopHolders(tokenAddress, latestLimit);
       setHolders(result.holders);
       setCreditsUsed(result.api_credits_used);
+      setCurrentLimit(latestLimit);
+
+      // Update last updated to current time
+      const now = new Date().toISOString().replace('T', ' ').split('.')[0];
+      setCurrentLastUpdated(now);
+
       toast.success(
         `Refreshed top ${result.total_holders} holders (${result.api_credits_used} credits used)`
       );
@@ -131,7 +156,7 @@ export function TopHoldersModal({
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className='max-w-4xl'>
           <DialogHeader>
-            <DialogTitle>Top {topHoldersLimit} Token Holders</DialogTitle>
+            <DialogTitle>Top {currentLimit} Token Holders</DialogTitle>
             <DialogDescription>
               No top holders data available yet. Click refresh to fetch.
             </DialogDescription>
@@ -158,24 +183,40 @@ export function TopHoldersModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className='max-h-[80vh] max-w-4xl overflow-y-auto'>
+      <DialogContent className='flex max-h-[80vh] max-w-4xl flex-col'>
         <DialogHeader>
-          <DialogTitle>Top {topHoldersLimit} Token Holders</DialogTitle>
+          <DialogTitle>Top {currentLimit} Token Holders</DialogTitle>
           <DialogDescription>
             Showing the largest {holders.length} token holders by balance.
-            {lastUpdated && (
+            {currentLastUpdated && (
               <span className='ml-2 text-xs'>
-                Last updated: {formatTimeSinceUpdate(lastUpdated)}
+                Last updated: {formatTimeSinceUpdate(currentLastUpdated)}
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className='mt-4'>
-          {/* Token Address */}
+        {/* Scrollable content area */}
+        <div className='mt-4 flex-1 overflow-y-auto'>
+          {/* Token Info */}
           <div className='mb-4 rounded-lg border p-3'>
             <div className='flex items-center justify-between gap-2'>
-              <div>
+              <div className='flex-1'>
+                {/* Token Name and Symbol */}
+                {(tokenName || tokenSymbol) && (
+                  <div className='mb-2 flex items-center gap-2'>
+                    {tokenName && (
+                      <span className='text-sm font-semibold'>
+                        {tokenName}
+                      </span>
+                    )}
+                    {tokenSymbol && (
+                      <span className='bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-mono font-medium'>
+                        {tokenSymbol}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className='text-muted-foreground text-xs font-medium'>
                   Token Address
                 </div>
@@ -314,8 +355,25 @@ export function TopHoldersModal({
             </Table>
           </div>
 
-          {/* Refresh Button - Bottom Center */}
-          <div className='mt-4 flex justify-center'>
+          {/* Footer Info */}
+          <div className='text-muted-foreground mt-4 text-center text-xs'>
+            {creditsUsed > 0 ? (
+              <>
+                Last refresh used {creditsUsed} Helius API credit
+                {creditsUsed !== 1 ? 's' : ''}. The credits have been added to
+                the token&apos;s cumulative usage.
+              </>
+            ) : (
+              <>
+                Top holders data loaded from analysis. Click refresh to update.
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Sticky Refresh Button */}
+        <div className='sticky bottom-0 border-t bg-background pt-4'>
+          <div className='flex justify-center'>
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -337,21 +395,6 @@ export function TopHoldersModal({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
-
-          {/* Footer Info */}
-          <div className='text-muted-foreground mt-4 text-center text-xs'>
-            {creditsUsed > 0 ? (
-              <>
-                Last refresh used {creditsUsed} Helius API credit
-                {creditsUsed !== 1 ? 's' : ''}. The credits have been added to
-                the token&apos;s cumulative usage.
-              </>
-            ) : (
-              <>
-                Top holders data loaded from analysis. Click refresh to update.
-              </>
-            )}
           </div>
         </div>
       </DialogContent>
