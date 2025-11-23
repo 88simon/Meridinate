@@ -58,6 +58,24 @@ Production-ready React application built with modern web technologies:
   - Green "NEW" badge inside token name boxes for tokens that caused multi-token status
   - Badges persist until next analysis completes
   - Backend tracking via multi_token_wallet_metadata table
+- **Unified Filter System** - Comprehensive filtering with multiple categories
+  - Wallet Tags - Filter by Bot, Whale, Insider, Gunslinger, Gambler
+  - Token Status - Has GEMs, Has DUDs, Has untagged, All GEMs, All DUDs
+  - Balance Range - Min/Max USD with quick presets (>$1k, >$10k, >$100k)
+  - Token Count Range - Min/Max tokens with quick presets (2+, 5+, 10+)
+  - Top Holder Status - Is top holder checkbox
+  - OR logic within categories, AND logic across categories
+  - Active filter chips with individual remove buttons
+  - Badge counter shows number of active filters
+  - Persists to localStorage and URL for shareable filtered views
+- **Smart Search** - Advanced search with prefix support and fuzzy matching
+  - Prefix-based precision: token:Ant, tag:bot, wallet:5e8S, gem/dud
+  - General search (no prefix) searches all fields simultaneously
+  - Fuzzy matching with 70% similarity threshold for typo tolerance
+  - Multiple terms supported (e.g., gem token:Ant)
+  - Info icon with popover documentation guide
+  - Clear button (X) when text is present
+  - Persists to localStorage and URL parameters
 - **Sortable Columns** - Click any column header to sort data
   - Wallet Address - Sort by NEW status first, then alphabetically
   - Balance (USD) - Sort by wallet balance amount (ascending/descending)
@@ -180,6 +198,8 @@ Production-ready React application built with modern web technologies:
 - **Deferred State Updates** - Selection updates batched for smooth UX
 - **Optimistic Updates** - Instant UI feedback for user actions
 - **Code Splitting** - Route-based code splitting with Next.js
+- **Batch API Endpoints** - Top holder badge counts use single batch request instead of N individual calls (98% bandwidth reduction)
+- **Client-Side Refetch** - Replace router.refresh() with callbacks for instant updates without full page reload
 
 ## Getting Started
 
@@ -431,12 +451,6 @@ These scripts run:
 - TypeScript type checking
 - Next.js build verification
 
-### Legacy Workflows
-
-The `.github/workflows/` directory in this app contains legacy workflows from before the monorepo migration. The root-level monorepo workflow (`../../.github/workflows/monorepo-ci.yml`) is now the primary CI/CD pipeline.
-
-**Note:** E2E tests are still handled by the app-level workflow if needed.
-
 ## Environment Variables
 
 Create `.env.local` for local development:
@@ -503,12 +517,6 @@ NODE_ENV=production
 - **SEO:** 100
 
 ## Testing
-
-### Unit Tests (Future)
-
-```bash
-pnpm test
-```
 
 ### E2E Tests (Playwright)
 
