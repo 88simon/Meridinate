@@ -254,7 +254,7 @@ class AnalysisSettings(BaseModel):
     apiRateDelay: int = Field(default=100, ge=0)
     maxCreditsPerAnalysis: int = Field(default=1000, ge=1, le=10000)
     maxRetries: int = Field(default=3, ge=0, le=10)
-    topHoldersLimit: int = Field(default=10, ge=5, le=50, description="Number of top token holders to fetch")
+    topHoldersLimit: int = Field(default=10, ge=5, le=20, description="Number of top token holders to fetch (Helius API max: 20)")
 
 
 class AnalyzeTokenRequest(BaseModel):
@@ -351,6 +351,7 @@ class UpdateSettingsRequest(BaseModel):
     apiRateDelay: Optional[int] = Field(None, ge=0)
     maxCreditsPerAnalysis: Optional[int] = Field(None, ge=1, le=10000)
     maxRetries: Optional[int] = Field(None, ge=0, le=10)
+    topHoldersLimit: Optional[int] = Field(None, ge=5, le=20, description="Number of top token holders to fetch (Helius API max: 20)")
 
 
 class SolscanSettings(BaseModel):

@@ -51,7 +51,7 @@ Production-ready React application built with modern web technologies:
 - **Instant UI Updates** - No page reload required
 - **CoinGecko Integration** - Real-time SOL/USD pricing (5-min cache)
 
-### Multi-Token Wallets
+### Multi-Token Early Wallets
 
 - **NEW Badge Indicators** - Visual markers for recently added wallets and tokens
   - Green "NEW" badge on wallet addresses that just crossed the 2-token threshold
@@ -109,9 +109,9 @@ Production-ready React application built with modern web technologies:
 - **Multi-location Display**:
   - GEM/DUD badges next to token names in token table
   - Classification buttons in market cap column for quick access
-  - Badges shown inline with token names in Multi-Token Wallets panel
+  - Badges shown inline with token names in Multi-Token Early Wallets section
 - **Tag Architecture** - Uses same simple pattern as wallet tags (no optimistic locking)
-- **Automatic Sync** - Changes reflected in both Token Table and Multi-Token Wallets panel
+- **Automatic Sync** - Changes reflected in both Token Table and Multi-Token Early Wallets section
 
 ### Top 10 Token Holders
 
@@ -132,7 +132,7 @@ Production-ready React application built with modern web technologies:
 - **Pre-filtered Views** - URLs include `?min=0.1&isInputValue=true` for consistent filtering
 - **Multiple Entry Points:**
   - Token table address column (clickable token addresses)
-  - Multi-token wallets panel (clickable token names)
+  - Multi-Token Early Wallets section (clickable token names)
   - Token detail modal "View on GMGN" link
   - Token detail page "View on GMGN" link
 

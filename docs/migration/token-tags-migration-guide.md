@@ -88,7 +88,7 @@ New functions in `lib/api.ts`:
 - Tags appear as badges next to token names
 - Optimistic UI updates with error rollback
 
-**Multi-Token Wallets Panel**
+**Multi-Token Early Wallets Section**
 - GEM/DUD badges shown inline with token names
 - Badges built from token tags, not `gem_status` field
 
@@ -98,7 +98,7 @@ Token tag operations invalidate two caches:
 1. `tokens_history` - Token list cache
 2. `multi_early_buyer_wallets` - Multi-token wallets cache
 
-This ensures UI stays synchronized across both Token Table and Multi-Token Wallets panel.
+This ensures UI stays synchronized across both Token Table and Multi-Token Early Wallets section.
 
 ## Troubleshooting
 
@@ -151,7 +151,7 @@ Expected: 10 tests pass
 3. Verify:
    - Button turns green
    - Badge appears next to token name
-   - Multi-Token Wallets panel shows GEM badge
+   - Multi-Token Early Wallets section shows GEM badge
 4. Click GEM again to clear
 5. Verify badge disappears in both locations
 

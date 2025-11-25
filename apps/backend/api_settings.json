@@ -5,5 +5,5 @@
   "apiRateDelay": 100,
   "maxCreditsPerAnalysis": 1000,
   "maxRetries": 3,
-  "topHoldersLimit": 10
+  "topHoldersLimit": 20
 }

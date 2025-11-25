@@ -40,7 +40,7 @@ Implemented a fire-and-forget token tagging system that allows users to classify
 
 **Cache Invalidation**
 - Both `add_token_tag` and `remove_token_tag` invalidate `tokens_history` and `multi_early_buyer_wallets` caches
-- Ensures UI synchronization across Token Table and Multi-Token Wallets panel
+- Ensures UI synchronization across Token Table and Multi-Token Early Wallets section
 
 ### Frontend Changes
 
@@ -61,7 +61,7 @@ Implemented a fire-and-forget token tagging system that allows users to classify
 **Display Locations**
 1. Token Table - GEM/DUD buttons in market cap column
 2. Token Table - GEM/DUD badges next to token names
-3. Multi-Token Wallets Panel - GEM/DUD badges inline with token names
+3. Multi-Token Early Wallets Section - GEM/DUD badges inline with token names
 
 ### Testing
 
@@ -213,7 +213,7 @@ Before deploying to production:
 5. [ ] Check observability logs are working
 6. [ ] Verify rate limiting is active
 7. [ ] Test browser refresh behavior
-8. [ ] Confirm Multi-Token Wallets panel syncs correctly
+8. [ ] Confirm Multi-Token Early Wallets section syncs correctly
 
 ## Success Criteria
 
@@ -222,7 +222,7 @@ The implementation is considered successful if:
 - [x] Frontend type-check passes
 - [x] GEM/DUD buttons work in Token Table
 - [x] Tags appear as badges next to token names
-- [x] Multi-Token Wallets panel shows GEM/DUD badges
+- [x] Multi-Token Early Wallets section shows GEM/DUD badges
 - [x] Changes sync between Token Table and MTW panel
 - [x] Cache invalidation works correctly
 - [x] No SQL injection vulnerabilities

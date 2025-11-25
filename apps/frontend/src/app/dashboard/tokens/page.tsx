@@ -6,9 +6,11 @@ import React, {
   useRef,
   useMemo,
   useCallback,
-  startTransition
+  startTransition,
+  useContext
 } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import {
   getTokens,
   getMultiTokenWallets,
@@ -127,6 +129,23 @@ const Tags = dynamic(
 );
 const Info = dynamic(
   () => import('lucide-react').then((mod) => ({ default: mod.Info })),
+  { ssr: false }
+);
+const Filter = dynamic(
+  () => import('lucide-react').then((mod) => ({ default: mod.Filter })),
+  { ssr: false }
+);
+const Search = dynamic(
+  () => import('lucide-react').then((mod) => ({ default: mod.Search })),
+  { ssr: false }
+);
+
+// Lazy load the wallet top holders modal
+const WalletTopHoldersModal = dynamic(
+  () =>
+    import('./wallet-top-holders-modal').then((mod) => ({
+      default: mod.WalletTopHoldersModal
+    })),
   { ssr: false }
 );
 
@@ -271,6 +290,487 @@ function BulkTagsPopover({
   );
 }
 
+// Search Help Popover Component
+function SearchHelpPopover() {
+  return (
+    <div className='w-80 space-y-3 text-sm'>
+      <div>
+        <h4 className='mb-2 font-semibold'>🔍 Search Guide</h4>
+        <p className='text-muted-foreground text-xs'>
+          Type anything to search all fields, or use smart prefixes for precision.
+        </p>
+      </div>
+
+      <div className='space-y-2'>
+        <div>
+          <div className='mb-1 text-xs font-medium'>Smart Prefixes</div>
+          <div className='bg-muted space-y-1 rounded-md p-2 font-mono text-xs'>
+            <div>
+              <span className='text-primary'>token:</span>
+              <span className='text-muted-foreground'>Ant</span>
+              <span className='ml-2 text-[10px]'>→ Search token names</span>
+            </div>
+            <div>
+              <span className='text-primary'>tag:</span>
+              <span className='text-muted-foreground'>bot</span>
+              <span className='ml-2 text-[10px]'>→ Search wallet tags</span>
+            </div>
+            <div>
+              <span className='text-primary'>wallet:</span>
+              <span className='text-muted-foreground'>5e8S...</span>
+              <span className='ml-2 text-[10px]'>→ Search addresses</span>
+            </div>
+            <div>
+              <span className='text-primary'>gem</span>
+              <span className='text-muted-foreground'> / </span>
+              <span className='text-primary'>dud</span>
+              <span className='ml-2 text-[10px]'>→ Token status</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className='mb-1 text-xs font-medium'>Combine Terms</div>
+          <div className='bg-muted space-y-1 rounded-md p-2 font-mono text-xs'>
+            <div className='text-muted-foreground'>gem token:Ant</div>
+            <div className='text-muted-foreground'>tag:bot tag:whale</div>
+          </div>
+        </div>
+
+        <div>
+          <div className='mb-1 text-xs font-medium'>Basic Search</div>
+          <div className='text-muted-foreground text-xs'>
+            Without prefixes, searches all fields at once.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Fuzzy match helper - calculates similarity between two strings (0-1)
+function fuzzyMatch(query: string, target: string): number {
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+
+  // Exact match
+  if (t.includes(q)) return 1;
+
+  // Calculate Levenshtein distance-like similarity
+  let matches = 0;
+  let lastIndex = -1;
+
+  for (const char of q) {
+    const index = t.indexOf(char, lastIndex + 1);
+    if (index > lastIndex) {
+      matches++;
+      lastIndex = index;
+    }
+  }
+
+  const similarity = matches / q.length;
+
+  // Boost score if starts with query
+  if (t.startsWith(q)) {
+    return Math.min(similarity + 0.3, 1);
+  }
+
+  return similarity;
+}
+
+// Filter Popover Component for Multi-Token Early Wallets Table
+function MTWTFilterPopover({
+  filters,
+  onChange,
+  onClear
+}: {
+  filters: {
+    walletTags: string[];
+    tokenStatus: {
+      hasGems: boolean;
+      hasDuds: boolean;
+      hasUntagged: boolean;
+      allGems: boolean;
+      allDuds: boolean;
+    };
+    balanceRange: {
+      min: number | null;
+      max: number | null;
+    };
+    tokenCountRange: {
+      min: number | null;
+      max: number | null;
+    };
+    topHolder: {
+      isTopHolder: boolean;
+      top5Only: boolean;
+    };
+  };
+  onChange: (filters: any) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className='w-80 space-y-4'>
+      <div className='flex items-center justify-between'>
+        <h4 className='text-sm font-semibold'>Filters</h4>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={onClear}
+          className='h-7 px-2 text-xs'
+        >
+          Clear All
+        </Button>
+      </div>
+
+      {/* Wallet Tags Filter */}
+      <div className='space-y-2'>
+        <label className='text-xs font-medium'>🏷️ Wallet Tags</label>
+        <div className='space-y-1.5'>
+          {ADDITIONAL_TAGS_DISPLAY.map((tag) => (
+            <label key={tag} className='flex cursor-pointer items-center gap-2 text-sm'>
+              <input
+                type='checkbox'
+                checked={filters.walletTags.includes(tag)}
+                onChange={(e) => {
+                  const newTags = e.target.checked
+                    ? [...filters.walletTags, tag]
+                    : filters.walletTags.filter((t) => t !== tag);
+                  onChange({
+                    ...filters,
+                    walletTags: newTags
+                  });
+                }}
+                className='h-4 w-4 rounded border-gray-300'
+              />
+              <span className='text-xs'>{tag}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Token Status Filter */}
+      <div className='space-y-2'>
+        <label className='text-xs font-medium'>💎 Token Status</label>
+        <div className='space-y-1.5'>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={filters.tokenStatus.hasGems}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  tokenStatus: {
+                    ...filters.tokenStatus,
+                    hasGems: e.target.checked
+                  }
+                })
+              }
+              className='h-4 w-4 rounded border-gray-300'
+            />
+            <span className='text-xs'>Has GEMs (at least one)</span>
+          </label>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={filters.tokenStatus.hasDuds}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  tokenStatus: {
+                    ...filters.tokenStatus,
+                    hasDuds: e.target.checked
+                  }
+                })
+              }
+              className='h-4 w-4 rounded border-gray-300'
+            />
+            <span className='text-xs'>Has DUDs (at least one)</span>
+          </label>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={filters.tokenStatus.hasUntagged}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  tokenStatus: {
+                    ...filters.tokenStatus,
+                    hasUntagged: e.target.checked
+                  }
+                })
+              }
+              className='h-4 w-4 rounded border-gray-300'
+            />
+            <span className='text-xs'>Has untagged tokens</span>
+          </label>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={filters.tokenStatus.allGems}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  tokenStatus: {
+                    ...filters.tokenStatus,
+                    allGems: e.target.checked
+                  }
+                })
+              }
+              className='h-4 w-4 rounded border-gray-300'
+            />
+            <span className='text-xs'>ALL tokens are GEMs</span>
+          </label>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={filters.tokenStatus.allDuds}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  tokenStatus: {
+                    ...filters.tokenStatus,
+                    allDuds: e.target.checked
+                  }
+                })
+              }
+              className='h-4 w-4 rounded border-gray-300'
+            />
+            <span className='text-xs'>ALL tokens are DUDs</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Balance Range Filter */}
+      <div className='space-y-2'>
+        <label className='text-xs font-medium'>💰 Balance (USD)</label>
+        <div className='flex gap-2'>
+          <input
+            type='number'
+            placeholder='Min'
+            value={filters.balanceRange.min ?? ''}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                balanceRange: {
+                  ...filters.balanceRange,
+                  min: e.target.value ? parseFloat(e.target.value) : null
+                }
+              })
+            }
+            className='h-8 w-full rounded border px-2 text-xs'
+          />
+          <input
+            type='number'
+            placeholder='Max'
+            value={filters.balanceRange.max ?? ''}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                balanceRange: {
+                  ...filters.balanceRange,
+                  max: e.target.value ? parseFloat(e.target.value) : null
+                }
+              })
+            }
+            className='h-8 w-full rounded border px-2 text-xs'
+          />
+        </div>
+        <div className='flex flex-wrap gap-1'>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              onChange({
+                ...filters,
+                balanceRange: { min: 1000, max: null }
+              })
+            }
+            className='h-6 px-2 text-[10px]'
+          >
+            &gt;$1k
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              onChange({
+                ...filters,
+                balanceRange: { min: 10000, max: null }
+              })
+            }
+            className='h-6 px-2 text-[10px]'
+          >
+            &gt;$10k
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              onChange({
+                ...filters,
+                balanceRange: { min: 100000, max: null }
+              })
+            }
+            className='h-6 px-2 text-[10px]'
+          >
+            &gt;$100k
+          </Button>
+        </div>
+      </div>
+
+      {/* Token Count Range Filter */}
+      <div className='space-y-2'>
+        <label className='text-xs font-medium'>🪙 Number of Tokens</label>
+        <div className='flex gap-2'>
+          <input
+            type='number'
+            placeholder='Min'
+            value={filters.tokenCountRange.min ?? ''}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                tokenCountRange: {
+                  ...filters.tokenCountRange,
+                  min: e.target.value ? parseInt(e.target.value) : null
+                }
+              })
+            }
+            className='h-8 w-full rounded border px-2 text-xs'
+          />
+          <input
+            type='number'
+            placeholder='Max'
+            value={filters.tokenCountRange.max ?? ''}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                tokenCountRange: {
+                  ...filters.tokenCountRange,
+                  max: e.target.value ? parseInt(e.target.value) : null
+                }
+              })
+            }
+            className='h-8 w-full rounded border px-2 text-xs'
+          />
+        </div>
+        <div className='flex flex-wrap gap-1'>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              onChange({
+                ...filters,
+                tokenCountRange: { min: 2, max: null }
+              })
+            }
+            className='h-6 px-2 text-[10px]'
+          >
+            2+
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              onChange({
+                ...filters,
+                tokenCountRange: { min: 5, max: null }
+              })
+            }
+            className='h-6 px-2 text-[10px]'
+          >
+            5+
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              onChange({
+                ...filters,
+                tokenCountRange: { min: 10, max: null }
+              })
+            }
+            className='h-6 px-2 text-[10px]'
+          >
+            10+
+          </Button>
+        </div>
+      </div>
+
+      {/* Top Holder Filter */}
+      <div className='space-y-2'>
+        <label className='text-xs font-medium'>🔝 Top Holder Status</label>
+        <div className='space-y-1.5'>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <input
+              type='checkbox'
+              checked={filters.topHolder.isTopHolder}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  topHolder: {
+                    ...filters.topHolder,
+                    isTopHolder: e.target.checked
+                  }
+                })
+              }
+              className='h-4 w-4 rounded border-gray-300'
+            />
+            <span className='text-xs'>Is top holder (any token)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Filter interface and defaults for Multi-Token Early Wallets Table
+interface MTWTFilters {
+  walletTags: string[];
+  tokenStatus: {
+    hasGems: boolean;
+    hasDuds: boolean;
+    hasUntagged: boolean;
+    allGems: boolean;
+    allDuds: boolean;
+  };
+  balanceRange: {
+    min: number | null;
+    max: number | null;
+  };
+  tokenCountRange: {
+    min: number | null;
+    max: number | null;
+  };
+  topHolder: {
+    isTopHolder: boolean;
+    top5Only: boolean;
+  };
+}
+
+const DEFAULT_MTWT_FILTERS: MTWTFilters = {
+  walletTags: [],
+  tokenStatus: {
+    hasGems: false,
+    hasDuds: false,
+    hasUntagged: false,
+    allGems: false,
+    allDuds: false
+  },
+  balanceRange: {
+    min: null,
+    max: null
+  },
+  tokenCountRange: {
+    min: null,
+    max: null
+  },
+  topHolder: {
+    isTopHolder: false,
+    top5Only: false
+  }
+};
+
 export default function TokensPage() {
   const [data, setData] = useState<TokensResponse | null>(null);
   const [multiWallets, setMultiWallets] =
@@ -304,7 +804,7 @@ export default function TokensPage() {
   );
   const walletsPerPage = 5;
 
-  // Sorting state for multi-token wallets table
+  // Sorting state for multi-token early wallets table
   type SortColumn = 'address' | 'balance' | 'tokens' | 'new';
   type SortDirection = 'asc' | 'desc';
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
@@ -314,6 +814,26 @@ export default function TokensPage() {
   const walletContainerRef = useRef<HTMLDivElement>(null);
   const [walletScrollTop, setWalletScrollTop] = useState(0);
   const [walletViewportHeight, setWalletViewportHeight] = useState(0);
+
+  // Top Holders modal state
+  const [selectedWalletForTopHolders, setSelectedWalletForTopHolders] = useState<string | null>(null);
+  const [isWalletTopHoldersModalOpen, setIsWalletTopHoldersModalOpen] = useState(false);
+  const [topHolderCounts, setTopHolderCounts] = useState<Map<string, number>>(new Map());
+
+  // Filter state for Multi-Token Early Wallets Table
+  const [mtwFilters, setMtwFilters] = useState<MTWTFilters>(DEFAULT_MTWT_FILTERS);
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+
+  // Wallet tags cache for filtering (fetched separately to avoid provider scope issues)
+  const [walletTagsCache, setWalletTagsCache] = useState<Record<string, Array<{tag: string}>>>({});
+
+  // Search state for Multi-Token Early Wallets Table
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchHelpOpen, setIsSearchHelpOpen] = useState(false);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Scroll to top button ref
+  const mtwSectionRef = useRef<HTMLDivElement>(null);
 
   // Track latest refetch request to prevent race conditions
   const latestRefetchId = useRef(0);
@@ -378,6 +898,13 @@ export default function TokensPage() {
       });
     }
   };
+
+  // Scroll to top function for Multi-Token Early Wallets section
+  const scrollToTop = useCallback(() => {
+    if (mtwSectionRef.current) {
+      mtwSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   // Note: buildSolscanUrl function is imported from @/lib/api
 
@@ -701,6 +1228,180 @@ export default function TokensPage() {
     }
   }, [isWalletPanelExpanded]);
 
+  // Fetch top holder counts for all multi-token wallets
+  useEffect(() => {
+    if (!multiWallets?.wallets) return;
+
+    const fetchTopHolderCounts = async () => {
+      const walletAddresses = multiWallets.wallets.map(w => w.wallet_address);
+
+      try {
+        // Use batch endpoint - single request instead of N requests
+        const response = await fetch(
+          `${API_BASE_URL}/wallets/batch-top-holder-counts`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_addresses: walletAddresses })
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          // Convert counts object to Map
+          const newCounts = new Map<string, number>(
+            Object.entries(data.counts)
+          );
+          setTopHolderCounts(newCounts);
+        }
+      } catch {
+        // Silently fail - top holder counts are non-critical
+      }
+    };
+
+    fetchTopHolderCounts();
+  }, [multiWallets]);
+
+  // Fetch wallet tags for filtering
+  useEffect(() => {
+    if (!multiWallets?.wallets || multiWallets.wallets.length === 0) return;
+
+    const fetchWalletTags = async () => {
+      const walletAddresses = multiWallets.wallets.map(w => w.wallet_address);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/wallets/batch-tags`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ addresses: walletAddresses })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to fetch wallet tags:', response.statusText);
+          return;
+        }
+
+        const tagsData = await response.json();
+        setWalletTagsCache(tagsData);
+      } catch (error) {
+        console.error('Error fetching wallet tags:', error);
+      }
+    };
+
+    fetchWalletTags();
+  }, [multiWallets]);
+
+  // Load filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedFilters = localStorage.getItem('mtwFilters');
+      if (savedFilters) {
+        const parsed = JSON.parse(savedFilters);
+        // Validate structure before applying
+        if (parsed && typeof parsed === 'object' && parsed.tokenStatus) {
+          setMtwFilters(parsed);
+        } else {
+          // Invalid structure, clear localStorage
+          localStorage.removeItem('mtwFilters');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load filters from localStorage:', error);
+      localStorage.removeItem('mtwFilters');
+    }
+  }, []);
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('mtwFilters', JSON.stringify(mtwFilters));
+    } catch (error) {
+      console.error('Failed to save filters to localStorage:', error);
+    }
+  }, [mtwFilters]);
+
+  // Sync filters with URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlFiltersParam = params.get('mtwFilters');
+
+    if (urlFiltersParam) {
+      try {
+        const urlFilters = JSON.parse(decodeURIComponent(urlFiltersParam));
+        setMtwFilters(urlFilters);
+      } catch (error) {
+        console.error('Failed to parse filters from URL:', error);
+      }
+    }
+  }, []);
+
+  // Update URL params whenever filters change
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // Only add to URL if filters are not default
+    const hasActiveFilters = JSON.stringify(mtwFilters) !== JSON.stringify(DEFAULT_MTWT_FILTERS);
+
+    if (hasActiveFilters) {
+      params.set('mtwFilters', encodeURIComponent(JSON.stringify(mtwFilters)));
+    } else {
+      params.delete('mtwFilters');
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [mtwFilters]);
+
+  // Load search from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedSearch = localStorage.getItem('mtwSearch');
+      if (savedSearch) {
+        setSearchQuery(savedSearch);
+      }
+    } catch (error) {
+      console.error('Failed to load search from localStorage:', error);
+    }
+  }, []);
+
+  // Save search to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      if (searchQuery) {
+        localStorage.setItem('mtwSearch', searchQuery);
+      } else {
+        localStorage.removeItem('mtwSearch');
+      }
+    } catch (error) {
+      console.error('Failed to save search to localStorage:', error);
+    }
+  }, [searchQuery]);
+
+  // Sync search with URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlSearch = params.get('search');
+    if (urlSearch) {
+      setSearchQuery(decodeURIComponent(urlSearch));
+    }
+  }, []);
+
+  // Update URL params whenever search changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (searchQuery.trim()) {
+      params.set('search', encodeURIComponent(searchQuery));
+    } else {
+      params.delete('search');
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [searchQuery]);
+
   // Sort handler for multi-token wallets table
   const handleSort = useCallback(
     (column: SortColumn) => {
@@ -716,11 +1417,296 @@ export default function TokensPage() {
     [sortColumn]
   );
 
-  // Sorted wallets (applied before pagination/virtualization)
-  const sortedWallets = useMemo(() => {
+  // Get all available wallet tags from context
+  const allWalletTags = useMemo(() => {
+    const tags = new Set<string>();
+    if (multiWallets?.wallets) {
+      // This will be populated from wallet tags context - for now use placeholder
+      ADDITIONAL_TAGS_DISPLAY.forEach(tag => tags.add(tag));
+    }
+    return Array.from(tags);
+  }, [multiWallets]);
+
+  // Parse search query for smart prefixes
+  const parsedSearch = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return { tokens: [], tags: [], wallets: [], statuses: [], general: [] };
+    }
+
+    const tokens: string[] = [];
+    const tags: string[] = [];
+    const wallets: string[] = [];
+    const statuses: ('gem' | 'dud')[] = [];
+    const general: string[] = [];
+
+    // Split by spaces but preserve quoted strings
+    const terms = searchQuery.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+
+    terms.forEach((term) => {
+      const lower = term.toLowerCase();
+
+      // Check for prefixes
+      if (lower.startsWith('token:')) {
+        tokens.push(term.substring(6).replace(/"/g, ''));
+      } else if (lower.startsWith('tag:')) {
+        tags.push(term.substring(4).replace(/"/g, ''));
+      } else if (lower.startsWith('wallet:')) {
+        wallets.push(term.substring(7).replace(/"/g, ''));
+      } else if (lower === 'gem' || lower === 'dud') {
+        statuses.push(lower as 'gem' | 'dud');
+      } else {
+        // No prefix - add to general search
+        general.push(term.replace(/"/g, ''));
+      }
+    });
+
+    return { tokens, tags, wallets, statuses, general };
+  }, [searchQuery]);
+
+  // Filtered wallets (applied before sorting)
+  const filteredWallets = useMemo(() => {
     if (!multiWallets?.wallets) return [];
 
-    const walletsCopy = [...multiWallets.wallets];
+    const filtered = multiWallets.wallets.filter((wallet) => {
+      // Search filter (applied first, combines with other filters using AND)
+      if (searchQuery.trim()) {
+        let passesSearch = false;
+
+        // If there are any specific prefix searches, check those
+        const hasSpecificSearch = parsedSearch.tokens.length > 0 ||
+                                   parsedSearch.tags.length > 0 ||
+                                   parsedSearch.wallets.length > 0 ||
+                                   parsedSearch.statuses.length > 0;
+
+        if (hasSpecificSearch) {
+          // Token name search (OR logic for multiple token: terms)
+          if (parsedSearch.tokens.length > 0) {
+            // Split comma-separated token names string (backend sends string[], but it's comma-separated)
+            const tokenNamesRaw = wallet.token_names as string[] | string;
+            const tokenNamesArray = Array.isArray(tokenNamesRaw)
+              ? tokenNamesRaw
+              : (tokenNamesRaw as string).split(',').map((n: string) => n.trim());
+
+            // Check if any search term matches any token name (with fuzzy matching)
+            const hasMatch = parsedSearch.tokens.some(searchTerm =>
+              tokenNamesArray.some((tokenName: string) => {
+                const similarity = fuzzyMatch(searchTerm, tokenName);
+                return similarity >= 0.7; // 70% similarity threshold
+              })
+            );
+
+            if (hasMatch) {
+              passesSearch = true;
+            }
+          }
+
+          // Tag search (OR logic for multiple tag: terms)
+          if (parsedSearch.tags.length > 0) {
+            const walletTags = walletTagsCache[wallet.wallet_address] || [];
+            const walletTagNames = walletTags.map(t => t.tag.toLowerCase());
+            if (parsedSearch.tags.some(term => walletTagNames.includes(term.toLowerCase()))) {
+              passesSearch = true;
+            }
+          }
+
+          // Wallet address search (OR logic for multiple wallet: terms)
+          if (parsedSearch.wallets.length > 0) {
+            if (parsedSearch.wallets.some(term =>
+              wallet.wallet_address.toLowerCase().includes(term.toLowerCase())
+            )) {
+              passesSearch = true;
+            }
+          }
+
+          // Status search (gem/dud)
+          if (parsedSearch.statuses.length > 0) {
+            for (const status of parsedSearch.statuses) {
+              if (status === 'gem' && wallet.gem_statuses.some(s => s === 'gem')) {
+                passesSearch = true;
+                break;
+              }
+              if (status === 'dud' && wallet.gem_statuses.some(s => s === 'dud')) {
+                passesSearch = true;
+                break;
+              }
+            }
+          }
+        }
+
+        // General search (no prefix) - searches all fields (OR logic) with fuzzy matching
+        if (parsedSearch.general.length > 0) {
+          for (const term of parsedSearch.general) {
+            // Search in token names with fuzzy matching
+            const tokenNamesRaw = wallet.token_names as string[] | string;
+            const tokenNamesArray = Array.isArray(tokenNamesRaw)
+              ? tokenNamesRaw
+              : (tokenNamesRaw as string).split(',').map((n: string) => n.trim());
+
+            const hasTokenMatch = tokenNamesArray.some((tokenName: string) => {
+              const similarity = fuzzyMatch(term, tokenName);
+              return similarity >= 0.7;
+            });
+
+            if (hasTokenMatch) {
+              passesSearch = true;
+              break;
+            }
+
+            // Search in wallet address (exact partial match, no fuzzy)
+            if (wallet.wallet_address.toLowerCase().includes(term.toLowerCase())) {
+              passesSearch = true;
+              break;
+            }
+
+            // Search in tags with fuzzy matching
+            const walletTags = walletTagsCache[wallet.wallet_address] || [];
+            const hasTagMatch = walletTags.some(t => {
+              const similarity = fuzzyMatch(term, t.tag);
+              return similarity >= 0.7;
+            });
+
+            if (hasTagMatch) {
+              passesSearch = true;
+              break;
+            }
+
+            // Search in gem/dud status
+            const lowerTerm = term.toLowerCase();
+            if (lowerTerm === 'gem' && wallet.gem_statuses.some(s => s === 'gem')) {
+              passesSearch = true;
+              break;
+            }
+            if (lowerTerm === 'dud' && wallet.gem_statuses.some(s => s === 'dud')) {
+              passesSearch = true;
+              break;
+            }
+          }
+        }
+
+        if (!passesSearch) {
+          return false;
+        }
+      }
+
+      // Wallet tags filter (OR logic within this category)
+      if (mtwFilters.walletTags.length > 0) {
+        const walletTags = walletTagsCache[wallet.wallet_address] || [];
+        const walletTagNames = walletTags.map(t => t.tag.charAt(0).toUpperCase() + t.tag.slice(1));
+
+        // Check if wallet has ANY of the selected tags (OR logic)
+        const hasAnySelectedTag = mtwFilters.walletTags.some(selectedTag =>
+          walletTagNames.includes(selectedTag)
+        );
+
+        if (!hasAnySelectedTag) {
+          return false;
+        }
+      }
+
+      // Token status filter (OR logic for each checkbox, AND across categories)
+      const tokenStatusFilters = mtwFilters.tokenStatus;
+      const hasAnyTokenStatusFilter =
+        tokenStatusFilters.hasGems ||
+        tokenStatusFilters.hasDuds ||
+        tokenStatusFilters.hasUntagged ||
+        tokenStatusFilters.allGems ||
+        tokenStatusFilters.allDuds;
+
+      if (hasAnyTokenStatusFilter) {
+        let passesTokenStatus = false;
+
+        // Check if wallet has at least one GEM
+        if (tokenStatusFilters.hasGems) {
+          const hasGem = wallet.gem_statuses.some(status => status === 'gem');
+          if (hasGem) passesTokenStatus = true;
+        }
+
+        // Check if wallet has at least one DUD
+        if (tokenStatusFilters.hasDuds) {
+          const hasDud = wallet.gem_statuses.some(status => status === 'dud');
+          if (hasDud) passesTokenStatus = true;
+        }
+
+        // Check if wallet has at least one untagged token
+        if (tokenStatusFilters.hasUntagged) {
+          const hasUntagged = wallet.gem_statuses.some(status => status === null);
+          if (hasUntagged) passesTokenStatus = true;
+        }
+
+        // Check if ALL tokens are GEMs
+        if (tokenStatusFilters.allGems) {
+          const allGems = wallet.gem_statuses.every(status => status === 'gem');
+          if (allGems && wallet.gem_statuses.length > 0) passesTokenStatus = true;
+        }
+
+        // Check if ALL tokens are DUDs
+        if (tokenStatusFilters.allDuds) {
+          const allDuds = wallet.gem_statuses.every(status => status === 'dud');
+          if (allDuds && wallet.gem_statuses.length > 0) passesTokenStatus = true;
+        }
+
+        if (!passesTokenStatus) return false;
+      }
+
+      // Balance range filter (AND logic)
+      if (mtwFilters.balanceRange.min !== null || mtwFilters.balanceRange.max !== null) {
+        const balance = wallet.wallet_balance_usd ?? 0;
+
+        if (mtwFilters.balanceRange.min !== null && balance < mtwFilters.balanceRange.min) {
+          return false;
+        }
+
+        if (mtwFilters.balanceRange.max !== null && balance > mtwFilters.balanceRange.max) {
+          return false;
+        }
+      }
+
+      // Token count range filter (AND logic)
+      if (mtwFilters.tokenCountRange.min !== null || mtwFilters.tokenCountRange.max !== null) {
+        const tokenCount = wallet.token_count;
+
+        if (mtwFilters.tokenCountRange.min !== null && tokenCount < mtwFilters.tokenCountRange.min) {
+          return false;
+        }
+
+        if (mtwFilters.tokenCountRange.max !== null && tokenCount > mtwFilters.tokenCountRange.max) {
+          return false;
+        }
+      }
+
+      // Top holder filter (AND logic)
+      if (mtwFilters.topHolder.isTopHolder || mtwFilters.topHolder.top5Only) {
+        const topHolderCount = topHolderCounts.get(wallet.wallet_address) ?? 0;
+
+        if (mtwFilters.topHolder.isTopHolder && topHolderCount === 0) {
+          return false;
+        }
+
+        if (mtwFilters.topHolder.top5Only) {
+          // For "top 5 only" we need to check if the wallet is in top 5 of any token
+          // This is more complex - for now we'll just check if they're a top holder
+          // TODO: Enhance this to actually check rank position
+          if (topHolderCount === 0) return false;
+        }
+      }
+
+      return true;
+    });
+
+    console.log('MTWT Filters:', {
+      totalWallets: multiWallets.wallets.length,
+      filteredWallets: filtered.length,
+      activeFilters: mtwFilters
+    });
+
+    return filtered;
+  }, [multiWallets, mtwFilters, topHolderCounts, walletTagsCache, parsedSearch, searchQuery]);
+
+  // Sorted wallets (applied before pagination/virtualization)
+  const sortedWallets = useMemo(() => {
+    if (!filteredWallets.length) return [];
+
+    const walletsCopy = [...filteredWallets];
 
     if (!sortColumn) return walletsCopy;
 
@@ -759,7 +1745,7 @@ export default function TokensPage() {
     });
 
     return walletsCopy;
-  }, [multiWallets, sortColumn, sortDirection]);
+  }, [filteredWallets, sortColumn, sortDirection]);
 
   // Pagination logic for multi-token wallets (collapsed mode)
   const walletsPaginated = useMemo(() => {
@@ -994,18 +1980,288 @@ export default function TokensPage() {
           </Popover>
         </div>
 
-        {/* Multi-Token Wallets Section */}
+        {/* Multi-Token Early Wallets Section */}
         {multiWallets && multiWallets.total > 0 && (
-          <div className='bg-card rounded-lg border p-3'>
-            <div className='mb-1 flex items-center gap-2'>
-              <h2 className='text-base font-bold'>Multi-Token Wallets</h2>
-              <span className='bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-semibold'>
-                {multiWallets.total}
-              </span>
+          <div ref={mtwSectionRef} className='bg-card rounded-lg border p-3'>
+            {/* Sticky Header with Title, Filters, Search, and Scroll to Top */}
+            <div className='sticky top-0 z-10 bg-card pb-2 pt-1'>
+              {/* Three-section layout: Title (left) | Filters + Search (center) | Scroll to Top (right) */}
+              <div className='relative flex items-start justify-between gap-4'>
+                {/* Left: Title and Count */}
+                <div className='flex shrink-0 items-center gap-2 pt-2'>
+                  <Image
+                    src="/icons/tokens/bunny_icon.png"
+                    alt="Bunny"
+                    width={24}
+                    height={24}
+                    className='h-6 w-6'
+                  />
+                  <h2 className='text-base font-bold whitespace-nowrap'>Multi-Token Early Wallets</h2>
+                  <span className='bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-semibold'>
+                    {filteredWallets.length}
+                  </span>
+                  {filteredWallets.length !== multiWallets.total && (
+                    <span className='text-muted-foreground text-xs whitespace-nowrap'>
+                      of {multiWallets.total}
+                    </span>
+                  )}
+                </div>
+
+                {/* Center: Filters and Search */}
+                <div className='flex flex-1 flex-col items-center gap-2'>
+                  {/* Filters Button */}
+                  <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant='outline' size='sm' className='h-7 gap-1.5'>
+                        <Filter className='h-3.5 w-3.5' />
+                        Filters
+                        {(() => {
+                          const activeCount =
+                            mtwFilters.walletTags.length +
+                            (mtwFilters.tokenStatus.hasGems ? 1 : 0) +
+                            (mtwFilters.tokenStatus.hasDuds ? 1 : 0) +
+                            (mtwFilters.tokenStatus.hasUntagged ? 1 : 0) +
+                            (mtwFilters.tokenStatus.allGems ? 1 : 0) +
+                            (mtwFilters.tokenStatus.allDuds ? 1 : 0) +
+                            (mtwFilters.balanceRange.min !== null || mtwFilters.balanceRange.max !== null ? 1 : 0) +
+                            (mtwFilters.tokenCountRange.min !== null || mtwFilters.tokenCountRange.max !== null ? 1 : 0) +
+                            (mtwFilters.topHolder.isTopHolder ? 1 : 0);
+                          return activeCount > 0 ? (
+                            <span className='bg-primary text-primary-foreground ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold'>
+                              {activeCount}
+                            </span>
+                          ) : null;
+                        })()}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className='w-auto p-4' align='center'>
+                      <MTWTFilterPopover
+                        filters={mtwFilters}
+                        onChange={setMtwFilters}
+                        onClear={() => setMtwFilters(DEFAULT_MTWT_FILTERS)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Search Bar */}
+                  <div className='relative flex w-full max-w-md items-center gap-1'>
+                    <div className='relative flex-1'>
+                      <Search className='text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2' />
+                      <input
+                        type='text'
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder='Search tokens, wallets, tags... (try "gem token:Ant")'
+                        className='h-8 w-full rounded-md border bg-background pl-9 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary'
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className='text-muted-foreground hover:text-foreground absolute right-2 top-1/2 -translate-y-1/2'
+                        >
+                          <X className='h-3.5 w-3.5' />
+                        </button>
+                      )}
+                    </div>
+                    <Popover open={isSearchHelpOpen} onOpenChange={setIsSearchHelpOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className='h-8 w-8 p-0'
+                          aria-label='Search help'
+                        >
+                          <Info className='h-4 w-4' />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className='w-auto p-4' align='center'>
+                        <SearchHelpPopover />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                {/* Right: Scroll to Top Button (always visible) */}
+                <div className='shrink-0 pt-2'>
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          className='h-7 w-7 p-0'
+                          onClick={scrollToTop}
+                          aria-label='Scroll to top'
+                        >
+                          <ChevronUp className='h-4 w-4' />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='text-xs'>Scroll to top</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
             </div>
-            <p className='text-muted-foreground mb-2 text-xs'>
+
+            <p className='text-muted-foreground mb-2 text-center text-xs'>
               Wallets appearing in multiple analyzed tokens
             </p>
+
+            {/* Active Filters Chips */}
+            {(() => {
+              const activeFilters: Array<{ label: string; onRemove: () => void }> = [];
+
+              // Wallet tags filters
+              mtwFilters.walletTags.forEach((tag) => {
+                activeFilters.push({
+                  label: `Tag: ${tag}`,
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      walletTags: mtwFilters.walletTags.filter((t) => t !== tag)
+                    })
+                });
+              });
+
+              // Token status filters
+              if (mtwFilters.tokenStatus.hasGems) {
+                activeFilters.push({
+                  label: 'Has GEMs',
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      tokenStatus: { ...mtwFilters.tokenStatus, hasGems: false }
+                    })
+                });
+              }
+              if (mtwFilters.tokenStatus.hasDuds) {
+                activeFilters.push({
+                  label: 'Has DUDs',
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      tokenStatus: { ...mtwFilters.tokenStatus, hasDuds: false }
+                    })
+                });
+              }
+              if (mtwFilters.tokenStatus.hasUntagged) {
+                activeFilters.push({
+                  label: 'Has untagged',
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      tokenStatus: { ...mtwFilters.tokenStatus, hasUntagged: false }
+                    })
+                });
+              }
+              if (mtwFilters.tokenStatus.allGems) {
+                activeFilters.push({
+                  label: 'All GEMs',
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      tokenStatus: { ...mtwFilters.tokenStatus, allGems: false }
+                    })
+                });
+              }
+              if (mtwFilters.tokenStatus.allDuds) {
+                activeFilters.push({
+                  label: 'All DUDs',
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      tokenStatus: { ...mtwFilters.tokenStatus, allDuds: false }
+                    })
+                });
+              }
+
+              // Balance range filter
+              if (mtwFilters.balanceRange.min !== null || mtwFilters.balanceRange.max !== null) {
+                const min = mtwFilters.balanceRange.min;
+                const max = mtwFilters.balanceRange.max;
+                let label = 'Balance: ';
+                if (min !== null && max !== null) {
+                  label += `$${min.toLocaleString()} - $${max.toLocaleString()}`;
+                } else if (min !== null) {
+                  label += `≥ $${min.toLocaleString()}`;
+                } else if (max !== null) {
+                  label += `≤ $${max.toLocaleString()}`;
+                }
+                activeFilters.push({
+                  label,
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      balanceRange: { min: null, max: null }
+                    })
+                });
+              }
+
+              // Token count range filter
+              if (mtwFilters.tokenCountRange.min !== null || mtwFilters.tokenCountRange.max !== null) {
+                const min = mtwFilters.tokenCountRange.min;
+                const max = mtwFilters.tokenCountRange.max;
+                let label = 'Tokens: ';
+                if (min !== null && max !== null) {
+                  label += `${min} - ${max}`;
+                } else if (min !== null) {
+                  label += `≥ ${min}`;
+                } else if (max !== null) {
+                  label += `≤ ${max}`;
+                }
+                activeFilters.push({
+                  label,
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      tokenCountRange: { min: null, max: null }
+                    })
+                });
+              }
+
+              // Top holder filter
+              if (mtwFilters.topHolder.isTopHolder) {
+                activeFilters.push({
+                  label: 'Is top holder',
+                  onRemove: () =>
+                    setMtwFilters({
+                      ...mtwFilters,
+                      topHolder: { ...mtwFilters.topHolder, isTopHolder: false }
+                    })
+                });
+              }
+
+              if (activeFilters.length === 0) return null;
+
+              return (
+                <div className='mb-3 flex flex-wrap gap-1.5'>
+                  {activeFilters.map((filter, index) => (
+                    <span
+                      key={index}
+                      className='bg-primary/10 text-primary flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium'
+                    >
+                      {filter.label}
+                      <button
+                        onClick={filter.onRemove}
+                        className='hover:bg-primary/20 rounded-full p-0.5 transition-colors'
+                      >
+                        <X className='h-2.5 w-2.5' />
+                      </button>
+                    </span>
+                  ))}
+                  {activeFilters.length > 1 && (
+                    <button
+                      onClick={() => setMtwFilters(DEFAULT_MTWT_FILTERS)}
+                      className='text-muted-foreground hover:text-foreground text-xs underline'
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Top Selection Controls - Sticky Bar */}
             {selectedWallets.size > 0 && (
@@ -1340,6 +2596,23 @@ export default function TokensPage() {
                               walletAddress={wallet.wallet_address}
                               compact
                             />
+                            {/* Top Holder Tag */}
+                            {topHolderCounts.has(wallet.wallet_address) && topHolderCounts.get(wallet.wallet_address)! > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedWalletForTopHolders(wallet.wallet_address);
+                                  setIsWalletTopHoldersModalOpen(true);
+                                }}
+                                className='relative rounded bg-purple-500/90 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-purple-600 transition-colors uppercase'
+                              >
+                                TOP HOLDER
+                                {/* Notification Badge */}
+                                <span className='absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border border-background'>
+                                  {topHolderCounts.get(wallet.wallet_address)}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td className='px-4 py-1.5 text-center'>
@@ -1497,6 +2770,7 @@ export default function TokensPage() {
           tokens={filteredTokens}
           onDelete={handleTokenDelete}
           onGemStatusUpdate={refetchMultiWallets}
+          onTokenDataRefresh={fetchData}
         />
       </div>
 
@@ -1528,6 +2802,18 @@ export default function TokensPage() {
         isFiltered={!!(dateRange.from || dateRange.to)}
         filteredCount={filteredTokens.length}
       />
+
+      {/* Wallet Top Holders Modal */}
+      {selectedWalletForTopHolders && (
+        <WalletTopHoldersModal
+          walletAddress={selectedWalletForTopHolders}
+          open={isWalletTopHoldersModalOpen}
+          onClose={() => {
+            setIsWalletTopHoldersModalOpen(false);
+            setSelectedWalletForTopHolders(null);
+          }}
+        />
+      )}
     </WalletTagsProvider>
   );
 }

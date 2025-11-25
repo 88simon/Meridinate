@@ -112,6 +112,7 @@ DEFAULT_API_SETTINGS = {
     "apiRateDelay": 100,
     "maxCreditsPerAnalysis": 1000,
     "maxRetries": 3,
+    "topHoldersLimit": 10,
 }
 
 DEFAULT_THRESHOLD = 100

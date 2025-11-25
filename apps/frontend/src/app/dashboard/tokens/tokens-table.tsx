@@ -24,7 +24,6 @@ import {
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
-  Eye,
   Download,
   Trash2,
   Search,
@@ -74,6 +73,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useCodex } from '@/contexts/codex-context';
 import { cn } from '@/lib/utils';
 
@@ -465,7 +465,7 @@ const ActionsCell = memo(
     onViewTopHolders: () => void;
   }) => {
     const btnSize = isCompact ? 'h-7 w-7' : 'h-8 w-8';
-    const iconSize = isCompact ? 'h-3 w-3' : 'h-4 w-4';
+    const iconSize = isCompact ? 'h-4 w-4' : 'h-5 w-5';
 
     return (
       <div className={cn('flex', isCompact ? 'gap-1' : 'gap-2')}>
@@ -478,7 +478,13 @@ const ActionsCell = memo(
                 className={cn('p-0', btnSize)}
                 onClick={onViewDetails}
               >
-                <Eye className={iconSize} />
+                <Image
+                  src="/icons/tokens/bunny_icon.png"
+                  alt="View Details"
+                  width={isCompact ? 16 : 20}
+                  height={isCompact ? 16 : 20}
+                  className={iconSize}
+                />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -558,7 +564,9 @@ const createColumns = (
   refreshingAll: boolean,
   isCompact: boolean = false,
   apiSettings: AnalysisSettings | null = null,
-  setApiSettings: (settings: AnalysisSettings | null) => void = () => {}
+  setApiSettings: (settings: AnalysisSettings | null) => void = () => {},
+  isUpdatingSettings: boolean = false,
+  setIsUpdatingSettings: (updating: boolean) => void = () => {}
 ): ColumnDef<Token>[] => [
   {
     accessorKey: 'token_name',
@@ -725,29 +733,51 @@ const createColumns = (
                 <label className='text-xs font-medium'>Number of Holders</label>
                 <Select
                   value={apiSettings?.topHoldersLimit?.toString() ?? '10'}
+                  disabled={isUpdatingSettings}
                   onValueChange={async (value) => {
                     const newLimit = parseInt(value);
+                    setIsUpdatingSettings(true);
+
                     try {
+                      // Send update to backend (supports partial updates)
                       const response = await fetch(
                         `${API_BASE_URL}/api/settings`,
                         {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            ...apiSettings,
                             topHoldersLimit: newLimit
                           })
                         }
                       );
-                      if (response.ok) {
-                        const settings = await getApiSettings();
-                        setApiSettings(settings);
+
+                      if (!response.ok) {
+                        throw new Error('Failed to update settings');
+                      }
+
+                      const data = await response.json();
+
+                      // Backend returns {status: 'success', settings: {...}}
+                      if (data.settings) {
+                        setApiSettings(data.settings);
                         toast.success(
                           `Top holders limit updated to ${newLimit}`
                         );
+                      } else {
+                        throw new Error('Invalid response format');
                       }
-                    } catch (error) {
-                      toast.error('Failed to update settings');
+                    } catch (error: any) {
+                      toast.error(error.message || 'Failed to update settings');
+
+                      // Re-fetch settings to ensure UI is in sync
+                      try {
+                        const settings = await getApiSettings();
+                        setApiSettings(settings);
+                      } catch {
+                        // Silently fail
+                      }
+                    } finally {
+                      setIsUpdatingSettings(false);
                     }
                   }}
                 >
@@ -755,7 +785,7 @@ const createColumns = (
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((limit) => (
+                    {[5, 10, 15, 20].map((limit) => (
                       <SelectItem key={limit} value={limit.toString()}>
                         Top {limit}
                       </SelectItem>
@@ -873,12 +903,14 @@ interface TokensTableProps {
   tokens: Token[];
   onDelete?: (tokenId: number) => void;
   onGemStatusUpdate?: () => Promise<void>;
+  onTokenDataRefresh?: () => void;
 }
 
 export function TokensTable({
   tokens,
   onDelete,
-  onGemStatusUpdate
+  onGemStatusUpdate,
+  onTokenDataRefresh
 }: TokensTableProps) {
   const router = useRouter();
   const { isCodexOpen } = useCodex();
@@ -894,6 +926,7 @@ export function TokensTable({
   );
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [apiSettings, setApiSettings] = useState<AnalysisSettings | null>(null);
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -1001,7 +1034,9 @@ export function TokensTable({
     } catch (error) {
       toast.error('Failed to delete token. Please try again.');
       // On error, refresh to restore correct state
-      router.refresh();
+      if (onTokenDataRefresh) {
+        onTokenDataRefresh();
+      }
     }
   };
 
@@ -1030,7 +1065,9 @@ export function TokensTable({
         toast.success(
           `Market cap updated: $${result.market_cap_usd_current?.toLocaleString() || 'N/A'}`
         );
-        router.refresh();
+        if (onTokenDataRefresh) {
+          onTokenDataRefresh();
+        }
       } else {
         toast.error('Failed to refresh market cap - no data returned');
       }
@@ -1147,7 +1184,9 @@ export function TokensTable({
       toast.success(
         `Refreshed ${response.successful}/${response.total_tokens} market caps (${response.api_credits_used} credits)`
       );
-      router.refresh();
+      if (onTokenDataRefresh) {
+        onTokenDataRefresh();
+      }
     } catch (error) {
       toast.error(
         `Failed to refresh market caps: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -1187,7 +1226,9 @@ export function TokensTable({
       toast.success(
         `Refreshed ${response.successful}/${response.total_tokens} market caps (${response.api_credits_used} credits)`
       );
-      router.refresh();
+      if (onTokenDataRefresh) {
+        onTokenDataRefresh();
+      }
     } catch (error) {
       toast.error('Failed to refresh market caps');
     } finally {
@@ -1243,10 +1284,20 @@ export function TokensTable({
   }, []);
 
   // Handle refresh completion from modal
-  const handleTopHoldersRefreshComplete = useCallback(() => {
-    // Refresh the table to show updated credits
-    router.refresh();
-  }, [router]);
+  const handleTopHoldersRefreshComplete = useCallback(async () => {
+    // Refresh API settings to get updated topHoldersLimit
+    try {
+      const settings = await getApiSettings();
+      setApiSettings(settings);
+    } catch {
+      // Silently fail - not critical
+    }
+
+    // Refresh token data to show updated credits and top_holders_updated_at
+    if (onTokenDataRefresh) {
+      onTokenDataRefresh();
+    }
+  }, [onTokenDataRefresh]);
 
   const handleBulkDownload = () => {
     if (selectedTokenIds.size === 0) {
@@ -1304,10 +1355,14 @@ export function TokensTable({
       setSelectedTokenIds(new Set());
 
       // Refresh to sync with server
-      router.refresh();
+      if (onTokenDataRefresh) {
+        onTokenDataRefresh();
+      }
     } catch (error) {
       toast.error('Failed to delete some tokens. Please try again.');
-      router.refresh();
+      if (onTokenDataRefresh) {
+        onTokenDataRefresh();
+      }
     }
   };
 
@@ -1366,7 +1421,9 @@ export function TokensTable({
         refreshingAll,
         isCompactMode,
         apiSettings,
-        setApiSettings
+        setApiSettings,
+        isUpdatingSettings,
+        setIsUpdatingSettings
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -1374,6 +1431,7 @@ export function TokensTable({
       refreshingMarketCaps,
       refreshingAll,
       apiSettings,
+      isUpdatingSettings,
       handleRefreshAllMarketCaps,
       handleGemStatusChange,
       handleViewTopHolders
@@ -1605,6 +1663,7 @@ export function TokensTable({
         <TopHoldersModal
           tokenAddress={selectedTokenForHolders.token_address}
           tokenSymbol={selectedTokenForHolders.token_symbol}
+          tokenName={selectedTokenForHolders.token_name}
           initialHolders={selectedTokenForHolders.top_holders || null}
           lastUpdated={selectedTokenForHolders.top_holders_updated_at || null}
           open={isTopHoldersModalOpen}

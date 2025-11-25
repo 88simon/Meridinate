@@ -147,7 +147,7 @@ The service starts on **http://localhost:5003** with:
 | `GET` | `/api/tokens/{id}/tags` | Get token tags (GEM/DUD) | - |
 | `POST` | `/api/tokens/{id}/tags` | Add tag to token | - |
 | `DELETE` | `/api/tokens/{id}/tags` | Remove tag from token | - |
-| `GET` | `/api/tokens/{mint_address}/top-holders` | Get top 10 token holders with USD balances | 30/hour |
+| `GET` | `/api/tokens/{mint_address}/top-holders` | Get top N token holders with USD balances (N: 5-20, default 10) | 30/hour |
 
 ### Wallet Management
 
@@ -160,15 +160,18 @@ The service starts on **http://localhost:5003** with:
 | `POST` | `/wallets/{address}/tags` | Add tag to wallet |
 | `DELETE` | `/wallets/{address}/tags` | Remove tag from wallet |
 | `POST` | `/wallets/batch-tags` | Get tags for multiple wallets |
+| `GET` | `/wallets/{address}/top-holder-tokens` | Get all tokens where wallet is a top holder (full data) |
+| `POST` | `/wallets/batch-top-holder-counts` | Get top holder counts for multiple wallets (optimized) |
 
-**Multi-Token Wallets Features:**
+**Multi-Token Early Wallets Features:**
 - Returns wallets appearing in 2+ analyzed tokens
 - Includes `is_new` boolean flag for newly added wallets
 - Includes `marked_at_analysis_id` to identify which token caused multi-token status
 - Tracks NEW status in `multi_token_wallet_metadata` table
 - NEW flags cleared on next analysis completion
 
-**Top 10 Token Holders Feature:**
+**Top Holders Feature:**
+- Configurable limit: 5-20 holders (default: 10, aligned with Helius API cap)
 - Automatically fetched during token analysis (non-blocking)
 - Resolves token account addresses to wallet owner addresses
 - Filters out program-derived addresses (only on-curve wallets)
@@ -177,6 +180,13 @@ The service starts on **http://localhost:5003** with:
 - Stored in database as JSON with timestamp (`top_holders_json`, `top_holders_updated_at`)
 - Manual refresh updates data and adds credits to cumulative total
 - API Credits: 11-21 credits per fetch (varies based on caching)
+- Default setting now included in `DEFAULT_API_SETTINGS` for cold start compatibility
+
+**Wallet Top Holders Optimization:**
+- `POST /wallets/batch-top-holder-counts` - Returns only counts for badge display
+- 98% bandwidth reduction vs individual lookups (50 requests to 1, 3000 records to 50 numbers)
+- 5-minute cache to prevent hot-looping on scroll
+- Client-side refetch callbacks for instant updates without page reload
 
 ### Watchlist
 

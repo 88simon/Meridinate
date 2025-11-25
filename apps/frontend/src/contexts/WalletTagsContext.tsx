@@ -131,3 +131,13 @@ export function useWalletTags(walletAddress: string): {
     isLoading: context.isLoading
   };
 }
+
+export function useWalletTagsCache(): WalletTagsCache {
+  const context = useContext(WalletTagsContext);
+
+  if (context === undefined) {
+    throw new Error('useWalletTagsCache must be used within a WalletTagsProvider');
+  }
+
+  return context.tagsCache;
+}

@@ -110,6 +110,7 @@ def run_token_analysis_sync(
             max_transactions=max_transactions,
             max_credits=max_credits,
             max_wallets_to_store=max_wallets,
+            top_holders_limit=CURRENT_API_SETTINGS.get("topHoldersLimit", 10),
         )
 
         # Extract token info
@@ -156,6 +157,7 @@ def run_token_analysis_sync(
             credits_used=result.get("api_credits_used", 0),
             max_wallets=max_wallets,
             market_cap_usd=result.get("market_cap_usd"),
+            top_holders=result.get("top_holders"),
         )
         log_info("Saved token to database", token_id=token_id, acronym=acronym)
 

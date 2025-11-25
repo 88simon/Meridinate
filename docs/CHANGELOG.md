@@ -8,6 +8,68 @@
 
 ## Recent Bug Fixes & Technical Notes
 
+### Multi-Token Early Wallets Rebrand with Bunny Icon (Nov 25, 2025)
+
+**Feature:** Renamed "Multi-Token Wallets" to "Multi-Token Early Wallets" and added bunny icon branding throughout the application.
+
+**Changes Implemented:**
+
+1. **Section Title Rename:**
+   - Changed from "Multi-Token Wallets" to "Multi-Token Early Wallets"
+   - Updated all code references and comments to use new naming
+   - Added bunny icon next to section title
+
+2. **View Details Button Icon:**
+   - Replaced Eye icon with bunny icon in tokens table
+   - Uses Next.js Image component for automatic optimization
+
+3. **Icon Implementation:**
+   - Created icon folder structure: `apps/frontend/public/icons/tokens/`
+   - Used Next.js Image component for automatic WebP/AVIF conversion
+   - Icon sizes: 24x24 for title, 16x16 (compact) / 20x20 (normal) for buttons
+
+4. **Performance Optimization:**
+   - Next.js Image component provides automatic lazy loading
+   - Automatic format conversion reduces 1.3 MB PNG to ~50-100 KB WebP at runtime
+   - Zero bundle size impact (images served statically)
+
+**Files Modified:**
+- `apps/frontend/src/app/dashboard/tokens/page.tsx` - Added Image import, bunny icon to title
+- `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` - Replaced Eye icon with bunny icon
+- `PROJECT_BLUEPRINT.md` - Updated all references to Multi-Token Early Wallets naming
+- `README.md` - Updated feature description
+- `apps/backend/README.md` - Updated API endpoint documentation
+
+**Files Created:**
+- `apps/frontend/public/icons/README.md` - Icon usage documentation
+- `apps/frontend/public/icons/OPTIMIZATION_GUIDE.md` - PNG optimization guide
+- `docs/feature-implementations/multi-token-early-wallets-rebrand.md` - Feature implementation doc
+
+**Developer Notes:**
+- Always use Next.js Image component for custom icons (not raw `<img>` tags)
+- Source PNG at `apps/frontend/public/icons/tokens/bunny_icon.png` is 1.3 MB - consider optimizing with TinyPNG
+- Bunny icon is the signature branding element for the Multi-Token Early Wallets feature
+
+### Top Holders Not Saved During Analysis Fix (Nov 23, 2025)
+
+**Problem:** Top holders data wasn't appearing in the modal after running an analysis - users had to manually refresh to see it for the first time
+
+**Root Cause:** The analysis was fetching top holders data (via `get_top_holders()` in `helius_api.py:1228-1243`) and returning it in the result, but the analysis router wasn't passing it to the database save function
+
+**Investigation:**
+1. Confirmed `analyze_token_early_bidders()` in `helius_api.py:1273` returns `top_holders` data
+2. Confirmed `save_analyzed_token()` in `analyzed_tokens_db.py:734` accepts a `top_holders` parameter
+3. Found missing link: `run_token_analysis_sync()` in `analysis.py:148-159` wasn't passing `top_holders` to the database
+
+**Solution:**
+- Added `top_holders=result.get("top_holders")` parameter to `db.save_analyzed_token()` call (analysis.py:159)
+- Added `top_holders_limit=CURRENT_API_SETTINGS.get("topHoldersLimit", 10)` parameter to `analyzer.analyze_token()` call to use the configurable limit from settings (analysis.py:113)
+
+**Result:** Top holders are now automatically fetched and saved during token analysis - no manual refresh required
+
+**Files Modified:**
+- `apps/backend/src/meridinate/routers/analysis.py` (lines 113, 159)
+
 ### Market Cap Refresh Fix (Nov 18, 2025)
 
 **Problem:** "Refresh all visible market caps" button in token table wasn't working
@@ -931,5 +993,5 @@ https://solscan.io/account/{ADDRESS}?
 
 ---
 
-**Last Updated:** November 23, 2025
+**Last Updated:** November 25, 2025
 **Document Version:** 1.0

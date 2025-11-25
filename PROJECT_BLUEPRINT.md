@@ -73,14 +73,14 @@ C:\Meridinate\
 - ✅ **WebSocket** - Real-time notifications working
 - ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services with automatic process cleanup, uses venv Python explicitly
 - ✅ **Market Cap Refresh** - "Refresh all visible market caps" button fully functional
-- ✅ **Multi-Token Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues, NEW badge indicators for recently added wallets and tokens, sortable columns for all data fields, compressed layout with 40-50% vertical space savings and fixed column widths, unified filter system with wallet tags/token status/balance/token count/top holder filters, smart search with prefix support (token:/tag:/wallet:) and fuzzy matching for typos, both filters and search persist to localStorage and URL for shareable links
+- ✅ **Multi-Token Early Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues, NEW badge indicators for recently added wallets and tokens, sortable columns for all data fields, compressed layout with 40-50% vertical space savings and fixed column widths, unified filter system with wallet tags/token status/balance/token count/top holder filters, smart search with prefix support (token:/tag:/wallet:) and fuzzy matching for typos, both filters and search persist to localStorage and URL for shareable links, bunny icon branding element next to title
 - ✅ **Legacy cleanup** - Old root `backend/` and `frontend/` folders removed
 - ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
 - ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth, sticky table header keeps column names visible during scroll
 - ✅ **CI/CD Pipeline** - Unified monorepo workflow at `.github/workflows/monorepo-ci.yml` with all checks passing
 - ✅ **UI/UX Enhancements** - GMGN.ai integration, enhanced status bar with detailed metrics, MeridinateLogo component in header, Gunslinger/Gambler tags, removed wallet count cap, horizontal pagination arrows
 - ✅ **Top Holders Feature** - Configurable limit (5-20, default 10) via settings UI in Actions column header, automatically fetched during analysis, cached in database, instant modal display with Twitter/Copy icons, manual refresh updates data and credits, uses dedicated or fallback API key, dynamic modal title reflects selected limit, aligned with Helius API cap, sticky refresh button remains visible when scrolling through holder list
-- ✅ **Wallet Top Holders Feature** - Clickable "TOP HOLDER" tag with notification badge in Multi-Token Wallets table, tabbed modal showing all tokens where wallet is a top holder, Chrome-style tabs with rank badges, wallet highlighted in holder list, cached lookups for performance
+- ✅ **Wallet Top Holders Feature** - Clickable "TOP HOLDER" tag with notification badge in Multi-Token Early Wallets table, tabbed modal showing all tokens where wallet is a top holder, Chrome-style tabs with rank badges, wallet highlighted in holder list, cached lookups for performance
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
 
 ---
@@ -153,7 +153,7 @@ C:\Meridinate\                                    # PROJECT ROOT
 │       │   │   │   ├── layout.tsx                # Dashboard layout wrapper
 │       │   │   │   ├── page.tsx                  # Dashboard home
 │       │   │   │   ├── tokens/                   # Token analysis pages
-│       │   │   │   │   ├── page.tsx              # Token list + Multi-Token Wallets panel
+│       │   │   │   │   ├── page.tsx              # Token list + Multi-Token Early Wallets section
 │       │   │   │   │   ├── tokens-table.tsx      # Analyzed tokens data table
 │       │   │   │   │   └── [id]/                 # Dynamic route for token details
 │       │   │   │   │       └── page.tsx          # Individual token detail page
@@ -266,8 +266,9 @@ C:\Meridinate\                                    # PROJECT ROOT
 
 When Simon says...  →  Technical term & Implementation
 
-#### **"Multi-Token Wallets Panel"**
-- **Technical Term:** Multi-Token Wallets Data Table Component
+#### **"Multi-Token Early Wallets Section"**
+- **Technical Term:** Multi-Token Early Wallets Data Table Component
+- **Branding:** Features bunny icon (optimized PNG via Next.js Image component) next to section title
 - **What it is:** A React component that displays wallets appearing as early bidders in multiple analyzed tokens
 - **Location:** `apps/frontend/src/app/dashboard/tokens/page.tsx`
 - **Backend API:** `GET /api/multitokens/wallets` (router: `wallets.py`)
@@ -306,9 +307,9 @@ When Simon says...  →  Technical term & Implementation
   - Achieves 40-50% vertical space reduction per row while maintaining readability
 
 **Correct Terminology:**
-- ✅ "Multi-Token Wallets table"
-- ✅ "Multi-Token Wallets section"
-- ❌ "Multi-Token Wallets panel" (technically a page section, not a panel)
+- ✅ "Multi-Token Early Wallets table"
+- ✅ "Multi-Token Early Wallets section"
+- ❌ "Multi-Token Wallets panel" (old terminology - now called "Multi-Token Early Wallets section")
 
 #### **"Token List" / "Main Dashboard"**
 - **Technical Term:** Token Analysis Dashboard Page
@@ -316,8 +317,8 @@ When Simon says...  →  Technical term & Implementation
 - **Location:** `apps/frontend/src/app/dashboard/tokens/page.tsx`
 - **Route:** `/dashboard/tokens`
 - **Components:**
-  - `TokensTable` - Data table showing analyzed tokens
-  - Multi-Token Wallets section (expandable)
+  - `TokensTable` - Data table showing analyzed tokens with bunny icon for "View Details" button
+  - Multi-Token Early Wallets section (expandable)
   - Action buttons (Refresh, Export, etc.)
 
 #### **"Analyzing a Token"**
@@ -392,7 +393,7 @@ When Simon says...  →  Technical term & Implementation
   5. Cache invalidation - Both `tokens_history` and `multi_early_buyer_wallets` caches cleared
 - **Display Locations:**
   - Token Table - Buttons in market cap cell, badges next to token name
-  - Multi-Token Wallets Panel - Badges shown inline with token names
+  - Multi-Token Early Wallets Section - Badges shown inline with token names
 - **Legacy Field:** `gem_status` column kept for backwards compatibility during migration
 
 #### **"Top Holders Feature"**
@@ -441,12 +442,12 @@ When Simon says...  →  Technical term & Implementation
 - **Location (Backend):** `apps/backend/src/meridinate/routers/wallets.py` (endpoints: `GET /wallets/{wallet_address}/top-holder-tokens`, `POST /wallets/batch-top-holder-counts`)
 - **Location (Frontend):**
   - `apps/frontend/src/app/dashboard/tokens/wallet-top-holders-modal.tsx` - Tabbed modal component
-  - `apps/frontend/src/app/dashboard/tokens/page.tsx` - TOP HOLDER tag in Multi-Token Wallets table
+  - `apps/frontend/src/app/dashboard/tokens/page.tsx` - TOP HOLDER tag in Multi-Token Early Wallets table
 - **API Endpoints:**
   - `GET /wallets/{wallet_address}/top-holder-tokens` - Returns all tokens where wallet is a top holder (full data for modal)
   - `POST /wallets/batch-top-holder-counts` - Returns only counts for multiple wallets (optimized for badge display, 98% bandwidth reduction)
 - **How it works:**
-  1. For each wallet in Multi-Token Wallets table, backend searches all `top_holders_json` fields
+  1. For each wallet in Multi-Token Early Wallets table, backend searches all `top_holders_json` fields
   2. Returns list of tokens where wallet address appears, with wallet rank and holder data
   3. Frontend displays clickable "TOP HOLDER" tag with red notification badge showing count
   4. Clicking tag opens tabbed modal with Chrome-style tabs (one tab per token)
@@ -460,7 +461,7 @@ When Simon says...  →  Technical term & Implementation
   - `last_updated` - Timestamp of last refresh
 - **UI Features:**
   - Purple "TOP HOLDER" tag with red circular notification badge (shows count)
-  - First clickable tag in Multi-Token Wallets table
+  - First clickable tag in Multi-Token Early Wallets table
   - Chrome-style horizontal tabs with token names
   - Rank badge on each tab (e.g., "#3")
   - Highlighted row for the selected wallet in holders table
@@ -476,8 +477,8 @@ When Simon says...  →  Technical term & Implementation
   - Client-side refetch callbacks replace router.refresh() for instant updates without full page reload
   - Optimistic UI updates with local state before server sync
 
-#### **"Multi-Token Wallets Filter and Search System" (Nov 2025)**
-- **Technical Term:** Unified Filter and Smart Search Interface for Multi-Token Wallets Table
+#### **"Multi-Token Early Wallets Filter and Search System" (Nov 2025)**
+- **Technical Term:** Unified Filter and Smart Search Interface for Multi-Token Early Wallets Table
 - **What it is:** Comprehensive filtering and search system with smart prefix support, fuzzy matching, and persistent state
 - **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/page.tsx`
 - **Components:**
@@ -564,7 +565,7 @@ When discussing the project with AI assistants, use these precise terms:
 
 | What Simon Might Say | Correct Technical Term | Explanation |
 |----------------------|------------------------|-------------|
-| "The panel where I see wallets" | "Multi-Token Wallets table" | A data table component, not a floating panel |
+| "The panel where I see wallets" / "Multi-Token Wallets" | "Multi-Token Early Wallets table/section" | Renamed to emphasize early bidder analysis - features bunny icon branding |
 | "Opening the app" | "Starting the development server" | Running `scripts/start.bat` launches 3 services |
 | "The localhost page" | "Local development environment" | Browser accessing `http://localhost:3000` |
 | "The backend thingy" | "FastAPI backend server" | Python server running on port 5003 |
@@ -586,11 +587,11 @@ When discussing the project with AI assistants, use these precise terms:
 - Why: Node.js is the runtime; `node_modules` are project dependencies
 
 ❌ **"The panel isn't loading"**
-- ✅ Correct: "The Multi-Token Wallets table isn't rendering" or "The API request to `/api/multitokens/wallets` is failing"
+- ✅ Correct: "The Multi-Token Early Wallets table isn't rendering" or "The API request to `/api/multitokens/wallets` is failing"
 - Why: Helps AI diagnose if it's a frontend rendering issue vs backend API issue
 
 ❌ **"Can you update the panel?"**
-- ✅ Correct: "Can you modify the Multi-Token Wallets table component?" (if referring to UI) OR "Can you update the `/api/multitokens/wallets` endpoint?" (if referring to data)
+- ✅ Correct: "Can you modify the Multi-Token Early Wallets table component?" (if referring to UI) OR "Can you update the `/api/multitokens/wallets` endpoint?" (if referring to data)
 - Why: Clarifies whether it's a frontend or backend change
 
 ---
@@ -732,7 +733,7 @@ pnpm install
   - Clerk authentication
 
 - ✅ **Phase 3: Advanced Features** (2025 Q2-Q3)
-  - Multi-Token Wallets analysis
+  - Multi-Token Early Wallets analysis
   - Wallet tagging system
   - Market cap tracking (ATH, current, at-analysis)
   - Watchlist service
@@ -919,7 +920,7 @@ pnpm install
    - Main Dashboard: `apps/frontend/src/app/dashboard/tokens/page.tsx`
 
 4. **Common User Terms:**
-   - "Multi-Token Wallets panel" = Multi-Token Wallets table/section
+   - "Multi-Token Wallets panel" = Multi-Token Early Wallets table/section (renamed with bunny icon branding)
    - "Action wheel" = AutoHotkey radial menu
    - "The app" = Usually refers to frontend at localhost:3000
 
@@ -970,7 +971,7 @@ C:\Meridinate\
 
 **Main Features:**
 1. Token analysis (early bidder detection)
-2. Multi-Token Wallets (smart money identification)
+2. Multi-Token Early Wallets (smart money identification with bunny icon branding)
 3. Wallet tagging system
 4. Market cap tracking (with trend/last-updated)
 5. Wallet balance refresh (with trend/last-updated)
@@ -987,5 +988,5 @@ C:\Meridinate\
 ---
 
 **Document Version:** 2.0
-**Last Updated:** November 23, 2025 (Documentation cleanup - extracted historical fixes to CHANGELOG.md, removed obsolete sections, improved organization)
+**Last Updated:** November 25, 2025 (Multi-Token Early Wallets rebrand with bunny icon branding)
 **Next Review:** After production deployment

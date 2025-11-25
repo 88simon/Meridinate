@@ -1018,7 +1018,7 @@
           "Tokens"
         ],
         "summary": "Get Top Holders",
-        "description": "Get top N token holders for a given token mint address.\n\nThis endpoint:\n1. Calls Helius getTokenLargestAccounts API (1 credit)\n2. Returns top N holders with their balances\n3. Updates token's cumulative API credits if token exists in DB\n\nArgs:\n    mint_address: Token mint address to analyze\n    limit: Number of top holders to return (default: from settings, range: 5-50)\n\nReturns:\n    TopHoldersResponse with holder addresses and balances",
+        "description": "Get top N token holders for a given token mint address.\n\nThis endpoint:\n1. Calls Helius getTokenLargestAccounts API (1 credit)\n2. Returns top N holders with their balances\n3. Updates token's cumulative API credits if token exists in DB\n\nArgs:\n    mint_address: Token mint address to analyze\n    limit: Number of top holders to return (default: from settings, range: 5-20)\n\nReturns:\n    TopHoldersResponse with holder addresses and balances",
         "operationId": "get_top_holders_api_tokens__mint_address__top_holders_get",
         "parameters": [
           {
@@ -1396,6 +1396,91 @@
                 "schema": {
                   "$ref": "#/components/schemas/RefreshBalancesResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{wallet_address}/top-holder-tokens": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Wallet Top Holder Tokens",
+        "description": "Get all tokens where this wallet is a top holder.\n\nReturns a list of tokens with:\n- token_id\n- token_name\n- token_symbol\n- token_address\n- top_holders (full list from top_holders_json)\n- top_holders_limit (the limit used when analyzing)\n- wallet_rank (this wallet's position in the top holders list, 1-indexed)\n- last_updated (when top holders was last refreshed)",
+        "operationId": "get_wallet_top_holder_tokens_wallets__wallet_address__top_holder_tokens_get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/batch-top-holder-counts": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Batch Top Holder Counts",
+        "description": "Get count of tokens where each wallet is a top holder.\nOptimized batch endpoint that returns only counts, not full holder lists.\n\nThis is much more efficient than calling /wallets/{address}/top-holder-tokens\nfor each wallet when you only need the counts for badge display.\n\nRequest body: {\"wallet_addresses\": [\"addr1\", \"addr2\", ...]}\nReturns: {\"counts\": {\"addr1\": 3, \"addr2\": 5, ...}}",
+        "operationId": "get_batch_top_holder_counts_wallets_batch_top_holder_counts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "title": "Wallet Addresses"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -2290,10 +2375,10 @@
           },
           "topHoldersLimit": {
             "type": "integer",
-            "maximum": 50.0,
+            "maximum": 20.0,
             "minimum": 5.0,
             "title": "Topholderslimit",
-            "description": "Number of top token holders to fetch",
+            "description": "Number of top token holders to fetch (Helius API max: 20)",
             "default": 10
           }
         },
@@ -3736,6 +3821,20 @@
               }
             ],
             "title": "Maxretries"
+          },
+          "topHoldersLimit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topholderslimit",
+            "description": "Number of top token holders to fetch (Helius API max: 20)"
           }
         },
         "type": "object",

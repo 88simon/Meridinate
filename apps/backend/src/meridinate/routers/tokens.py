@@ -566,7 +566,7 @@ async def get_top_holders(mint_address: str, request: Request, limit: int = None
 
     Args:
         mint_address: Token mint address to analyze
-        limit: Number of top holders to return (default: from settings, range: 5-50)
+        limit: Number of top holders to return (default: from settings, range: 5-20)
 
     Returns:
         TopHoldersResponse with holder addresses and balances
@@ -577,9 +577,9 @@ async def get_top_holders(mint_address: str, request: Request, limit: int = None
             api_settings = get_api_settings()
             limit = api_settings.topHoldersLimit
 
-        # Validate limit range
-        if limit < 5 or limit > 50:
-            raise HTTPException(status_code=400, detail="Limit must be between 5 and 50")
+        # Validate limit range (aligned with Helius API cap and frontend)
+        if limit < 5 or limit > 20:
+            raise HTTPException(status_code=400, detail="Limit must be between 5 and 20")
 
         # Initialize Helius API with separate Top Holders API key
         from meridinate.settings import HELIUS_TOP_HOLDERS_API_KEY

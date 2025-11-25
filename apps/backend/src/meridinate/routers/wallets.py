@@ -16,6 +16,7 @@ from meridinate.middleware.rate_limit import READ_RATE_LIMIT, WALLET_BALANCE_RAT
 from meridinate import settings
 from meridinate.cache import ResponseCache
 from meridinate.utils.models import MultiTokenWalletsResponse, RefreshBalancesRequest, RefreshBalancesResponse
+import json
 
 router = APIRouter()
 cache = ResponseCache()
@@ -203,3 +204,145 @@ async def refresh_wallet_balances(request: Request, data: RefreshBalancesRequest
         "successful": successful,
         "api_credits_used": total_credits,
     }
+
+
+@router.get("/wallets/{wallet_address}/top-holder-tokens")
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_wallet_top_holder_tokens(request: Request, wallet_address: str):
+    """
+    Get all tokens where this wallet is a top holder.
+
+    Returns a list of tokens with:
+    - token_id
+    - token_name
+    - token_symbol
+    - token_address
+    - top_holders (full list from top_holders_json)
+    - top_holders_limit (the limit used when analyzing)
+    - wallet_rank (this wallet's position in the top holders list, 1-indexed)
+    - last_updated (when top holders was last refreshed)
+    """
+    cache_key = f"wallet_top_holder_tokens_{wallet_address}"
+    cached_data, _ = cache.get(cache_key)
+    if cached_data:
+        return cached_data
+
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        # Get all tokens where top_holders_json is not NULL and deleted_at is NULL
+        query = """
+            SELECT
+                id,
+                token_name,
+                token_symbol,
+                token_address,
+                top_holders_json,
+                top_holders_updated_at
+            FROM analyzed_tokens
+            WHERE top_holders_json IS NOT NULL
+              AND deleted_at IS NULL
+        """
+        cursor = await conn.execute(query)
+        rows = await cursor.fetchall()
+
+        top_holder_tokens = []
+
+        for row in rows:
+            row_dict = dict(row)
+            top_holders_json = row_dict.get("top_holders_json")
+
+            if not top_holders_json:
+                continue
+
+            try:
+                holders = json.loads(top_holders_json)
+
+                # Check if wallet_address is in the top holders list
+                wallet_rank = None
+                for idx, holder in enumerate(holders):
+                    if holder.get("address") == wallet_address:
+                        wallet_rank = idx + 1  # 1-indexed
+                        break
+
+                if wallet_rank is not None:
+                    # This wallet is a top holder of this token
+                    top_holder_tokens.append({
+                        "token_id": row_dict["id"],
+                        "token_name": row_dict["token_name"],
+                        "token_symbol": row_dict["token_symbol"],
+                        "token_address": row_dict["token_address"],
+                        "top_holders": holders,
+                        "top_holders_limit": len(holders),  # The actual number of holders stored
+                        "wallet_rank": wallet_rank,
+                        "last_updated": row_dict["top_holders_updated_at"]
+                    })
+            except (json.JSONDecodeError, KeyError, TypeError):
+                # Skip tokens with malformed data
+                continue
+
+        result = {
+            "wallet_address": wallet_address,
+            "total_tokens": len(top_holder_tokens),
+            "tokens": top_holder_tokens
+        }
+
+        # Cache for 5 minutes
+        cache.set(cache_key, result, ttl=300)
+        return result
+
+
+@router.post("/wallets/batch-top-holder-counts")
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_batch_top_holder_counts(request: Request, wallet_addresses: list[str]):
+    """
+    Get count of tokens where each wallet is a top holder.
+    Optimized batch endpoint that returns only counts, not full holder lists.
+
+    This is much more efficient than calling /wallets/{address}/top-holder-tokens
+    for each wallet when you only need the counts for badge display.
+
+    Request body: {"wallet_addresses": ["addr1", "addr2", ...]}
+    Returns: {"counts": {"addr1": 3, "addr2": 5, ...}}
+    """
+    cache_key = f"batch_top_holder_counts_{hash(tuple(sorted(wallet_addresses)))}"
+    cached_data, _ = cache.get(cache_key)
+    if cached_data:
+        return cached_data
+
+    counts = {}
+
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        # Get all tokens where top_holders_json is not NULL
+        query = """
+            SELECT top_holders_json
+            FROM analyzed_tokens
+            WHERE top_holders_json IS NOT NULL
+              AND deleted_at IS NULL
+        """
+        cursor = await conn.execute(query)
+        rows = await cursor.fetchall()
+
+        # Build a count map for each wallet address
+        for wallet_address in wallet_addresses:
+            count = 0
+            for row in rows:
+                top_holders_json = row[0]
+                if not top_holders_json:
+                    continue
+
+                try:
+                    holders = json.loads(top_holders_json)
+                    # Check if wallet_address is in this token's holders
+                    if any(holder.get("address") == wallet_address for holder in holders):
+                        count += 1
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    continue
+
+            counts[wallet_address] = count
+
+    result = {"counts": counts}
+
+    # Cache for 5 minutes
+    cache.set(cache_key, result, ttl=300)
+    return result
