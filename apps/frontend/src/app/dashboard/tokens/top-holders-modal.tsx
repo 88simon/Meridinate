@@ -69,7 +69,9 @@ export function TopHoldersModal({
   const [currentLimit, setCurrentLimit] = useState(
     initialHolders?.length || topHoldersLimit
   );
-  const [currentLastUpdated, setCurrentLastUpdated] = useState<string | null>(lastUpdated);
+  const [currentLastUpdated, setCurrentLastUpdated] = useState<string | null>(
+    lastUpdated
+  );
 
   // Update holders when initialHolders changes (e.g., after page refresh)
   useEffect(() => {
@@ -214,7 +216,7 @@ export function TopHoldersModal({
                         </span>
                       )}
                       {tokenSymbol && (
-                        <span className='bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-mono font-medium'>
+                        <span className='bg-primary/10 text-primary rounded px-2 py-0.5 font-mono text-xs font-medium'>
                           {tokenSymbol}
                         </span>
                       )}
@@ -335,10 +337,13 @@ export function TopHoldersModal({
                       </TableCell>
                       <TableCell className='text-right font-semibold'>
                         {holder.token_balance_usd != null
-                          ? `$${holder.token_balance_usd.toLocaleString('en-US', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2
-                            })}`
+                          ? `$${holder.token_balance_usd.toLocaleString(
+                              'en-US',
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              }
+                            )}`
                           : holder.uiAmountString}
                       </TableCell>
                       <TableCell className='text-right font-semibold'>
@@ -361,7 +366,7 @@ export function TopHoldersModal({
         </div>
 
         {/* Fixed Refresh Button at Bottom */}
-        <div className='border-t bg-background p-4'>
+        <div className='bg-background border-t p-4'>
           <div className='flex justify-center'>
             <TooltipProvider delayDuration={100}>
               <Tooltip>

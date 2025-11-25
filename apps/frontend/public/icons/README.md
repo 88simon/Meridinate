@@ -22,15 +22,11 @@ Import icons using the `/icons/` path from the public directory:
 import Image from 'next/image';
 
 // Example usage
-<Image
-  src="/icons/bunny_icon.png"
-  alt="Bunny Token"
-  width={24}
-  height={24}
-/>
+<Image src='/icons/bunny_icon.png' alt='Bunny Token' width={24} height={24} />;
 ```
 
 Or for background images in CSS:
+
 ```css
 background-image: url('/icons/bunny_icon.png');
 ```

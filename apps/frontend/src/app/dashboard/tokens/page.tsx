@@ -297,7 +297,8 @@ function SearchHelpPopover() {
       <div>
         <h4 className='mb-2 font-semibold'>🔍 Search Guide</h4>
         <p className='text-muted-foreground text-xs'>
-          Type anything to search all fields, or use smart prefixes for precision.
+          Type anything to search all fields, or use smart prefixes for
+          precision.
         </p>
       </div>
 
@@ -428,7 +429,10 @@ function MTWTFilterPopover({
         <label className='text-xs font-medium'>🏷️ Wallet Tags</label>
         <div className='space-y-1.5'>
           {ADDITIONAL_TAGS_DISPLAY.map((tag) => (
-            <label key={tag} className='flex cursor-pointer items-center gap-2 text-sm'>
+            <label
+              key={tag}
+              className='flex cursor-pointer items-center gap-2 text-sm'
+            >
               <input
                 type='checkbox'
                 checked={filters.walletTags.includes(tag)}
@@ -816,16 +820,23 @@ export default function TokensPage() {
   const [walletViewportHeight, setWalletViewportHeight] = useState(0);
 
   // Top Holders modal state
-  const [selectedWalletForTopHolders, setSelectedWalletForTopHolders] = useState<string | null>(null);
-  const [isWalletTopHoldersModalOpen, setIsWalletTopHoldersModalOpen] = useState(false);
-  const [topHolderCounts, setTopHolderCounts] = useState<Map<string, number>>(new Map());
+  const [selectedWalletForTopHolders, setSelectedWalletForTopHolders] =
+    useState<string | null>(null);
+  const [isWalletTopHoldersModalOpen, setIsWalletTopHoldersModalOpen] =
+    useState(false);
+  const [topHolderCounts, setTopHolderCounts] = useState<Map<string, number>>(
+    new Map()
+  );
 
   // Filter state for Multi-Token Early Wallets Table
-  const [mtwFilters, setMtwFilters] = useState<MTWTFilters>(DEFAULT_MTWT_FILTERS);
+  const [mtwFilters, setMtwFilters] =
+    useState<MTWTFilters>(DEFAULT_MTWT_FILTERS);
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
 
   // Wallet tags cache for filtering (fetched separately to avoid provider scope issues)
-  const [walletTagsCache, setWalletTagsCache] = useState<Record<string, Array<{tag: string}>>>({});
+  const [walletTagsCache, setWalletTagsCache] = useState<
+    Record<string, Array<{ tag: string }>>
+  >({});
 
   // Search state for Multi-Token Early Wallets Table
   const [searchQuery, setSearchQuery] = useState('');
@@ -902,7 +913,10 @@ export default function TokensPage() {
   // Scroll to top function for Multi-Token Early Wallets section
   const scrollToTop = useCallback(() => {
     if (mtwSectionRef.current) {
-      mtwSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      mtwSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
     }
   }, []);
 
@@ -1233,7 +1247,7 @@ export default function TokensPage() {
     if (!multiWallets?.wallets) return;
 
     const fetchTopHolderCounts = async () => {
-      const walletAddresses = multiWallets.wallets.map(w => w.wallet_address);
+      const walletAddresses = multiWallets.wallets.map((w) => w.wallet_address);
 
       try {
         // Use batch endpoint - single request instead of N requests
@@ -1267,7 +1281,7 @@ export default function TokensPage() {
     if (!multiWallets?.wallets || multiWallets.wallets.length === 0) return;
 
     const fetchWalletTags = async () => {
-      const walletAddresses = multiWallets.wallets.map(w => w.wallet_address);
+      const walletAddresses = multiWallets.wallets.map((w) => w.wallet_address);
 
       try {
         const response = await fetch(`${API_BASE_URL}/wallets/batch-tags`, {
@@ -1342,7 +1356,8 @@ export default function TokensPage() {
     const params = new URLSearchParams(window.location.search);
 
     // Only add to URL if filters are not default
-    const hasActiveFilters = JSON.stringify(mtwFilters) !== JSON.stringify(DEFAULT_MTWT_FILTERS);
+    const hasActiveFilters =
+      JSON.stringify(mtwFilters) !== JSON.stringify(DEFAULT_MTWT_FILTERS);
 
     if (hasActiveFilters) {
       params.set('mtwFilters', encodeURIComponent(JSON.stringify(mtwFilters)));
@@ -1350,7 +1365,9 @@ export default function TokensPage() {
       params.delete('mtwFilters');
     }
 
-    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    const newUrl = params.toString()
+      ? `?${params.toString()}`
+      : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
   }, [mtwFilters]);
 
@@ -1398,7 +1415,9 @@ export default function TokensPage() {
       params.delete('search');
     }
 
-    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    const newUrl = params.toString()
+      ? `?${params.toString()}`
+      : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
   }, [searchQuery]);
 
@@ -1422,7 +1441,7 @@ export default function TokensPage() {
     const tags = new Set<string>();
     if (multiWallets?.wallets) {
       // This will be populated from wallet tags context - for now use placeholder
-      ADDITIONAL_TAGS_DISPLAY.forEach(tag => tags.add(tag));
+      ADDITIONAL_TAGS_DISPLAY.forEach((tag) => tags.add(tag));
     }
     return Array.from(tags);
   }, [multiWallets]);
@@ -1473,10 +1492,11 @@ export default function TokensPage() {
         let passesSearch = false;
 
         // If there are any specific prefix searches, check those
-        const hasSpecificSearch = parsedSearch.tokens.length > 0 ||
-                                   parsedSearch.tags.length > 0 ||
-                                   parsedSearch.wallets.length > 0 ||
-                                   parsedSearch.statuses.length > 0;
+        const hasSpecificSearch =
+          parsedSearch.tokens.length > 0 ||
+          parsedSearch.tags.length > 0 ||
+          parsedSearch.wallets.length > 0 ||
+          parsedSearch.statuses.length > 0;
 
         if (hasSpecificSearch) {
           // Token name search (OR logic for multiple token: terms)
@@ -1485,10 +1505,12 @@ export default function TokensPage() {
             const tokenNamesRaw = wallet.token_names as string[] | string;
             const tokenNamesArray = Array.isArray(tokenNamesRaw)
               ? tokenNamesRaw
-              : (tokenNamesRaw as string).split(',').map((n: string) => n.trim());
+              : (tokenNamesRaw as string)
+                  .split(',')
+                  .map((n: string) => n.trim());
 
             // Check if any search term matches any token name (with fuzzy matching)
-            const hasMatch = parsedSearch.tokens.some(searchTerm =>
+            const hasMatch = parsedSearch.tokens.some((searchTerm) =>
               tokenNamesArray.some((tokenName: string) => {
                 const similarity = fuzzyMatch(searchTerm, tokenName);
                 return similarity >= 0.7; // 70% similarity threshold
@@ -1503,17 +1525,23 @@ export default function TokensPage() {
           // Tag search (OR logic for multiple tag: terms)
           if (parsedSearch.tags.length > 0) {
             const walletTags = walletTagsCache[wallet.wallet_address] || [];
-            const walletTagNames = walletTags.map(t => t.tag.toLowerCase());
-            if (parsedSearch.tags.some(term => walletTagNames.includes(term.toLowerCase()))) {
+            const walletTagNames = walletTags.map((t) => t.tag.toLowerCase());
+            if (
+              parsedSearch.tags.some((term) =>
+                walletTagNames.includes(term.toLowerCase())
+              )
+            ) {
               passesSearch = true;
             }
           }
 
           // Wallet address search (OR logic for multiple wallet: terms)
           if (parsedSearch.wallets.length > 0) {
-            if (parsedSearch.wallets.some(term =>
-              wallet.wallet_address.toLowerCase().includes(term.toLowerCase())
-            )) {
+            if (
+              parsedSearch.wallets.some((term) =>
+                wallet.wallet_address.toLowerCase().includes(term.toLowerCase())
+              )
+            ) {
               passesSearch = true;
             }
           }
@@ -1521,11 +1549,17 @@ export default function TokensPage() {
           // Status search (gem/dud)
           if (parsedSearch.statuses.length > 0) {
             for (const status of parsedSearch.statuses) {
-              if (status === 'gem' && wallet.gem_statuses.some(s => s === 'gem')) {
+              if (
+                status === 'gem' &&
+                wallet.gem_statuses.some((s) => s === 'gem')
+              ) {
                 passesSearch = true;
                 break;
               }
-              if (status === 'dud' && wallet.gem_statuses.some(s => s === 'dud')) {
+              if (
+                status === 'dud' &&
+                wallet.gem_statuses.some((s) => s === 'dud')
+              ) {
                 passesSearch = true;
                 break;
               }
@@ -1540,7 +1574,9 @@ export default function TokensPage() {
             const tokenNamesRaw = wallet.token_names as string[] | string;
             const tokenNamesArray = Array.isArray(tokenNamesRaw)
               ? tokenNamesRaw
-              : (tokenNamesRaw as string).split(',').map((n: string) => n.trim());
+              : (tokenNamesRaw as string)
+                  .split(',')
+                  .map((n: string) => n.trim());
 
             const hasTokenMatch = tokenNamesArray.some((tokenName: string) => {
               const similarity = fuzzyMatch(term, tokenName);
@@ -1553,14 +1589,16 @@ export default function TokensPage() {
             }
 
             // Search in wallet address (exact partial match, no fuzzy)
-            if (wallet.wallet_address.toLowerCase().includes(term.toLowerCase())) {
+            if (
+              wallet.wallet_address.toLowerCase().includes(term.toLowerCase())
+            ) {
               passesSearch = true;
               break;
             }
 
             // Search in tags with fuzzy matching
             const walletTags = walletTagsCache[wallet.wallet_address] || [];
-            const hasTagMatch = walletTags.some(t => {
+            const hasTagMatch = walletTags.some((t) => {
               const similarity = fuzzyMatch(term, t.tag);
               return similarity >= 0.7;
             });
@@ -1572,11 +1610,17 @@ export default function TokensPage() {
 
             // Search in gem/dud status
             const lowerTerm = term.toLowerCase();
-            if (lowerTerm === 'gem' && wallet.gem_statuses.some(s => s === 'gem')) {
+            if (
+              lowerTerm === 'gem' &&
+              wallet.gem_statuses.some((s) => s === 'gem')
+            ) {
               passesSearch = true;
               break;
             }
-            if (lowerTerm === 'dud' && wallet.gem_statuses.some(s => s === 'dud')) {
+            if (
+              lowerTerm === 'dud' &&
+              wallet.gem_statuses.some((s) => s === 'dud')
+            ) {
               passesSearch = true;
               break;
             }
@@ -1591,10 +1635,12 @@ export default function TokensPage() {
       // Wallet tags filter (OR logic within this category)
       if (mtwFilters.walletTags.length > 0) {
         const walletTags = walletTagsCache[wallet.wallet_address] || [];
-        const walletTagNames = walletTags.map(t => t.tag.charAt(0).toUpperCase() + t.tag.slice(1));
+        const walletTagNames = walletTags.map(
+          (t) => t.tag.charAt(0).toUpperCase() + t.tag.slice(1)
+        );
 
         // Check if wallet has ANY of the selected tags (OR logic)
-        const hasAnySelectedTag = mtwFilters.walletTags.some(selectedTag =>
+        const hasAnySelectedTag = mtwFilters.walletTags.some((selectedTag) =>
           walletTagNames.includes(selectedTag)
         );
 
@@ -1617,59 +1663,85 @@ export default function TokensPage() {
 
         // Check if wallet has at least one GEM
         if (tokenStatusFilters.hasGems) {
-          const hasGem = wallet.gem_statuses.some(status => status === 'gem');
+          const hasGem = wallet.gem_statuses.some((status) => status === 'gem');
           if (hasGem) passesTokenStatus = true;
         }
 
         // Check if wallet has at least one DUD
         if (tokenStatusFilters.hasDuds) {
-          const hasDud = wallet.gem_statuses.some(status => status === 'dud');
+          const hasDud = wallet.gem_statuses.some((status) => status === 'dud');
           if (hasDud) passesTokenStatus = true;
         }
 
         // Check if wallet has at least one untagged token
         if (tokenStatusFilters.hasUntagged) {
-          const hasUntagged = wallet.gem_statuses.some(status => status === null);
+          const hasUntagged = wallet.gem_statuses.some(
+            (status) => status === null
+          );
           if (hasUntagged) passesTokenStatus = true;
         }
 
         // Check if ALL tokens are GEMs
         if (tokenStatusFilters.allGems) {
-          const allGems = wallet.gem_statuses.every(status => status === 'gem');
-          if (allGems && wallet.gem_statuses.length > 0) passesTokenStatus = true;
+          const allGems = wallet.gem_statuses.every(
+            (status) => status === 'gem'
+          );
+          if (allGems && wallet.gem_statuses.length > 0)
+            passesTokenStatus = true;
         }
 
         // Check if ALL tokens are DUDs
         if (tokenStatusFilters.allDuds) {
-          const allDuds = wallet.gem_statuses.every(status => status === 'dud');
-          if (allDuds && wallet.gem_statuses.length > 0) passesTokenStatus = true;
+          const allDuds = wallet.gem_statuses.every(
+            (status) => status === 'dud'
+          );
+          if (allDuds && wallet.gem_statuses.length > 0)
+            passesTokenStatus = true;
         }
 
         if (!passesTokenStatus) return false;
       }
 
       // Balance range filter (AND logic)
-      if (mtwFilters.balanceRange.min !== null || mtwFilters.balanceRange.max !== null) {
+      if (
+        mtwFilters.balanceRange.min !== null ||
+        mtwFilters.balanceRange.max !== null
+      ) {
         const balance = wallet.wallet_balance_usd ?? 0;
 
-        if (mtwFilters.balanceRange.min !== null && balance < mtwFilters.balanceRange.min) {
+        if (
+          mtwFilters.balanceRange.min !== null &&
+          balance < mtwFilters.balanceRange.min
+        ) {
           return false;
         }
 
-        if (mtwFilters.balanceRange.max !== null && balance > mtwFilters.balanceRange.max) {
+        if (
+          mtwFilters.balanceRange.max !== null &&
+          balance > mtwFilters.balanceRange.max
+        ) {
           return false;
         }
       }
 
       // Token count range filter (AND logic)
-      if (mtwFilters.tokenCountRange.min !== null || mtwFilters.tokenCountRange.max !== null) {
+      if (
+        mtwFilters.tokenCountRange.min !== null ||
+        mtwFilters.tokenCountRange.max !== null
+      ) {
         const tokenCount = wallet.token_count;
 
-        if (mtwFilters.tokenCountRange.min !== null && tokenCount < mtwFilters.tokenCountRange.min) {
+        if (
+          mtwFilters.tokenCountRange.min !== null &&
+          tokenCount < mtwFilters.tokenCountRange.min
+        ) {
           return false;
         }
 
-        if (mtwFilters.tokenCountRange.max !== null && tokenCount > mtwFilters.tokenCountRange.max) {
+        if (
+          mtwFilters.tokenCountRange.max !== null &&
+          tokenCount > mtwFilters.tokenCountRange.max
+        ) {
           return false;
         }
       }
@@ -1700,7 +1772,14 @@ export default function TokensPage() {
     });
 
     return filtered;
-  }, [multiWallets, mtwFilters, topHolderCounts, walletTagsCache, parsedSearch, searchQuery]);
+  }, [
+    multiWallets,
+    mtwFilters,
+    topHolderCounts,
+    walletTagsCache,
+    parsedSearch,
+    searchQuery
+  ]);
 
   // Sorted wallets (applied before pagination/virtualization)
   const sortedWallets = useMemo(() => {
@@ -1984,19 +2063,21 @@ export default function TokensPage() {
         {multiWallets && multiWallets.total > 0 && (
           <div ref={mtwSectionRef} className='bg-card rounded-lg border p-3'>
             {/* Sticky Header with Title, Filters, Search, and Scroll to Top */}
-            <div className='sticky top-0 z-10 bg-card pb-2 pt-1'>
+            <div className='bg-card sticky top-0 z-10 pt-1 pb-2'>
               {/* Three-section layout: Title (left) | Filters + Search (center) | Scroll to Top (right) */}
               <div className='relative flex items-start justify-between gap-4'>
                 {/* Left: Title and Count */}
                 <div className='flex shrink-0 items-center gap-2 pt-2'>
                   <Image
-                    src="/icons/tokens/bunny_icon.png"
-                    alt="Bunny"
+                    src='/icons/tokens/bunny_icon.png'
+                    alt='Bunny'
                     width={24}
                     height={24}
                     className='h-6 w-6'
                   />
-                  <h2 className='text-base font-bold whitespace-nowrap'>Multi-Token Early Wallets</h2>
+                  <h2 className='text-base font-bold whitespace-nowrap'>
+                    Multi-Token Early Wallets
+                  </h2>
                   <span className='bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-semibold'>
                     {filteredWallets.length}
                   </span>
@@ -2010,9 +2091,16 @@ export default function TokensPage() {
                 {/* Center: Filters and Search */}
                 <div className='flex flex-1 flex-col items-center gap-2'>
                   {/* Filters Button */}
-                  <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+                  <Popover
+                    open={isFilterPopoverOpen}
+                    onOpenChange={setIsFilterPopoverOpen}
+                  >
                     <PopoverTrigger asChild>
-                      <Button variant='outline' size='sm' className='h-7 gap-1.5'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='h-7 gap-1.5'
+                      >
                         <Filter className='h-3.5 w-3.5' />
                         Filters
                         {(() => {
@@ -2023,8 +2111,14 @@ export default function TokensPage() {
                             (mtwFilters.tokenStatus.hasUntagged ? 1 : 0) +
                             (mtwFilters.tokenStatus.allGems ? 1 : 0) +
                             (mtwFilters.tokenStatus.allDuds ? 1 : 0) +
-                            (mtwFilters.balanceRange.min !== null || mtwFilters.balanceRange.max !== null ? 1 : 0) +
-                            (mtwFilters.tokenCountRange.min !== null || mtwFilters.tokenCountRange.max !== null ? 1 : 0) +
+                            (mtwFilters.balanceRange.min !== null ||
+                            mtwFilters.balanceRange.max !== null
+                              ? 1
+                              : 0) +
+                            (mtwFilters.tokenCountRange.min !== null ||
+                            mtwFilters.tokenCountRange.max !== null
+                              ? 1
+                              : 0) +
                             (mtwFilters.topHolder.isTopHolder ? 1 : 0);
                           return activeCount > 0 ? (
                             <span className='bg-primary text-primary-foreground ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold'>
@@ -2046,24 +2140,27 @@ export default function TokensPage() {
                   {/* Search Bar */}
                   <div className='relative flex w-full max-w-md items-center gap-1'>
                     <div className='relative flex-1'>
-                      <Search className='text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2' />
+                      <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
                       <input
                         type='text'
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder='Search tokens, wallets, tags... (try "gem token:Ant")'
-                        className='h-8 w-full rounded-md border bg-background pl-9 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary'
+                        className='bg-background focus:ring-primary h-8 w-full rounded-md border pr-8 pl-9 text-xs focus:ring-2 focus:outline-none'
                       />
                       {searchQuery && (
                         <button
                           onClick={() => setSearchQuery('')}
-                          className='text-muted-foreground hover:text-foreground absolute right-2 top-1/2 -translate-y-1/2'
+                          className='text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2'
                         >
                           <X className='h-3.5 w-3.5' />
                         </button>
                       )}
                     </div>
-                    <Popover open={isSearchHelpOpen} onOpenChange={setIsSearchHelpOpen}>
+                    <Popover
+                      open={isSearchHelpOpen}
+                      onOpenChange={setIsSearchHelpOpen}
+                    >
                       <PopoverTrigger asChild>
                         <Button
                           variant='ghost'
@@ -2111,7 +2208,10 @@ export default function TokensPage() {
 
             {/* Active Filters Chips */}
             {(() => {
-              const activeFilters: Array<{ label: string; onRemove: () => void }> = [];
+              const activeFilters: Array<{
+                label: string;
+                onRemove: () => void;
+              }> = [];
 
               // Wallet tags filters
               mtwFilters.walletTags.forEach((tag) => {
@@ -2152,7 +2252,10 @@ export default function TokensPage() {
                   onRemove: () =>
                     setMtwFilters({
                       ...mtwFilters,
-                      tokenStatus: { ...mtwFilters.tokenStatus, hasUntagged: false }
+                      tokenStatus: {
+                        ...mtwFilters.tokenStatus,
+                        hasUntagged: false
+                      }
                     })
                 });
               }
@@ -2178,7 +2281,10 @@ export default function TokensPage() {
               }
 
               // Balance range filter
-              if (mtwFilters.balanceRange.min !== null || mtwFilters.balanceRange.max !== null) {
+              if (
+                mtwFilters.balanceRange.min !== null ||
+                mtwFilters.balanceRange.max !== null
+              ) {
                 const min = mtwFilters.balanceRange.min;
                 const max = mtwFilters.balanceRange.max;
                 let label = 'Balance: ';
@@ -2200,7 +2306,10 @@ export default function TokensPage() {
               }
 
               // Token count range filter
-              if (mtwFilters.tokenCountRange.min !== null || mtwFilters.tokenCountRange.max !== null) {
+              if (
+                mtwFilters.tokenCountRange.min !== null ||
+                mtwFilters.tokenCountRange.max !== null
+              ) {
                 const min = mtwFilters.tokenCountRange.min;
                 const max = mtwFilters.tokenCountRange.max;
                 let label = 'Tokens: ';
@@ -2597,22 +2706,26 @@ export default function TokensPage() {
                               compact
                             />
                             {/* Top Holder Tag */}
-                            {topHolderCounts.has(wallet.wallet_address) && topHolderCounts.get(wallet.wallet_address)! > 0 && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedWalletForTopHolders(wallet.wallet_address);
-                                  setIsWalletTopHoldersModalOpen(true);
-                                }}
-                                className='relative rounded bg-purple-500/90 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-purple-600 transition-colors uppercase'
-                              >
-                                TOP HOLDER
-                                {/* Notification Badge */}
-                                <span className='absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border border-background'>
-                                  {topHolderCounts.get(wallet.wallet_address)}
-                                </span>
-                              </button>
-                            )}
+                            {topHolderCounts.has(wallet.wallet_address) &&
+                              topHolderCounts.get(wallet.wallet_address)! >
+                                0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedWalletForTopHolders(
+                                      wallet.wallet_address
+                                    );
+                                    setIsWalletTopHoldersModalOpen(true);
+                                  }}
+                                  className='relative rounded bg-purple-500/90 px-2 py-0.5 text-[10px] font-bold text-white uppercase transition-colors hover:bg-purple-600'
+                                >
+                                  TOP HOLDER
+                                  {/* Notification Badge */}
+                                  <span className='border-background absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border bg-red-500 text-[9px] font-bold text-white'>
+                                    {topHolderCounts.get(wallet.wallet_address)}
+                                  </span>
+                                </button>
+                              )}
                           </div>
                         </td>
                         <td className='px-4 py-1.5 text-center'>

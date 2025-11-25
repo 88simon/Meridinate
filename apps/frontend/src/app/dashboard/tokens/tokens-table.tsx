@@ -479,8 +479,8 @@ const ActionsCell = memo(
                 onClick={onViewDetails}
               >
                 <Image
-                  src="/icons/tokens/bunny_icon.png"
-                  alt="View Details"
+                  src='/icons/tokens/bunny_icon.png'
+                  alt='View Details'
                   width={isCompact ? 16 : 20}
                   height={isCompact ? 16 : 20}
                   className={iconSize}

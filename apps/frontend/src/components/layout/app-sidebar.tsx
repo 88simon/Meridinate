@@ -139,28 +139,28 @@ export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
           <SidebarGroup>
             <SidebarGroupLabel>Tools</SidebarGroupLabel>
             <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={onCodexToggle} tooltip='Codex'>
-                <IconTags />
-                <span>Codex</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SettingsModal
-                open={showSettings}
-                onOpenChange={setShowSettings}
-                apiSettings={apiSettings}
-                setApiSettings={setApiSettings}
-                defaultApiSettings={defaultApiSettings}
-              >
-                <SidebarMenuButton tooltip='API Settings'>
-                  <IconSettings />
-                  <span>Settings</span>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={onCodexToggle} tooltip='Codex'>
+                  <IconTags />
+                  <span>Codex</span>
                 </SidebarMenuButton>
-              </SettingsModal>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SettingsModal
+                  open={showSettings}
+                  onOpenChange={setShowSettings}
+                  apiSettings={apiSettings}
+                  setApiSettings={setApiSettings}
+                  defaultApiSettings={defaultApiSettings}
+                >
+                  <SidebarMenuButton tooltip='API Settings'>
+                    <IconSettings />
+                    <span>Settings</span>
+                  </SidebarMenuButton>
+                </SettingsModal>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
         </div>
       </SidebarContent>
       <SidebarFooter>

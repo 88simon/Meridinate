@@ -179,11 +179,11 @@ export function WalletTopHoldersModal({
                   'flex-shrink-0 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-all',
                   activeTokenIndex === index
                     ? 'border-primary bg-primary/5 text-foreground'
-                    : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground border-transparent'
                 )}
               >
                 <div className='flex items-center gap-2'>
-                  <span className='truncate max-w-[150px]'>
+                  <span className='max-w-[150px] truncate'>
                     {token.token_name}
                   </span>
                   <Badge
@@ -208,7 +208,7 @@ export function WalletTopHoldersModal({
                     <span className='text-sm font-semibold'>
                       {activeToken.token_name}
                     </span>
-                    <span className='bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-mono font-medium'>
+                    <span className='bg-primary/10 text-primary rounded px-2 py-0.5 font-mono text-xs font-medium'>
                       {activeToken.token_symbol}
                     </span>
                     <Badge variant='secondary' className='text-[10px]'>
@@ -290,7 +290,7 @@ export function WalletTopHoldersModal({
                         key={holder.address}
                         className={cn(
                           isCurrentWallet &&
-                            'bg-primary/10 border-l-4 border-l-primary'
+                            'bg-primary/10 border-l-primary border-l-4'
                         )}
                       >
                         <TableCell className='font-medium'>
@@ -348,10 +348,13 @@ export function WalletTopHoldersModal({
                         </TableCell>
                         <TableCell className='text-right font-semibold'>
                           {holder.token_balance_usd != null
-                            ? `$${holder.token_balance_usd.toLocaleString('en-US', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                              })}`
+                            ? `$${holder.token_balance_usd.toLocaleString(
+                                'en-US',
+                                {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                }
+                              )}`
                             : holder.uiAmountString}
                         </TableCell>
                         <TableCell className='text-right font-semibold'>
