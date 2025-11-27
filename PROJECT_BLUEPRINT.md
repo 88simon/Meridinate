@@ -477,6 +477,19 @@ When Simon says...  →  Technical term & Implementation
   - Client-side refetch callbacks replace router.refresh() for instant updates without full page reload
   - Optimistic UI updates with local state before server sync
 
+#### **"SWAB - Smart Wallet Archive Builder" (Nov 2025)**
+- **What it is:** Tracks MTEW wallets across tokens, detecting buys/sells and computing PnL.
+- **Where:** Backend (`routers/swab.py`, `routers/webhooks.py`, `tasks/position_tracker.py`, `analyzed_tokens_db.py`, `helius_api.py`); Frontend (`components/swab/*`, `lib/api.ts`).
+- **How PnL works:**  
+  - Holding: `current_mc / entry_mc` (unrealized, updates with price).  
+  - Sold: exit price ÷ avg entry (frozen); FPnL shows `current_mc / entry_mc` (what-if).  
+- **Data flow:**  
+  - Webhook-first: Helius webhooks → `/webhooks/callback` → `_process_swab_sell` records sells with live DexScreener price (no credits).  
+  - Fallback: `get_recent_token_transaction` scans recent signatures (credit-cost, limited window).  
+  - Reconciliation: `/api/swab/reconcile[...]` tries to fix positions with `total_sold_usd=0`; limited to ~100 signatures for active wallets.  
+- **Limits:** If webhook wasn’t active before a sell, or the sell is older than the signature window, PnL falls back to MC ratios. Reconciliation can miss active wallets; price-based PnL requires webhook/live capture.
+  - Filter popover for status, wallet, token filtering
+
 #### **"Multi-Token Early Wallets Filter and Search System" (Nov 2025)**
 - **Technical Term:** Unified Filter and Smart Search Interface for Multi-Token Early Wallets Table
 - **What it is:** Comprehensive filtering and search system with smart prefix support, fuzzy matching, and persistent state
@@ -988,5 +1001,5 @@ C:\Meridinate\
 ---
 
 **Document Version:** 2.0
-**Last Updated:** November 25, 2025 (Multi-Token Early Wallets rebrand with bunny icon branding)
+**Last Updated:** November 27, 2025 (Webhook-first SWAB sell detection for accurate PnL)
 **Next Review:** After production deployment

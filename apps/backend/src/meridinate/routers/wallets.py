@@ -15,6 +15,7 @@ from meridinate.middleware.rate_limit import READ_RATE_LIMIT, WALLET_BALANCE_RAT
 
 from meridinate import settings
 from meridinate.cache import ResponseCache
+from meridinate.credit_tracker import credit_tracker, CreditOperation
 from meridinate.utils.models import MultiTokenWalletsResponse, RefreshBalancesRequest, RefreshBalancesResponse
 import json
 
@@ -196,6 +197,15 @@ async def refresh_wallet_balances(request: Request, data: RefreshBalancesRequest
 
     successful = sum(1 for r in results if r["success"])
     total_credits = sum(r.get("credits", 0) for r in results)
+
+    # Record batch wallet refresh credits
+    if total_credits > 0:
+        credit_tracker.record_batch(
+            CreditOperation.WALLET_REFRESH,
+            credits=total_credits,
+            count=len(wallet_addresses),
+            context={"successful": successful},
+        )
 
     return {
         "message": f"Refreshed {successful} of {len(wallet_addresses)} wallets",

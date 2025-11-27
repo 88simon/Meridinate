@@ -8,6 +8,215 @@
 
 ## Recent Bug Fixes & Technical Notes
 
+### SWAB Position Reconciliation Tool (Nov 27, 2025)
+
+**Feature:** Automated reconciliation tool to fix sold positions with missing sell data.
+
+**Problem Solved:**
+- Positions that were sold BEFORE the webhook was set up have incorrect PnL
+- `total_sold_usd = 0` for these positions - the sell was never recorded with actual price
+- PnL was estimated using stale market cap ratios instead of actual exit prices
+- Manual data entry is time-consuming and error-prone
+
+**Solution: Helius Transaction Lookup**
+- For each position needing reconciliation, fetch transaction history from Helius
+- Find the sell transaction (where wallet is `fromUserAccount` in token transfers)
+- Extract the actual SOL received and convert to USD
+- Update the position with accurate sell data and recalculate PnL
+
+**What was implemented:**
+
+1. **`get_positions_needing_reconciliation()` function** (`analyzed_tokens_db.py`):
+   - Finds sold positions where `total_sold_usd = 0` or `sell_count = 0`
+   - Can filter by token_id or return all positions
+   - Returns position data needed for transaction lookup
+
+2. **`update_position_sell_reconciliation()` function** (`analyzed_tokens_db.py`):
+   - Updates sold position with actual sell data from Helius
+   - Calculates realized_pnl and pnl_ratio from actual exit price
+   - Does NOT double-count credits - uses single sell_count = 1
+
+3. **`POST /api/swab/reconcile/{token_id}`** endpoint:
+   - Reconciles all sold positions for a specific token
+   - Uses `get_recent_token_transaction()` to find sell transactions
+   - Updates positions with actual USD received
+   - Shows old PnL vs new PnL for each position
+   - Reports credits used for API calls
+
+4. **`POST /api/swab/reconcile-all`** endpoint:
+   - Batch reconciliation across all tokens
+   - Processes up to `max_positions` positions per request
+   - Useful for one-time cleanup of historical data
+
+**Files Modified:**
+- `apps/backend/src/meridinate/analyzed_tokens_db.py` - Added `get_positions_needing_reconciliation()`, `update_position_sell_reconciliation()`
+- `apps/backend/src/meridinate/routers/swab.py` - Added reconciliation endpoints and response models
+
+**Usage:**
+```bash
+# Reconcile specific token (e.g., Hajimi token_id=147)
+curl -X POST http://localhost:5003/api/swab/reconcile/147
+
+# Reconcile with more transaction history (for old sells)
+curl -X POST "http://localhost:5003/api/swab/reconcile/147?max_signatures=100"
+
+# Batch reconcile all tokens
+curl -X POST "http://localhost:5003/api/swab/reconcile-all?max_positions=50"
+```
+
+**Response includes:**
+- `positions_found`: Number of positions needing reconciliation
+- `positions_reconciled`: Successfully updated with actual sell data
+- `positions_no_tx_found`: Sell transaction too old (scrolled out of history)
+- `credits_used`: Helius API credits consumed
+- `results`: Detailed per-position results with old/new PnL
+
+---
+
+### Webhook-First SWAB Sell Detection (Nov 27, 2025)
+
+**Feature:** Real-time sell detection via Helius webhooks for accurate PnL calculation.
+
+**Problem Solved:**
+- Active MTEW traders make 50+ transactions, causing sell transactions to scroll out of the recent 10-50 signatures before the position tracker can look them up
+- Without the actual sell transaction, PnL was estimated using market cap ratios instead of actual exit prices
+- This resulted in inaccurate PnL that would change with current market conditions
+
+**Solution: Webhook-First Approach**
+- Helius webhooks deliver token transfers in real-time (within seconds of on-chain confirmation)
+- When a tracked MTEW wallet appears as `fromUserAccount` in a token transfer, it's a sell
+- The webhook callback immediately captures the exit price from DexScreener (real-time, accurate)
+- Records the sell with accurate `usd_received = tokens_sold * current_price`
+- PnL is calculated as `exit_price / avg_entry_price` (true realized gains)
+
+**What was implemented:**
+
+1. **`get_active_position_by_token_address()` function** (`analyzed_tokens_db.py`):
+   - Looks up active MTEW positions by wallet address + token mint address
+   - Returns position data including entry price, entry MC, balance, and cost basis
+   - Used by webhook callback to identify tracked positions
+
+2. **`_process_swab_sell()` function** (`webhooks.py`):
+   - Processes detected sells from webhook token transfers
+   - Gets real-time token price from DexScreener at moment of sell
+   - Calculates USD value received (`tokens_sold * current_price`)
+   - Determines if full exit or partial sell
+   - Calls `record_position_sell()` with accurate price data
+
+3. **Updated `webhook_callback()` endpoint** (`webhooks.py`):
+   - Detects sells when wallet is `fromUserAccount` in token transfers
+   - Calls `_process_swab_sell()` for each potential sell
+   - Returns `swab_updates` count in response
+
+**Files Modified:**
+- `apps/backend/src/meridinate/analyzed_tokens_db.py` - Added `get_active_position_by_token_address()`, `get_position_by_token_address()`, `get_active_swab_wallets()`
+- `apps/backend/src/meridinate/routers/webhooks.py` - Added `_process_swab_sell()`, `_process_swab_buy()`, `create_swab_webhook()`, updated `webhook_callback()`
+
+**New API Endpoint:**
+- `POST /webhooks/create-swab` - Creates a Helius webhook for all wallets with active SWAB positions
+  - Monitors all MTEW wallets in a single webhook
+  - Accepts optional `webhook_url` in request body
+  - Returns wallet count and preview of monitored addresses
+
+**Webhook Callback Handles:**
+- **SELL**: When tracked wallet sends tokens (`fromUserAccount`) - captures exit price, records sell
+- **BUY/DCA**: When tracked wallet receives tokens (`toUserAccount`) - updates cost basis
+- **RE-ENTRY**: When a sold position buys again - reactivates position and records buy
+
+**Flow Diagram:**
+```
+Helius Webhook -> POST /webhooks/callback
+                        |
+              Parse token transfers
+                        |
+    +-------------------+-------------------+
+    |                                       |
+fromUserAccount?                      toUserAccount?
+(SELL)                                (BUY/DCA)
+    |                                       |
+Look up active position              Look up any position
+    |                                       |
+Get price from DexScreener          Get price from DexScreener
+    |                                       |
+record_position_sell()              record_position_buy()
+(freeze PnL at exit)                (update cost basis)
+```
+
+**Benefits:**
+- Zero API credit cost for detection (webhook is push-based)
+- Captures sells before they scroll out of transaction history
+- Accurate PnL based on actual exit prices, not market cap estimates
+- Real-time position updates (seconds vs 15-minute polling intervals)
+
+**Developer Notes:**
+- Webhooks must be created for MTEW wallets using `POST /webhooks/create` endpoint
+- Webhook callback URL must be publicly accessible (use ngrok for local testing)
+- Webhook should monitor `TRANSFER` and `SWAP` transaction types
+- Position tracker still serves as fallback for missed webhooks
+
+---
+
+### SWAB Position Tracking with FPnL (Nov 26, 2025)
+
+**Feature:** Smart Wallet Archive Builder (SWAB) position tracking system with multi-buy/sell detection and FPnL (Fumbled PnL) column.
+
+**What was implemented:**
+
+1. **Multi-buy/Sell Tracking:**
+   - Added aggregate columns to `mtew_token_positions`: `total_bought`, `total_bought_usd`, `total_sold`, `total_sold_usd`, `buy_count`, `sell_count`, `avg_entry_price`
+   - Created `record_position_buy` and `record_position_sell` functions for accurate transaction recording
+   - Running totals track DCA buys and tranche sells without storing individual transactions
+
+2. **Post-Detection Transaction Lookup:**
+   - Added `get_recent_token_transaction` method in `helius_api.py` (lines 587-714)
+   - When balance change detected, looks up actual transaction to get precise entry/exit prices
+   - Fetches recent signatures via `getSignaturesForAddress`, then parses each transaction
+   - Identifies buy/sell by checking if wallet is `toUserAccount` (received) or `fromUserAccount` (sent)
+   - Estimates USD value from corresponding SOL transfers
+
+3. **PnL Accuracy Fix:**
+   - **Problem:** PnL for sold positions was using `current_mc / entry_mc` at detection time (incorrect)
+   - **Solution:** PnL now calculated as `exit_price_per_token / avg_entry_price` from actual transaction data
+   - For holding positions, PnL remains `current_mc / entry_mc` (unrealized, updates with price)
+
+4. **FPnL (Fumbled PnL) Column:**
+   - New column shows what sellers would have made if they held
+   - Formula: `current_mc / entry_mc` (the "missed opportunity")
+   - Only displayed for sold positions (shows "--" for holding)
+   - Added `fpnl_ratio` column to schema with migration
+
+5. **Bug Fixes in Transaction Parsing:**
+   - Fixed `is_buy`/`is_sell` detection: Was checking `is not None`, now correctly checks `== wallet_address`
+   - Fixed token transfer parsing: Was using token account addresses instead of wallet owner addresses
+   - Changed from `accountKeys[index]` to `post_bal.get("owner")` for correct wallet identification
+
+**Files Modified:**
+- `apps/backend/src/meridinate/analyzed_tokens_db.py` - Schema, migrations, `record_position_buy`, `record_position_sell`, `update_mtew_position`, `get_swab_positions`
+- `apps/backend/src/meridinate/helius_api.py` - Added `get_recent_token_transaction`, fixed `_parse_rpc_transaction` owner extraction
+- `apps/backend/src/meridinate/tasks/position_tracker.py` - Integrated transaction lookup, multi-buy/sell detection
+- `apps/backend/src/meridinate/routers/swab.py` - Added `fpnl_ratio` to `PositionResponse` model
+- `apps/frontend/src/lib/api.ts` - Added `fpnl_ratio` to `SwabPosition` type
+- `apps/frontend/src/components/swab/swab-tab.tsx` - Added FPnL column header and data cell
+
+**Database Schema Changes:**
+```sql
+-- New columns in mtew_token_positions
+total_bought REAL DEFAULT 0,
+total_bought_usd REAL DEFAULT 0,
+total_sold REAL DEFAULT 0,
+total_sold_usd REAL DEFAULT 0,
+buy_count INTEGER DEFAULT 0,
+sell_count INTEGER DEFAULT 0,
+avg_entry_price REAL,
+fpnl_ratio REAL
+```
+
+**Developer Notes:**
+- Transaction lookup uses ~1-11 credits per sell detection (1 for signatures + up to 10 for tx parsing)
+- FPnL only makes sense for sold positions; holding positions have unrealized PnL that updates with price
+- The `owner` field in `preTokenBalances`/`postTokenBalances` contains the actual wallet address, not the token account
+- Fallback path (when tx lookup fails) sets `pnl_ratio=None` and `fpnl_ratio` to market cap ratio
+
 ### Multi-Token Early Wallets Rebrand with Bunny Icon (Nov 25, 2025)
 
 **Feature:** Renamed "Multi-Token Wallets" to "Multi-Token Early Wallets" and added bunny icon branding throughout the application.
@@ -993,5 +1202,5 @@ https://solscan.io/account/{ADDRESS}?
 
 ---
 
-**Last Updated:** November 25, 2025
+**Last Updated:** November 27, 2025
 **Document Version:** 1.0

@@ -31,6 +31,7 @@ from meridinate.utils.models import (
     UpdateGemStatusRequest,
 )
 from meridinate.helius_api import HeliusAPI
+from meridinate.credit_tracker import credit_tracker, CreditOperation
 
 router = APIRouter()
 cache = ResponseCache(name="tokens_history")
@@ -342,6 +343,15 @@ async def refresh_market_caps(request: Request, data: RefreshMarketCapsRequest):
     successful = sum(1 for r in results if r["success"])
     # Invalidate the cached tokens history so the frontend sees fresh market caps
     cache.invalidate("tokens_history")
+
+    # Record batch market cap refresh credits
+    if total_credits > 0:
+        credit_tracker.record_batch(
+            CreditOperation.MARKET_CAP_REFRESH,
+            credits=total_credits,
+            count=len(data.token_ids),
+            context={"successful": successful, "token_ids": data.token_ids},
+        )
 
     return {
         "message": f"Refreshed {successful}/{len(data.token_ids)} token market caps",

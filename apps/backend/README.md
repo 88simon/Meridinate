@@ -200,6 +200,70 @@ The service starts on **http://localhost:5003** with:
 | `POST` | `/watchlist/import` | Bulk import wallets |
 | `POST` | `/watchlist/clear` | Clear all watchlist entries |
 
+### SWAB (Smart Wallet Archive Builder)
+
+Position tracking system for Multi-Token Early Wallets (MTEWs).
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/swab/positions` | List tracked positions with filters |
+| `GET` | `/api/swab/settings` | Get SWAB configuration |
+| `POST` | `/api/swab/settings` | Update SWAB configuration |
+| `POST` | `/api/swab/check` | Trigger manual position check |
+| `POST` | `/api/swab/update-pnl` | Update PnL for all positions |
+| `POST` | `/api/swab/purge` | Clear all SWAB data |
+| `POST` | `/api/swab/positions/{id}/untrack` | Stop tracking a position |
+| `POST` | `/api/swab/reconcile/{token_id}` | Reconcile sold positions for a token |
+| `POST` | `/api/swab/reconcile-all` | Batch reconcile all sold positions |
+
+**Key Features:**
+- **MTEW Gate:** Configurable threshold (1-10) for which MTEWs get tracked
+- **Position Detection:** Monitors balance changes to detect buys/sells
+- **Webhook-First Sell Detection:** Real-time sell capture via Helius webhooks
+- **PnL Calculation:** Actual `exit_price / entry_price` for sold positions
+- **FPnL (Fumbled PnL):** Shows missed opportunity for sold positions (`current_mc / entry_mc`)
+- **Position Reconciliation:** Manual tool to fix sold positions missing sell data (pre-webhook sales)
+
+**Position Reconciliation:**
+- Finds positions where `total_sold_usd = 0` or `sell_count = 0`
+- Looks up historical transactions via Helius API to find actual sell data
+- Updates position with accurate USD received and recalculates PnL
+- **Limitation:** Active traders may have 50+ transactions, causing old sells to scroll out of queryable history (~100 tx window)
+- When transaction lookup fails, USD is estimated from current DexScreener price
+- Query parameters: `max_signatures` (10-200, default 50), `max_positions` (for batch endpoint)
+
+### Webhooks
+
+Real-time transaction monitoring via Helius webhooks.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/webhooks/create` | Create webhook for token wallets |
+| `POST` | `/webhooks/create-swab` | Create webhook for all active SWAB wallets |
+| `GET` | `/webhooks/list` | List all active webhooks |
+| `GET` | `/webhooks/{webhook_id}` | Get webhook details |
+| `DELETE` | `/webhooks/{webhook_id}` | Delete a webhook |
+| `POST` | `/webhooks/callback` | Receive Helius webhook notifications |
+
+**SWAB Integration:**
+- **SELL Detection**: When tracked wallet sends tokens (`fromUserAccount`), captures exit price
+- **BUY/DCA Detection**: When tracked wallet receives tokens (`toUserAccount`), updates cost basis
+- **RE-ENTRY Detection**: When a sold position buys again, reactivates position and records buy
+- Gets current price from DexScreener (real-time, accurate)
+- This webhook-first approach captures accurate prices before transactions scroll out of history
+
+**Setup for Production:**
+1. Webhook callback URL must be publicly accessible
+2. Use ngrok or similar for local testing: `ngrok http 5003`
+3. Create webhook for all SWAB wallets via `POST /webhooks/create-swab` with your public callback URL:
+   ```bash
+   curl -X POST http://localhost:5003/webhooks/create-swab \
+     -H "Content-Type: application/json" \
+     -d '{"webhook_url": "https://your-public-url.ngrok.io/webhooks/callback"}'
+   ```
+4. Webhooks monitor `TRANSFER` and `SWAP` transaction types
+5. The webhook will be created for all wallets with active (still holding) SWAB positions
+
 ### Tags & Codex
 
 | Method | Route | Purpose |

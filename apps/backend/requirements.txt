@@ -13,3 +13,6 @@ aiofiles>=23.0.0
 arq>=0.26.0
 redis[hiredis]>=5.0.0,<6.0.0  # arq requires redis<6
 slowapi>=0.1.9
+
+# Scheduled tasks (SWAB position tracking)
+apscheduler>=3.10.0

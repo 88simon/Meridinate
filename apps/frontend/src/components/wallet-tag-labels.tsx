@@ -41,6 +41,16 @@ export function WalletTagLabels({ walletAddress }: WalletTagLabelsProps) {
       return 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30';
     }
 
+    // Smart label - green/emerald theme with emphasis
+    if (lowerTag === 'smart') {
+      return 'bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 border-emerald-500/50 font-bold';
+    }
+
+    // Dumb label - red/rose theme with emphasis
+    if (lowerTag === 'dumb') {
+      return 'bg-rose-500/30 text-rose-700 dark:text-rose-300 border-rose-500/50 font-bold';
+    }
+
     // Nationality tags - green theme
     const nationalityCodes = [
       'US',

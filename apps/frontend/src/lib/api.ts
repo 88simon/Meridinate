@@ -611,3 +611,386 @@ export function buildSolscanUrl(
   // 7. page_size
   return `https://solscan.io/account/${walletAddress}?activity_type=${activityType}&exclude_amount_zero=${settings.exclude_amount_zero}&remove_spam=${settings.remove_spam}&token_address=${settings.token_address}&value=${settings.value}&value=undefined&page_size=${settings.page_size}#transfers`;
 }
+
+// ============================================================================
+// Credit Stats API Functions
+// ============================================================================
+
+export type CreditUsageStats = components['schemas']['CreditUsageStatsResponse'];
+
+/**
+ * Get today's API credit usage
+ */
+export async function getCreditStatsToday(): Promise<CreditUsageStats> {
+  const res = await fetch(`${API_BASE_URL}/api/stats/credits/today`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch credit stats');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get API credit usage for a date range
+ */
+export async function getCreditStatsRange(days: number = 7): Promise<CreditUsageStats> {
+  const res = await fetch(`${API_BASE_URL}/api/stats/credits/range?days=${days}`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch credit stats range');
+  }
+
+  return res.json();
+}
+
+// ============================================================================
+// SWAB (Smart Wallet Archive Builder) API Functions
+// ============================================================================
+
+export type SwabSettings = components['schemas']['SwabSettingsResponse'];
+export type SwabStats = components['schemas']['SwabStatsResponse'];
+// Extended position type with new USD PnL, hold time, and FPnL fields
+export type SwabPosition = components['schemas']['PositionResponse'] & {
+  entry_balance?: number | null;
+  entry_balance_usd?: number | null;
+  pnl_usd?: number | null;
+  hold_time_seconds?: number | null;
+  fpnl_ratio?: number | null;  // Fumbled PnL: what they would have made if held
+};
+export type SwabPositionsResponse = Omit<components['schemas']['PositionsResponse'], 'positions'> & {
+  positions: SwabPosition[];
+};
+export type SwabWalletSummary = components['schemas']['WalletSummaryResponse'];
+export type SwabCheckResult = components['schemas']['CheckResultResponse'];
+
+/**
+ * Get SWAB settings
+ */
+export async function getSwabSettings(): Promise<SwabSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/settings`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch SWAB settings');
+  }
+
+  return res.json();
+}
+
+/**
+ * Update SWAB settings
+ */
+export async function updateSwabSettings(settings: {
+  auto_check_enabled?: boolean;
+  check_interval_minutes?: number;
+  daily_credit_budget?: number;
+  stale_threshold_minutes?: number;
+  min_token_count?: number;
+}): Promise<SwabSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to update SWAB settings');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get SWAB statistics
+ */
+export async function getSwabStats(): Promise<SwabStats> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/stats`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch SWAB stats');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get SWAB scheduler status
+ */
+export async function getSwabSchedulerStatus(): Promise<{
+  running: boolean;
+  auto_check_enabled: boolean;
+  check_interval_minutes: number;
+  last_check_at: string | null;
+  next_check_at: string | null;
+}> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/scheduler/status`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch scheduler status');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get SWAB positions with filters
+ */
+export async function getSwabPositions(params?: {
+  min_token_count?: number;
+  status?: 'holding' | 'sold' | 'stale' | 'all';
+  pnl_min?: number;
+  pnl_max?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<SwabPositionsResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.min_token_count) searchParams.set('min_token_count', String(params.min_token_count));
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.pnl_min !== undefined) searchParams.set('pnl_min', String(params.pnl_min));
+  if (params?.pnl_max !== undefined) searchParams.set('pnl_max', String(params.pnl_max));
+  if (params?.limit) searchParams.set('limit', String(params.limit));
+  if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
+
+  const query = searchParams.toString();
+  const url = `${API_BASE_URL}/api/swab/positions${query ? `?${query}` : ''}`;
+
+  const res = await fetch(url, { cache: 'no-store' });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch SWAB positions');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get SWAB wallet summaries
+ */
+export async function getSwabWalletSummaries(
+  min_token_count?: number
+): Promise<SwabWalletSummary[]> {
+  const url = min_token_count
+    ? `${API_BASE_URL}/api/swab/wallets?min_token_count=${min_token_count}`
+    : `${API_BASE_URL}/api/swab/wallets`;
+
+  const res = await fetch(url, { cache: 'no-store' });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch SWAB wallet summaries');
+  }
+
+  return res.json();
+}
+
+/**
+ * Stop tracking a position
+ */
+export async function stopSwabPositionTracking(
+  positionId: number,
+  reason: string = 'manual'
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/positions/${positionId}/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason })
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to stop position tracking');
+  }
+
+  return res.json();
+}
+
+/**
+ * Resume tracking a position
+ */
+export async function resumeSwabPositionTracking(
+  positionId: number
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/positions/${positionId}/resume`, {
+    method: 'POST'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to resume position tracking');
+  }
+
+  return res.json();
+}
+
+/**
+ * Stop tracking all positions for a wallet
+ */
+export async function stopSwabWalletTracking(
+  walletAddress: string,
+  reason: string = 'manual'
+): Promise<{ success: boolean; message: string; positions_stopped: number }> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/wallets/${walletAddress}/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason })
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to stop wallet tracking');
+  }
+
+  return res.json();
+}
+
+/**
+ * Batch stop tracking multiple positions at once
+ */
+export async function batchStopSwabPositions(
+  positionIds: number[],
+  reason: string = 'manual'
+): Promise<{ success: boolean; positions_stopped: number; failed_ids: number[]; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/positions/batch-stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ position_ids: positionIds, reason })
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to batch stop positions');
+  }
+
+  return res.json();
+}
+
+/**
+ * Trigger manual position check
+ */
+export async function triggerSwabCheck(params?: {
+  max_positions?: number;
+  max_credits?: number;
+}): Promise<SwabCheckResult> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.max_positions) searchParams.set('max_positions', String(params.max_positions));
+  if (params?.max_credits) searchParams.set('max_credits', String(params.max_credits));
+
+  const query = searchParams.toString();
+  const url = `${API_BASE_URL}/api/swab/check${query ? `?${query}` : ''}`;
+
+  const res = await fetch(url, { method: 'POST' });
+
+  if (!res.ok) {
+    throw new Error('Failed to trigger position check');
+  }
+
+  return res.json();
+}
+
+/**
+ * Trigger PnL ratio update (free operation)
+ */
+export async function triggerSwabPnlUpdate(): Promise<{
+  success: boolean;
+  tokens_updated: number;
+  positions_updated: number;
+  duration_ms: number;
+}> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/update-pnl`, {
+    method: 'POST'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to trigger PnL update');
+  }
+
+  return res.json();
+}
+
+export async function purgeSwabData(): Promise<{
+  success: boolean;
+  positions_deleted: number;
+  metrics_deleted: number;
+}> {
+  const res = await fetch(`${API_BASE_URL}/api/swab/purge`, {
+    method: 'POST'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to purge SWAB data');
+  }
+
+  return res.json();
+}
+
+// Reconciliation types and functions
+export interface ReconciliationResultItem {
+  wallet_address: string;
+  token_symbol: string;
+  status: 'success' | 'no_tx_found' | 'error';
+  old_pnl_ratio: number | null;
+  new_pnl_ratio: number | null;
+  tokens_sold: number | null;
+  usd_received: number | null;
+  error_message: string | null;
+}
+
+export interface ReconciliationResponse {
+  positions_found: number;
+  positions_reconciled: number;
+  positions_no_tx_found: number;
+  positions_error: number;
+  credits_used: number;
+  results: ReconciliationResultItem[];
+}
+
+/**
+ * Reconcile sold positions for a specific token using Helius transaction history.
+ * Fixes positions where sell was never recorded with actual price data.
+ */
+export async function reconcileTokenPositions(
+  tokenId: number,
+  maxSignatures: number = 50
+): Promise<ReconciliationResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/swab/reconcile/${tokenId}?max_signatures=${maxSignatures}`,
+    { method: 'POST' }
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to reconcile positions');
+  }
+
+  return res.json();
+}
+
+/**
+ * Reconcile all sold positions across all tokens that need reconciliation.
+ */
+export async function reconcileAllPositions(params?: {
+  max_signatures?: number;
+  max_positions?: number;
+}): Promise<ReconciliationResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.max_signatures) searchParams.set('max_signatures', params.max_signatures.toString());
+  if (params?.max_positions) searchParams.set('max_positions', params.max_positions.toString());
+
+  const url = searchParams.toString()
+    ? `${API_BASE_URL}/api/swab/reconcile-all?${searchParams}`
+    : `${API_BASE_URL}/api/swab/reconcile-all`;
+
+  const res = await fetch(url, { method: 'POST' });
+
+  if (!res.ok) {
+    throw new Error('Failed to reconcile positions');
+  }
+
+  return res.json();
+}

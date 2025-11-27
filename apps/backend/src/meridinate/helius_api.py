@@ -19,6 +19,7 @@ import builtins
 
 from meridinate.debug_config import is_debug_enabled
 from meridinate.cache import ResponseCache
+from meridinate.credit_tracker import credit_tracker, CreditOperation
 
 # ============================================================================
 # OPSEC: PRODUCTION MODE - Disable Sensitive Logging
@@ -153,7 +154,12 @@ class HeliusAPI:
                 # Cache the result
                 self._wallet_balance_cache.set(cache_key, usd_balance)
 
-                # getBalance costs 1 credit per call
+                # getBalance costs 1 credit per call - record to tracker
+                credit_tracker.record(
+                    CreditOperation.WALLET_BALANCE,
+                    credits=1,
+                    wallet_address=wallet_address,
+                )
                 return usd_balance, 1
             return None, 0
         except Exception as e:
@@ -199,7 +205,12 @@ class HeliusAPI:
             # Try the regular token metadata endpoint first
             result = self._enhanced_call("token-metadata", {"mintAccounts": mint_address})
             if result and result[0]:
-                # Enhanced API token-metadata costs 1 credit
+                # Enhanced API token-metadata costs 1 credit - record to tracker
+                credit_tracker.record(
+                    CreditOperation.TOKEN_METADATA,
+                    credits=1,
+                    context={"mint_address": mint_address, "method": "enhanced"},
+                )
                 return result[0], 1
         except Exception as e:
             print(f"Error fetching token metadata (standard): {str(e)}")
@@ -260,7 +271,12 @@ class HeliusAPI:
                     "legacyMetadata": metadata,
                     "market_cap_usd": market_cap_usd,
                 }
-                # DAS API getAsset costs 1 credit
+                # DAS API getAsset costs 1 credit - record to tracker
+                credit_tracker.record(
+                    CreditOperation.TOKEN_METADATA,
+                    credits=1,
+                    context={"mint_address": mint_address, "method": "das"},
+                )
                 return formatted, 1
         except Exception as das_error:
             print(f"Error fetching token metadata (DAS): {str(das_error)}")
@@ -471,9 +487,21 @@ class HeliusAPI:
                     if "parsed" in account_data["data"]:
                         owner = account_data["data"]["parsed"]["info"]["owner"]
                         print(f"[Helius] Token account {account_address[:8]} -> Owner: {owner[:8]}")
+                        # Record credit usage
+                        credit_tracker.record(
+                            CreditOperation.ACCOUNT_OWNER,
+                            credits=1,
+                            context={"account_address": account_address},
+                        )
                         return owner, 1
 
             print(f"[Helius] Could not determine owner for {account_address[:8]}")
+            # Still costs 1 credit even if no result
+            credit_tracker.record(
+                CreditOperation.ACCOUNT_OWNER,
+                credits=1,
+                context={"account_address": account_address, "success": False},
+            )
             return None, 1
 
         except Exception as e:
@@ -481,6 +509,208 @@ class HeliusAPI:
             import traceback
 
             traceback.print_exc()
+            return None, 0
+
+    def get_token_accounts_by_owner(
+        self, owner_address: str, mint_address: str
+    ) -> tuple[Optional[List[Dict]], int]:
+        """
+        Get token accounts for a specific wallet and token mint.
+
+        Uses Solana's getTokenAccountsByOwner RPC method to check if a wallet
+        holds a specific token and get the balance.
+
+        Args:
+            owner_address: Wallet address to check
+            mint_address: Token mint address
+
+        Returns:
+            Tuple of (list of token account dicts, credits_used)
+            Each account dict contains:
+            - pubkey: Token account address
+            - amount: Raw token balance
+            - decimals: Token decimal places
+            - uiAmount: Human-readable balance
+        """
+        try:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": "token-accounts",
+                "method": "getTokenAccountsByOwner",
+                "params": [
+                    owner_address,
+                    {"mint": mint_address},
+                    {"encoding": "jsonParsed"},
+                ],
+            }
+
+            response = self.session.post(self.rpc_url, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+
+            # getTokenAccountsByOwner costs 10 credits
+            credit_tracker.record(
+                CreditOperation.TOKEN_ACCOUNTS,
+                credits=10,
+                wallet_address=owner_address,
+                context={"mint_address": mint_address},
+            )
+
+            if "result" in result and "value" in result["result"]:
+                accounts = []
+                for account in result["result"]["value"]:
+                    pubkey = account.get("pubkey")
+                    account_data = account.get("account", {}).get("data", {})
+
+                    if isinstance(account_data, dict) and "parsed" in account_data:
+                        info = account_data["parsed"]["info"]
+                        token_amount = info.get("tokenAmount", {})
+
+                        accounts.append(
+                            {
+                                "pubkey": pubkey,
+                                "amount": int(token_amount.get("amount", 0)),
+                                "decimals": token_amount.get("decimals", 0),
+                                "uiAmount": token_amount.get("uiAmount", 0),
+                                "uiAmountString": token_amount.get("uiAmountString", "0"),
+                            }
+                        )
+
+                return accounts, 10
+
+            return [], 10
+
+        except Exception as e:
+            print(f"[Helius] Error getting token accounts for {owner_address[:8]}: {str(e)}")
+            return None, 0
+
+    def get_recent_token_transaction(
+        self,
+        wallet_address: str,
+        mint_address: str,
+        transaction_type: str = "any",
+        limit: int = 10,
+    ) -> tuple[Optional[Dict], int]:
+        """
+        Find the most recent token transaction (buy or sell) for a wallet.
+
+        Used for post-detection lookup when a balance change is detected.
+        Fetches recent signatures and parses transactions to find the relevant transfer.
+
+        Args:
+            wallet_address: Wallet address to check
+            mint_address: Token mint address
+            transaction_type: "buy", "sell", or "any" (default: "any")
+            limit: Max signatures to check (default: 10)
+
+        Returns:
+            Tuple of (transaction_dict, credits_used)
+            transaction_dict contains:
+            - type: "buy" or "sell"
+            - tokens: Amount of tokens transferred
+            - usd_amount: USD value (estimated from SOL)
+            - timestamp: Unix timestamp
+            - signature: Transaction signature
+            Returns (None, credits) if no matching transaction found.
+        """
+        try:
+            # Get recent signatures for the wallet (1 credit)
+            signatures = self._rpc_call(
+                "getSignaturesForAddress",
+                [wallet_address, {"limit": limit}]
+            )
+            credits_used = 1
+
+            if not signatures:
+                return None, credits_used
+
+            # Parse each transaction looking for token transfers
+            for sig_obj in signatures:
+                signature = sig_obj["signature"]
+                timestamp = sig_obj.get("blockTime")
+
+                try:
+                    # Get full transaction details (1 credit per call)
+                    tx_data = self._rpc_call(
+                        "getTransaction",
+                        [signature, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}]
+                    )
+                    credits_used += 1
+
+                    if not tx_data:
+                        continue
+
+                    # Parse the transaction
+                    parsed_tx = self._parse_rpc_transaction(tx_data, signature)
+                    if not parsed_tx:
+                        continue
+
+                    # Check for token transfers matching our mint
+                    token_transfers = parsed_tx.get("tokenTransfers", [])
+                    native_transfers = parsed_tx.get("nativeTransfers", [])
+
+                    for transfer in token_transfers:
+                        if transfer.get("mint") != mint_address:
+                            continue
+
+                        token_amount = transfer.get("tokenAmount", 0)
+                        to_account = transfer.get("toUserAccount")
+                        from_account = transfer.get("fromUserAccount")
+
+                        # Determine if this is a buy or sell for OUR wallet
+                        # Buy: wallet received tokens (toUserAccount matches our wallet)
+                        # Sell: wallet sent tokens (fromUserAccount matches our wallet)
+                        is_buy = to_account == wallet_address
+                        is_sell = from_account == wallet_address
+
+                        # Filter by requested type
+                        if transaction_type == "buy" and not is_buy:
+                            continue
+                        if transaction_type == "sell" and not is_sell:
+                            continue
+
+                        # Find the corresponding SOL transfer to estimate USD
+                        usd_amount = 0
+                        for native in native_transfers:
+                            sender = native.get("fromUserAccount")
+                            receiver = native.get("toUserAccount")
+                            amount = native.get("amount", 0)
+
+                            # For buys: wallet sent SOL
+                            if is_buy and sender == wallet_address and amount > 100000:
+                                sol_amount = amount / 1e9
+                                usd_amount = sol_amount * self._get_sol_price_usd()
+                                break
+                            # For sells: wallet received SOL
+                            elif is_sell and receiver == wallet_address and amount > 100000:
+                                sol_amount = amount / 1e9
+                                usd_amount = sol_amount * self._get_sol_price_usd()
+                                break
+
+                        # Found a matching transaction
+                        result = {
+                            "type": "buy" if is_buy else "sell",
+                            "tokens": token_amount,
+                            "usd_amount": usd_amount,
+                            "timestamp": timestamp,
+                            "signature": signature,
+                        }
+
+                        print(
+                            f"[Helius] Found {result['type']} transaction: "
+                            f"{token_amount:,.2f} tokens, ${usd_amount:,.2f} USD"
+                        )
+                        return result, credits_used
+
+                except Exception as tx_error:
+                    # Skip individual transaction errors
+                    continue
+
+            # No matching transaction found
+            return None, credits_used
+
+        except Exception as e:
+            print(f"[Helius] Error looking up recent transaction: {str(e)}")
             return None, 0
 
     def get_top_holders(self, mint_address: str, limit: int = 10) -> tuple[Optional[List[Dict]], int]:
@@ -518,6 +748,12 @@ class HeliusAPI:
             result = response.json()
 
             credits_used = 1  # getTokenLargestAccounts costs 1 credit
+            # Record initial credit for token largest accounts call
+            credit_tracker.record(
+                CreditOperation.TOKEN_LARGEST_ACCOUNTS,
+                credits=1,
+                context={"mint_address": mint_address},
+            )
 
             if "result" in result and "value" in result["result"]:
                 token_accounts = result["result"]["value"]
@@ -727,6 +963,12 @@ class HeliusAPI:
                 # Make the RPC call
                 result = self._rpc_call("getTransactionsForAddress", params)
                 api_calls += 1  # 100 credits per call
+                # Record high-cost transaction fetch
+                credit_tracker.record(
+                    CreditOperation.TRANSACTIONS_FOR_ADDRESS,
+                    credits=100,
+                    context={"address": address, "batch_limit": batch_limit},
+                )
 
                 print(f"[Helius] Raw result type: {type(result)}")
                 print(f"[Helius] Raw result keys: {result.keys() if isinstance(result, dict) else 'N/A'}")
@@ -967,20 +1209,16 @@ class HeliusAPI:
                         post_amount = float(post_ui_amount)
 
                     if pre_amount != post_amount:
-                        # Get account addresses
-                        accounts = transaction.get("message", {}).get("accountKeys", [])
-                        if account_index < len(accounts):
-                            account_key = accounts[account_index]
-                            if isinstance(account_key, dict):
-                                account_address = account_key.get("pubkey")
-                            else:
-                                account_address = account_key
+                        # Get the OWNER (wallet address) from the token balance - NOT the token account
+                        # The owner field contains the actual wallet address that owns this token account
+                        owner_address = post_bal.get("owner") or pre_bal.get("owner")
 
+                        if owner_address:
                             token_transfers.append(
                                 {
                                     "mint": post_bal.get("mint"),
-                                    "toUserAccount": account_address if post_amount > pre_amount else None,
-                                    "fromUserAccount": account_address if post_amount < pre_amount else None,
+                                    "toUserAccount": owner_address if post_amount > pre_amount else None,
+                                    "fromUserAccount": owner_address if post_amount < pre_amount else None,
                                     "tokenAmount": abs(post_amount - pre_amount),
                                 }
                             )
@@ -1065,6 +1303,13 @@ class HeliusAPI:
 
         # Get market cap using dedicated method (DexScreener + Helius fallback)
         market_cap_usd, market_cap_credits = self.get_market_cap_with_fallback(mint_address)
+
+        # Get current price to calculate total supply (for entry MC calculation)
+        current_price = self.get_token_price_from_dexscreener(mint_address)
+        total_supply = None
+        if market_cap_usd and current_price and current_price > 0:
+            total_supply = market_cap_usd / current_price
+            print(f"[Helius] Calculated total supply: {total_supply:,.0f} tokens")
 
         if token_info:
             token_name = token_info.get("onChainMetadata", {}).get("metadata", {}).get("name", "Unknown")
@@ -1165,7 +1410,7 @@ class HeliusAPI:
             within_window += 1
 
             # Parse transaction for swap/buy activity (debug first one)
-            buyer_wallet, usd_amount = self._extract_buy_info(tx, mint_address, debug_first=not debug_first_done)
+            buyer_wallet, usd_amount, tokens_received = self._extract_buy_info(tx, mint_address, debug_first=not debug_first_done)
             if not debug_first_done:
                 debug_first_done = True
 
@@ -1185,16 +1430,22 @@ class HeliusAPI:
                         buyers[buyer_wallet] = {
                             "wallet_address": buyer_wallet,
                             "first_buy_time": tx_time,
+                            "first_buy_usd": usd_amount,
+                            "first_buy_tokens": tokens_received or 0,
                             "total_usd": 0.0,
+                            "total_tokens": 0.0,
                             "transaction_count": 0,
                         }
 
                     buyers[buyer_wallet]["total_usd"] += usd_amount
+                    buyers[buyer_wallet]["total_tokens"] += tokens_received or 0
                     buyers[buyer_wallet]["transaction_count"] += 1
 
-                    # Keep earliest buy time
+                    # Keep earliest buy time and its associated data
                     if tx_time < buyers[buyer_wallet]["first_buy_time"]:
                         buyers[buyer_wallet]["first_buy_time"] = tx_time
+                        buyers[buyer_wallet]["first_buy_usd"] = usd_amount
+                        buyers[buyer_wallet]["first_buy_tokens"] = tokens_received or 0
 
         print(
             f"[Helius] Debug: Checked {total_checked} txs, {within_window} in window, {has_buyer} with buyers, {meets_threshold} meeting threshold"
@@ -1204,6 +1455,16 @@ class HeliusAPI:
         early_bidders = list(buyers.values())
         for bidder in early_bidders:
             bidder["average_buy_usd"] = bidder["total_usd"] / bidder["transaction_count"]
+
+            # Calculate entry market cap for this buyer
+            # entry_market_cap = (first_buy_usd / first_buy_tokens) * total_supply
+            first_buy_tokens = bidder.get("first_buy_tokens", 0)
+            first_buy_usd = bidder.get("first_buy_usd", 0)
+            if first_buy_tokens and first_buy_tokens > 0 and first_buy_usd and total_supply:
+                entry_price = first_buy_usd / first_buy_tokens
+                bidder["entry_market_cap"] = entry_price * total_supply
+            else:
+                bidder["entry_market_cap"] = None
 
         early_bidders.sort(key=lambda x: x["first_buy_time"])
 
@@ -1260,6 +1521,26 @@ class HeliusAPI:
                 f"[Helius] Total API credits used: {total_credits} ({metadata_credits} metadata + {market_cap_credits} market cap + {creation_time_credits} creation time lookup + {transaction_credits} transactions + {balance_credits} wallet balances)"
             )
 
+        # Record composite token analysis credit usage (for reporting purposes)
+        # Individual operations already recorded above - this is a summary entry
+        credit_tracker.record(
+            CreditOperation.TOKEN_ANALYSIS,
+            credits=0,  # Don't double-count, individual ops already recorded
+            context={
+                "mint_address": mint_address,
+                "total_credits": total_credits,
+                "early_bidders_found": len(early_bidders),
+                "breakdown": {
+                    "metadata": metadata_credits,
+                    "market_cap": market_cap_credits,
+                    "creation_time": creation_time_credits,
+                    "transactions": transaction_credits,
+                    "balances": balance_credits,
+                    "top_holders": top_holders_credits,
+                },
+            },
+        )
+
         return {
             "token_address": mint_address,
             "token_info": token_info,
@@ -1275,8 +1556,8 @@ class HeliusAPI:
 
     def _extract_buy_info(self, tx: dict, mint_address: str, debug_first: bool = False) -> tuple:
         """
-        Extract buyer wallet and USD amount from a parsed transaction.
-        Returns: (wallet_address, usd_amount) or (None, None)
+        Extract buyer wallet, USD amount, and tokens received from a parsed transaction.
+        Returns: (wallet_address, usd_amount, tokens_received) or (None, None, None)
 
         For pump.fun tokens, we use SOL amount spent as a proxy for USD value.
         1 SOL ≈ $200 USD (adjust based on current market price)
@@ -1303,9 +1584,11 @@ class HeliusAPI:
                 if transfer.get("mint") == mint_address:
                     # Check if someone received this token (buy)
                     token_recipient = transfer.get("toUserAccount")
+                    # Get the token amount received (already in UI format, not raw)
+                    tokens_received = transfer.get("tokenAmount", 0)
 
                     if debug_first:
-                        print(f"[Debug] Found matching mint, token recipient: {token_recipient}")
+                        print(f"[Debug] Found matching mint, token recipient: {token_recipient}, tokens: {tokens_received}")
 
                     if not token_recipient:
                         continue
@@ -1348,10 +1631,10 @@ class HeliusAPI:
 
                         if debug_first:
                             print(
-                                f"[Debug] FOUND BUYER! Wallet: {buyer_wallet}, SOL: {sol_amount:.4f}, USD: ${usd_amount:.2f}"
+                                f"[Debug] FOUND BUYER! Wallet: {buyer_wallet}, SOL: {sol_amount:.4f}, USD: ${usd_amount:.2f}, Tokens: {tokens_received}"
                             )
 
-                        return (buyer_wallet, usd_amount)
+                        return (buyer_wallet, usd_amount, tokens_received)
                     else:
                         if debug_first:
                             print(f"[Debug] No SOL payment found (largest was {largest_sol_payment/1e9:.4f} SOL)")
@@ -1362,7 +1645,7 @@ class HeliusAPI:
                 print(f"[Debug] Exception in _extract_buy_info: {e}")
             pass
 
-        return (None, None)
+        return (None, None, None)
 
 
 def generate_token_acronym(token_name: str, token_symbol: str = None) -> str:

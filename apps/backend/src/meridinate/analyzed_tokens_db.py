@@ -22,10 +22,13 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 # Centralized paths (keep DB and artifacts under apps/backend/data)
 from meridinate import settings
+
+# Import credit tracker lazily to avoid circular imports
+_credit_tracker_initialized = False
 
 DATABASE_FILE = settings.DATABASE_FILE
 ANALYSIS_RESULTS_DIR = settings.ANALYSIS_RESULTS_DIR
@@ -345,6 +348,8 @@ def init_database():
                 wallet_address TEXT NOT NULL,
                 position INTEGER NOT NULL,
                 first_buy_usd REAL,
+                first_buy_tokens REAL,
+                entry_market_cap REAL,
                 total_usd REAL,
                 transaction_count INTEGER,
                 average_buy_usd REAL,
@@ -487,6 +492,122 @@ def init_database():
             """
             CREATE INDEX IF NOT EXISTS idx_multi_token_metadata_marked
             ON multi_token_wallet_metadata(marked_new, marked_at_timestamp DESC)
+        """
+        )
+
+        # MTEW (Multi-Token Early Wallet) Position Tracking table
+        # Tracks positions of MTEWs in tokens they're early in, enabling win rate calculation
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS mtew_token_positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                wallet_address TEXT NOT NULL,
+                token_id INTEGER NOT NULL,
+
+                -- Entry data (captured at scan time)
+                entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                entry_market_cap REAL,
+                entry_balance REAL,
+                entry_balance_usd REAL,
+
+                -- Position tracking (updated by scheduler)
+                still_holding BOOLEAN DEFAULT 1,
+                current_balance REAL,
+                current_balance_usd REAL,
+                position_checked_at TIMESTAMP,
+
+                -- Exit tracking (when sold)
+                exit_detected_at TIMESTAMP,
+                exit_market_cap REAL,
+
+                -- Multi-buy/sell aggregate tracking
+                total_bought_tokens REAL DEFAULT 0,
+                total_bought_usd REAL DEFAULT 0,
+                total_sold_tokens REAL DEFAULT 0,
+                total_sold_usd REAL DEFAULT 0,
+                avg_entry_price REAL,  -- total_bought_usd / total_bought_tokens
+                realized_pnl REAL DEFAULT 0,  -- Profit from sells
+                buy_count INTEGER DEFAULT 1,
+                sell_count INTEGER DEFAULT 0,
+
+                -- Derived metrics (updated periodically)
+                pnl_ratio REAL,  -- For holding: current_mc / entry_mc. For sold: exit_price / entry_price
+                fpnl_ratio REAL,  -- Fumbled PnL: current_mc / entry_mc (what they missed by selling)
+
+                UNIQUE(wallet_address, token_id),
+                FOREIGN KEY (token_id) REFERENCES analyzed_tokens(id) ON DELETE CASCADE
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_mtew_positions_wallet
+            ON mtew_token_positions(wallet_address)
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_mtew_positions_token
+            ON mtew_token_positions(token_id)
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_mtew_positions_stale
+            ON mtew_token_positions(still_holding, position_checked_at)
+        """
+        )
+
+        # Wallet metrics table - aggregated win/loss stats per wallet
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS wallet_metrics (
+                wallet_address TEXT PRIMARY KEY,
+                win_count INTEGER DEFAULT 0,
+                loss_count INTEGER DEFAULT 0,
+                total_positions INTEGER DEFAULT 0,
+                win_rate REAL,
+                avg_pnl_ratio REAL,
+                metrics_updated_at TIMESTAMP
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_wallet_metrics_win_rate
+            ON wallet_metrics(win_rate DESC)
+        """
+        )
+
+        # SWAB (Smart Wallet Archive Builder) Settings table
+        # Stores configuration for auto-check scheduling and filtering
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS swab_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),  -- Singleton row
+                auto_check_enabled BOOLEAN DEFAULT 0,
+                check_interval_minutes INTEGER DEFAULT 30,
+                daily_credit_budget INTEGER DEFAULT 500,
+                stale_threshold_minutes INTEGER DEFAULT 15,
+                min_token_count INTEGER DEFAULT 2,
+                last_check_at TIMESTAMP,
+                credits_used_today INTEGER DEFAULT 0,
+                credits_reset_date TEXT,  -- YYYY-MM-DD format
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
+        # Insert default settings row if not exists
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO swab_settings (id, auto_check_enabled, check_interval_minutes,
+                daily_credit_budget, stale_threshold_minutes, min_token_count)
+            VALUES (1, 0, 30, 500, 15, 2)
         """
         )
 
@@ -675,6 +796,61 @@ def init_database():
             print("[Database] Migrating: Adding is_kol column to wallet_tags...")
             cursor.execute("ALTER TABLE wallet_tags ADD COLUMN is_kol BOOLEAN DEFAULT 0")
 
+        # Migration for mtew_token_positions - add tracking_enabled column
+        cursor.execute("PRAGMA table_info(mtew_token_positions)")
+        mtp_columns = [col[1] for col in cursor.fetchall()]
+
+        if "tracking_enabled" not in mtp_columns:
+            print("[Database] Migrating: Adding tracking_enabled column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN tracking_enabled BOOLEAN DEFAULT 1")
+
+        if "tracking_stopped_at" not in mtp_columns:
+            print("[Database] Migrating: Adding tracking_stopped_at column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN tracking_stopped_at TIMESTAMP")
+
+        if "tracking_stopped_reason" not in mtp_columns:
+            print("[Database] Migrating: Adding tracking_stopped_reason column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN tracking_stopped_reason TEXT")
+
+        # Migration for entry balance tracking (USD PnL calculation)
+        if "entry_balance" not in mtp_columns:
+            print("[Database] Migrating: Adding entry_balance column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN entry_balance REAL")
+
+        if "entry_balance_usd" not in mtp_columns:
+            print("[Database] Migrating: Adding entry_balance_usd column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN entry_balance_usd REAL")
+
+        # Migration for multi-buy/sell aggregate tracking
+        if "total_bought_tokens" not in mtp_columns:
+            print("[Database] Migrating: Adding multi-buy/sell tracking columns to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN total_bought_tokens REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN total_bought_usd REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN total_sold_tokens REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN total_sold_usd REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN avg_entry_price REAL")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN realized_pnl REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN buy_count INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN sell_count INTEGER DEFAULT 0")
+            # Backfill existing positions: set total_bought from entry_balance
+            cursor.execute("""
+                UPDATE mtew_token_positions
+                SET total_bought_tokens = COALESCE(entry_balance, 0),
+                    total_bought_usd = COALESCE(entry_balance_usd, 0),
+                    avg_entry_price = CASE
+                        WHEN entry_balance > 0 AND entry_balance_usd > 0
+                        THEN entry_balance_usd / entry_balance
+                        ELSE NULL
+                    END
+                WHERE total_bought_tokens IS NULL OR total_bought_tokens = 0
+            """)
+            print("[Database] Backfilled aggregate tracking data from entry balances")
+
+        # Migration for FPnL (Fumbled PnL) tracking
+        if "fpnl_ratio" not in mtp_columns:
+            print("[Database] Migrating: Adding fpnl_ratio column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN fpnl_ratio REAL")
+
         # Verify all required columns exist (safeguard against data loss)
         print("[Database] Verifying schema integrity...")
         cursor.execute("PRAGMA table_info(analyzed_tokens)")
@@ -718,6 +894,14 @@ def init_database():
 
         print(f"[Database] OK Schema verified: {len(columns)} columns present")
         print("[Database] Schema initialized successfully")
+
+        # Initialize credit tracker (creates credit_transactions table)
+        global _credit_tracker_initialized
+        if not _credit_tracker_initialized:
+            from meridinate.credit_tracker import credit_tracker  # noqa: F401
+
+            _credit_tracker_initialized = True
+            print("[Database] Credit tracker initialized")
 
 
 def save_analyzed_token(
@@ -822,19 +1006,23 @@ def save_analyzed_token(
 
         for index, bidder in enumerate(early_bidders[:max_wallets], start=1):
             total_usd = bidder.get("total_usd", 0)
-            first_buy_usd = round(total_usd)
+            # Use actual first_buy_usd from transaction, fallback to rounded total if not available
+            first_buy_usd = bidder.get("first_buy_usd") or round(total_usd)
+            first_buy_tokens = bidder.get("first_buy_tokens")
+            entry_market_cap = bidder.get("entry_market_cap")
             transaction_count = bidder.get("transaction_count", 1)
             average_buy_usd = bidder.get("average_buy_usd", total_usd)
             wallet_balance_usd = bidder.get("wallet_balance_usd")
-            axiom_name = f"({index}/{max_wallets})${first_buy_usd}|{acronym}"
+            axiom_name = f"({index}/{max_wallets})${round(first_buy_usd)}|{acronym}"
 
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO early_buyer_wallets (
                     token_id, analysis_run_id, wallet_address, position, first_buy_usd,
+                    first_buy_tokens, entry_market_cap,
                     total_usd, transaction_count, average_buy_usd,
                     first_buy_timestamp, axiom_name, wallet_balance_usd
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     token_id,
@@ -842,6 +1030,8 @@ def save_analyzed_token(
                     bidder["wallet_address"],
                     index,
                     first_buy_usd,
+                    first_buy_tokens,
+                    entry_market_cap,
                     total_usd,
                     transaction_count,
                     average_buy_usd,
@@ -1727,6 +1917,1768 @@ def update_multi_token_wallet_metadata(token_id: int, min_tokens: int = 2) -> in
             )
 
         return len(newly_added_wallets)
+
+
+# =============================================================================
+# MTEW Position Tracking Functions
+# =============================================================================
+
+
+def upsert_mtew_position(
+    wallet_address: str,
+    token_id: int,
+    entry_market_cap: Optional[float] = None,
+    still_holding: bool = True,
+    current_balance: Optional[float] = None,
+    current_balance_usd: Optional[float] = None,
+    entry_balance: Optional[float] = None,
+    entry_balance_usd: Optional[float] = None,
+    entry_timestamp: Optional[str] = None,
+    avg_entry_price: Optional[float] = None,
+    total_bought_tokens: Optional[float] = None,
+    total_bought_usd: Optional[float] = None,
+) -> int:
+    """
+    Insert or update MTEW position for a token.
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_id: Token ID from analyzed_tokens
+        entry_market_cap: Market cap at time of scan (entry point)
+        still_holding: Whether wallet still holds the token
+        current_balance: Current token balance
+        current_balance_usd: Current token balance in USD
+        entry_balance: Token balance at entry (only set on INSERT)
+        entry_balance_usd: USD value at entry (only set on INSERT)
+        entry_timestamp: Actual first buy timestamp (from early_buyer_wallets)
+        avg_entry_price: Average entry price per token (from early_buyer_wallets)
+        total_bought_tokens: Total tokens bought (from early_buyer_wallets)
+        total_bought_usd: Total USD spent on buys (from early_buyer_wallets)
+
+    Returns:
+        Position ID
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Use provided avg_entry_price, or calculate from entry_balance data as fallback
+        final_avg_entry_price = avg_entry_price
+        if final_avg_entry_price is None and entry_balance_usd and entry_balance and entry_balance > 0:
+            final_avg_entry_price = entry_balance_usd / entry_balance
+
+        # Use provided totals, or fall back to entry balance values
+        final_total_tokens = total_bought_tokens if total_bought_tokens is not None else (entry_balance or 0)
+        final_total_usd = total_bought_usd if total_bought_usd is not None else (entry_balance_usd or 0)
+
+        # Entry values and aggregate initializers are only set on INSERT, not updated on conflict
+        # If no entry_timestamp provided, falls back to CURRENT_TIMESTAMP via DEFAULT
+        cursor.execute(
+            """
+            INSERT INTO mtew_token_positions
+                (wallet_address, token_id, entry_market_cap, still_holding,
+                 current_balance, current_balance_usd, entry_balance, entry_balance_usd,
+                 entry_timestamp, total_bought_tokens, total_bought_usd, avg_entry_price,
+                 buy_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, 1)
+            ON CONFLICT(wallet_address, token_id) DO UPDATE SET
+                still_holding = excluded.still_holding,
+                current_balance = excluded.current_balance,
+                current_balance_usd = excluded.current_balance_usd,
+                position_checked_at = CURRENT_TIMESTAMP
+        """,
+            (wallet_address, token_id, entry_market_cap, still_holding,
+             current_balance, current_balance_usd, entry_balance, entry_balance_usd,
+             entry_timestamp, final_total_tokens, final_total_usd, final_avg_entry_price),
+        )
+
+        # Get the position ID
+        cursor.execute(
+            "SELECT id FROM mtew_token_positions WHERE wallet_address = ? AND token_id = ?",
+            (wallet_address, token_id),
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+
+def get_stale_mtew_positions(older_than_minutes: int = 15, limit: int = 100) -> List[Dict]:
+    """
+    Get MTEW positions that haven't been checked recently.
+
+    Only returns positions for wallets that meet the MTEW→SWAB gate
+    (min_token_count from settings).
+
+    Args:
+        older_than_minutes: Only return positions not checked in this many minutes
+        limit: Maximum number of positions to return
+
+    Returns:
+        List of position dicts with wallet_address, token_id, token_address
+    """
+    settings = get_swab_settings()
+    min_token_count = settings["min_token_count"]
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.wallet_address,
+                p.token_id,
+                t.token_address,
+                p.entry_market_cap,
+                p.still_holding,
+                p.position_checked_at,
+                p.current_balance,
+                p.entry_balance,
+                p.avg_entry_price,
+                p.total_bought_usd
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE p.still_holding = 1
+            AND (p.tracking_enabled = 1 OR p.tracking_enabled IS NULL)
+            AND (
+                p.position_checked_at IS NULL
+                OR p.position_checked_at < datetime('now', ?)
+            )
+            AND p.wallet_address IN (
+                SELECT wallet_address
+                FROM early_buyer_wallets ebw
+                JOIN analyzed_tokens at ON ebw.token_id = at.id
+                WHERE at.deleted_at IS NULL
+                GROUP BY wallet_address
+                HAVING COUNT(DISTINCT token_id) >= ?
+            )
+            ORDER BY p.position_checked_at ASC NULLS FIRST
+            LIMIT ?
+        """,
+            (f"-{older_than_minutes} minutes", min_token_count, limit),
+        )
+
+        positions = []
+        for row in cursor.fetchall():
+            positions.append(
+                {
+                    "id": row[0],
+                    "wallet_address": row[1],
+                    "token_id": row[2],
+                    "token_address": row[3],
+                    "entry_market_cap": row[4],
+                    "still_holding": bool(row[5]),
+                    "position_checked_at": row[6],
+                    "current_balance": row[7],
+                    "entry_balance": row[8],
+                    "avg_entry_price": row[9],
+                    "total_bought_usd": row[10],
+                }
+            )
+
+        return positions
+
+
+def get_position_by_token_address(wallet_address: str, token_address: str) -> Optional[Dict]:
+    """
+    Look up any MTEW position by wallet address and token mint address.
+
+    Used by webhook callbacks to find positions when a token transfer is detected.
+    Returns position regardless of still_holding status (for buy re-entry detection).
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_address: Token mint address (from webhook transfer)
+
+    Returns:
+        Position dict if found, None otherwise
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.wallet_address,
+                p.token_id,
+                t.token_address,
+                t.token_symbol,
+                p.entry_market_cap,
+                p.entry_timestamp,
+                p.still_holding,
+                p.current_balance,
+                p.entry_balance,
+                p.avg_entry_price,
+                p.total_bought_usd,
+                p.total_bought_tokens,
+                p.tracking_enabled
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE p.wallet_address = ?
+            AND t.token_address = ?
+        """,
+            (wallet_address, token_address),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return {
+            "id": row[0],
+            "wallet_address": row[1],
+            "token_id": row[2],
+            "token_address": row[3],
+            "token_symbol": row[4],
+            "entry_market_cap": row[5],
+            "entry_timestamp": row[6],
+            "still_holding": bool(row[7]),
+            "current_balance": row[8],
+            "entry_balance": row[9],
+            "avg_entry_price": row[10],
+            "total_bought_usd": row[11],
+            "total_bought_tokens": row[12],
+            "tracking_enabled": bool(row[13]) if row[13] is not None else True,
+        }
+
+
+def get_active_position_by_token_address(wallet_address: str, token_address: str) -> Optional[Dict]:
+    """
+    Look up an active MTEW position by wallet address and token mint address.
+
+    Used by webhook callbacks to find positions when a token transfer is detected.
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_address: Token mint address (from webhook transfer)
+
+    Returns:
+        Position dict if found and still holding, None otherwise
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.wallet_address,
+                p.token_id,
+                t.token_address,
+                t.token_symbol,
+                p.entry_market_cap,
+                p.entry_timestamp,
+                p.still_holding,
+                p.current_balance,
+                p.entry_balance,
+                p.avg_entry_price,
+                p.total_bought_usd,
+                p.total_bought_tokens,
+                p.tracking_enabled
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE p.wallet_address = ?
+            AND t.token_address = ?
+            AND p.still_holding = 1
+            AND (p.tracking_enabled = 1 OR p.tracking_enabled IS NULL)
+        """,
+            (wallet_address, token_address),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return {
+            "id": row[0],
+            "wallet_address": row[1],
+            "token_id": row[2],
+            "token_address": row[3],
+            "token_symbol": row[4],
+            "entry_market_cap": row[5],
+            "entry_timestamp": row[6],
+            "still_holding": bool(row[7]),
+            "current_balance": row[8],
+            "entry_balance": row[9],
+            "avg_entry_price": row[10],
+            "total_bought_usd": row[11],
+            "total_bought_tokens": row[12],
+            "tracking_enabled": bool(row[13]) if row[13] is not None else True,
+        }
+
+
+def get_positions_needing_reconciliation(token_id: Optional[int] = None) -> List[Dict]:
+    """
+    Get sold positions that need reconciliation (missing sell data).
+
+    These are positions where:
+    - still_holding = 0 (position is sold)
+    - total_sold_usd = 0 OR sell_count = 0 (sell was never recorded with actual price)
+
+    Args:
+        token_id: Optional token ID to filter by. If None, returns all positions needing reconciliation.
+
+    Returns:
+        List of position dicts with wallet_address, token_id, token_address, etc.
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        base_query = """
+            SELECT
+                p.id,
+                p.wallet_address,
+                p.token_id,
+                t.token_address,
+                t.token_symbol,
+                p.entry_market_cap,
+                p.entry_timestamp,
+                p.entry_balance,
+                p.avg_entry_price,
+                p.total_bought_usd,
+                p.total_bought_tokens,
+                p.exit_detected_at,
+                p.pnl_ratio
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE p.still_holding = 0
+            AND (COALESCE(p.total_sold_usd, 0) = 0 OR COALESCE(p.sell_count, 0) = 0)
+        """
+
+        if token_id:
+            cursor.execute(base_query + " AND p.token_id = ?", (token_id,))
+        else:
+            cursor.execute(base_query)
+
+        rows = cursor.fetchall()
+
+        positions = []
+        for row in rows:
+            positions.append({
+                "id": row[0],
+                "wallet_address": row[1],
+                "token_id": row[2],
+                "token_address": row[3],
+                "token_symbol": row[4],
+                "entry_market_cap": row[5],
+                "entry_timestamp": row[6],
+                "entry_balance": row[7],
+                "avg_entry_price": row[8],
+                "total_bought_usd": row[9],
+                "total_bought_tokens": row[10],
+                "exit_detected_at": row[11],
+                "current_pnl_ratio": row[12],
+            })
+
+        return positions
+
+
+def update_position_sell_reconciliation(
+    wallet_address: str,
+    token_id: int,
+    tokens_sold: float,
+    usd_received: float,
+    exit_market_cap: Optional[float] = None,
+) -> bool:
+    """
+    Update a sold position with reconciled sell data from Helius transaction history.
+
+    This is specifically for reconciliation - it updates sell data for positions
+    that were already marked as sold but lacked accurate price information.
+
+    Calculates and updates:
+    - total_sold_tokens, total_sold_usd, sell_count
+    - realized_pnl (proceeds - cost basis)
+    - pnl_ratio (exit_price / entry_price)
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_id: Token ID
+        tokens_sold: Number of tokens sold
+        usd_received: USD value received from the sell
+        exit_market_cap: Market cap at time of exit (optional)
+
+    Returns:
+        True if updated successfully
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get the avg_entry_price for PnL calculation
+        cursor.execute(
+            """
+            SELECT avg_entry_price, entry_market_cap
+            FROM mtew_token_positions
+            WHERE wallet_address = ? AND token_id = ?
+        """,
+            (wallet_address, token_id),
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            return False
+
+        avg_entry_price = row[0] or 0
+        entry_mc = row[1]
+
+        # Cost basis for sold tokens
+        cost_basis = tokens_sold * avg_entry_price if avg_entry_price else 0
+        realized_pnl = usd_received - cost_basis
+
+        # Calculate actual PnL ratio from transaction prices
+        pnl_ratio = None
+        if tokens_sold > 0 and avg_entry_price and avg_entry_price > 0:
+            exit_price_per_token = usd_received / tokens_sold
+            pnl_ratio = exit_price_per_token / avg_entry_price
+
+        # Calculate FPnL ratio if we have market cap data
+        fpnl_ratio = None
+        # Note: We can't calculate fpnl_ratio during reconciliation since we don't have
+        # the current market cap at the time of reconciliation. It would need to be
+        # recalculated separately.
+
+        cursor.execute(
+            """
+            UPDATE mtew_token_positions
+            SET total_sold_tokens = ?,
+                total_sold_usd = ?,
+                sell_count = 1,
+                realized_pnl = ?,
+                pnl_ratio = ?,
+                exit_market_cap = COALESCE(?, exit_market_cap),
+                position_checked_at = CURRENT_TIMESTAMP
+            WHERE wallet_address = ? AND token_id = ?
+        """,
+            (tokens_sold, usd_received, realized_pnl, pnl_ratio,
+             exit_market_cap, wallet_address, token_id),
+        )
+
+        return cursor.rowcount > 0
+
+
+def update_mtew_position(
+    wallet_address: str,
+    token_id: int,
+    still_holding: bool,
+    current_balance: Optional[float] = None,
+    current_balance_usd: Optional[float] = None,
+    pnl_ratio: Optional[float] = None,
+    fpnl_ratio: Optional[float] = None,
+    exit_market_cap: Optional[float] = None,
+) -> bool:
+    """
+    Update an existing MTEW position after checking.
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_id: Token ID
+        still_holding: Whether wallet still holds
+        current_balance: Current token balance (if holding)
+        current_balance_usd: Current balance in USD (if holding)
+        pnl_ratio: For holding: current_mc / entry_mc. For sold: exit_price / entry_price
+        fpnl_ratio: Fumbled PnL (current_mc / entry_mc) - what they missed by selling
+        exit_market_cap: Market cap when exit was detected (if not holding)
+
+    Returns:
+        True if updated successfully
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        if still_holding:
+            cursor.execute(
+                """
+                UPDATE mtew_token_positions
+                SET still_holding = 1,
+                    current_balance = ?,
+                    current_balance_usd = ?,
+                    pnl_ratio = ?,
+                    position_checked_at = CURRENT_TIMESTAMP
+                WHERE wallet_address = ? AND token_id = ?
+            """,
+                (current_balance, current_balance_usd, pnl_ratio, wallet_address, token_id),
+            )
+        else:
+            # Mark as sold
+            cursor.execute(
+                """
+                UPDATE mtew_token_positions
+                SET still_holding = 0,
+                    current_balance = 0,
+                    current_balance_usd = 0,
+                    pnl_ratio = ?,
+                    fpnl_ratio = ?,
+                    exit_detected_at = CURRENT_TIMESTAMP,
+                    exit_market_cap = ?,
+                    position_checked_at = CURRENT_TIMESTAMP
+                WHERE wallet_address = ? AND token_id = ?
+            """,
+                (pnl_ratio, fpnl_ratio, exit_market_cap, wallet_address, token_id),
+            )
+
+        return cursor.rowcount > 0
+
+
+def record_position_buy(
+    wallet_address: str,
+    token_id: int,
+    tokens_bought: float,
+    usd_amount: float,
+    current_balance: float,
+    current_balance_usd: Optional[float] = None,
+) -> bool:
+    """
+    Record a buy transaction for a position (detected via balance increase).
+
+    Updates aggregate tracking fields:
+    - Adds to total_bought_tokens and total_bought_usd
+    - Increments buy_count
+    - Recalculates avg_entry_price
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_id: Token ID
+        tokens_bought: Number of tokens bought in this transaction
+        usd_amount: USD value of the buy
+        current_balance: New current balance after buy
+        current_balance_usd: Current balance in USD
+
+    Returns:
+        True if updated successfully
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE mtew_token_positions
+            SET total_bought_tokens = COALESCE(total_bought_tokens, 0) + ?,
+                total_bought_usd = COALESCE(total_bought_usd, 0) + ?,
+                buy_count = COALESCE(buy_count, 1) + 1,
+                avg_entry_price = (COALESCE(total_bought_usd, 0) + ?) /
+                                  NULLIF(COALESCE(total_bought_tokens, 0) + ?, 0),
+                current_balance = ?,
+                current_balance_usd = ?,
+                still_holding = 1,
+                position_checked_at = CURRENT_TIMESTAMP
+            WHERE wallet_address = ? AND token_id = ?
+        """,
+            (tokens_bought, usd_amount, usd_amount, tokens_bought,
+             current_balance, current_balance_usd, wallet_address, token_id),
+        )
+
+        return cursor.rowcount > 0
+
+
+def record_position_sell(
+    wallet_address: str,
+    token_id: int,
+    tokens_sold: float,
+    usd_received: float,
+    current_balance: float,
+    current_balance_usd: Optional[float] = None,
+    is_full_exit: bool = False,
+    exit_market_cap: Optional[float] = None,
+    entry_market_cap: Optional[float] = None,
+    current_market_cap: Optional[float] = None,
+) -> bool:
+    """
+    Record a sell transaction for a position (detected via balance decrease).
+
+    Updates aggregate tracking fields:
+    - Adds to total_sold_tokens and total_sold_usd
+    - Increments sell_count
+    - Calculates realized_pnl for this sell (proceeds - cost basis)
+    - Calculates pnl_ratio (actual exit price / entry price)
+    - Calculates fpnl_ratio (fumbled PnL: current_mc / entry_mc - what they missed)
+
+    Args:
+        wallet_address: MTEW wallet address
+        token_id: Token ID
+        tokens_sold: Number of tokens sold in this transaction
+        usd_received: USD value received from the sell
+        current_balance: New current balance after sell
+        current_balance_usd: Current balance in USD
+        is_full_exit: If True, sets still_holding=0
+        exit_market_cap: Market cap at time of exit (if full exit)
+        entry_market_cap: Entry market cap for FPnL calculation
+        current_market_cap: Current market cap for FPnL calculation
+
+    Returns:
+        True if updated successfully
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # First, get the current avg_entry_price and entry_market_cap
+        cursor.execute(
+            """
+            SELECT avg_entry_price, total_bought_tokens, total_bought_usd, entry_market_cap
+            FROM mtew_token_positions
+            WHERE wallet_address = ? AND token_id = ?
+        """,
+            (wallet_address, token_id),
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            return False
+
+        avg_entry_price = row[0] or 0
+        stored_entry_mc = row[3]
+        # Use provided entry_market_cap or fall back to stored value
+        effective_entry_mc = entry_market_cap or stored_entry_mc
+
+        # Cost basis for sold tokens = tokens_sold * avg_entry_price
+        cost_basis = tokens_sold * avg_entry_price if avg_entry_price else 0
+        realized_pnl_delta = usd_received - cost_basis
+
+        # Calculate actual PnL ratio from transaction prices (exit_price / entry_price)
+        # This is the TRUE multiplier - what they actually made
+        pnl_ratio = None
+        if tokens_sold > 0 and avg_entry_price and avg_entry_price > 0:
+            exit_price_per_token = usd_received / tokens_sold
+            pnl_ratio = exit_price_per_token / avg_entry_price
+
+        # Calculate FPnL ratio (Fumbled PnL) = current_mc / entry_mc
+        # This shows what they WOULD have made if they held
+        fpnl_ratio = None
+        if effective_entry_mc and effective_entry_mc > 0 and current_market_cap:
+            fpnl_ratio = current_market_cap / effective_entry_mc
+
+        if is_full_exit:
+            # Full exit - mark position as sold
+            cursor.execute(
+                """
+                UPDATE mtew_token_positions
+                SET total_sold_tokens = COALESCE(total_sold_tokens, 0) + ?,
+                    total_sold_usd = COALESCE(total_sold_usd, 0) + ?,
+                    sell_count = COALESCE(sell_count, 0) + 1,
+                    realized_pnl = COALESCE(realized_pnl, 0) + ?,
+                    pnl_ratio = ?,
+                    fpnl_ratio = ?,
+                    current_balance = 0,
+                    current_balance_usd = 0,
+                    still_holding = 0,
+                    exit_detected_at = CURRENT_TIMESTAMP,
+                    exit_market_cap = ?,
+                    position_checked_at = CURRENT_TIMESTAMP
+                WHERE wallet_address = ? AND token_id = ?
+            """,
+                (tokens_sold, usd_received, realized_pnl_delta, pnl_ratio, fpnl_ratio,
+                 exit_market_cap, wallet_address, token_id),
+            )
+        else:
+            # Partial sell - still holding
+            cursor.execute(
+                """
+                UPDATE mtew_token_positions
+                SET total_sold_tokens = COALESCE(total_sold_tokens, 0) + ?,
+                    total_sold_usd = COALESCE(total_sold_usd, 0) + ?,
+                    sell_count = COALESCE(sell_count, 0) + 1,
+                    realized_pnl = COALESCE(realized_pnl, 0) + ?,
+                    current_balance = ?,
+                    current_balance_usd = ?,
+                    position_checked_at = CURRENT_TIMESTAMP
+                WHERE wallet_address = ? AND token_id = ?
+            """,
+                (tokens_sold, usd_received, realized_pnl_delta,
+                 current_balance, current_balance_usd, wallet_address, token_id),
+            )
+
+        return cursor.rowcount > 0
+
+
+def get_wallet_positions(wallet_address: str) -> List[Dict]:
+    """
+    Get all positions for a specific wallet.
+
+    Args:
+        wallet_address: Wallet address to query
+
+    Returns:
+        List of position dicts with token info and metrics
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.token_id,
+                t.token_name,
+                t.token_symbol,
+                t.token_address,
+                p.entry_timestamp,
+                p.entry_market_cap,
+                p.still_holding,
+                p.current_balance,
+                p.current_balance_usd,
+                p.pnl_ratio,
+                p.exit_detected_at,
+                p.exit_market_cap,
+                t.market_cap_usd_current
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE p.wallet_address = ?
+            ORDER BY p.entry_timestamp DESC
+        """,
+            (wallet_address,),
+        )
+
+        positions = []
+        for row in cursor.fetchall():
+            positions.append(
+                {
+                    "id": row[0],
+                    "token_id": row[1],
+                    "token_name": row[2],
+                    "token_symbol": row[3],
+                    "token_address": row[4],
+                    "entry_timestamp": row[5],
+                    "entry_market_cap": row[6],
+                    "still_holding": bool(row[7]),
+                    "current_balance": row[8],
+                    "current_balance_usd": row[9],
+                    "pnl_ratio": row[10],
+                    "exit_detected_at": row[11],
+                    "exit_market_cap": row[12],
+                    "current_market_cap": row[13],
+                }
+            )
+
+        return positions
+
+
+def calculate_wallet_metrics(wallet_address: str) -> Dict:
+    """
+    Calculate and update win rate metrics for a wallet based on positions.
+
+    Args:
+        wallet_address: Wallet address to calculate metrics for
+
+    Returns:
+        Dict with win_count, loss_count, win_rate, avg_pnl_ratio
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get all positions with valid PnL ratios
+        cursor.execute(
+            """
+            SELECT pnl_ratio
+            FROM mtew_token_positions
+            WHERE wallet_address = ?
+            AND pnl_ratio IS NOT NULL
+        """,
+            (wallet_address,),
+        )
+
+        pnl_ratios = [row[0] for row in cursor.fetchall()]
+
+        if not pnl_ratios:
+            return {
+                "win_count": 0,
+                "loss_count": 0,
+                "total_positions": 0,
+                "win_rate": None,
+                "avg_pnl_ratio": None,
+            }
+
+        win_count = sum(1 for pnl in pnl_ratios if pnl > 1.0)
+        loss_count = sum(1 for pnl in pnl_ratios if pnl <= 1.0)
+        total_positions = len(pnl_ratios)
+        win_rate = win_count / total_positions if total_positions > 0 else 0
+        avg_pnl_ratio = sum(pnl_ratios) / total_positions if total_positions > 0 else 0
+
+        # Update wallet_metrics table
+        cursor.execute(
+            """
+            INSERT INTO wallet_metrics
+                (wallet_address, win_count, loss_count, total_positions, win_rate, avg_pnl_ratio, metrics_updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(wallet_address) DO UPDATE SET
+                win_count = excluded.win_count,
+                loss_count = excluded.loss_count,
+                total_positions = excluded.total_positions,
+                win_rate = excluded.win_rate,
+                avg_pnl_ratio = excluded.avg_pnl_ratio,
+                metrics_updated_at = CURRENT_TIMESTAMP
+        """,
+            (wallet_address, win_count, loss_count, total_positions, win_rate, avg_pnl_ratio),
+        )
+
+        return {
+            "win_count": win_count,
+            "loss_count": loss_count,
+            "total_positions": total_positions,
+            "win_rate": win_rate,
+            "avg_pnl_ratio": avg_pnl_ratio,
+        }
+
+
+def get_wallet_metrics(wallet_address: str) -> Optional[Dict]:
+    """
+    Get cached wallet metrics.
+
+    Args:
+        wallet_address: Wallet address to query
+
+    Returns:
+        Dict with metrics or None if not calculated yet
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT win_count, loss_count, total_positions, win_rate, avg_pnl_ratio, metrics_updated_at
+            FROM wallet_metrics
+            WHERE wallet_address = ?
+        """,
+            (wallet_address,),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return {
+            "win_count": row[0],
+            "loss_count": row[1],
+            "total_positions": row[2],
+            "win_rate": row[3],
+            "avg_pnl_ratio": row[4],
+            "metrics_updated_at": row[5],
+        }
+
+
+def get_multi_token_wallets_for_token(token_id: int, min_tokens: int = 2) -> List[str]:
+    """
+    Get wallets that are/will become MTEWs after this token scan.
+
+    Args:
+        token_id: The token being scanned
+        min_tokens: Minimum tokens to qualify as MTEW (default: 2)
+
+    Returns:
+        List of wallet addresses that are or will become MTEWs
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get early buyers for this token
+        cursor.execute(
+            """
+            SELECT DISTINCT wallet_address
+            FROM early_buyer_wallets
+            WHERE token_id = ?
+        """,
+            (token_id,),
+        )
+        token_wallets = {row[0] for row in cursor.fetchall()}
+
+        # Get wallets that are already MTEWs (in 2+ tokens)
+        cursor.execute(
+            """
+            SELECT wallet_address, COUNT(DISTINCT token_id) as token_count
+            FROM early_buyer_wallets ebw
+            JOIN analyzed_tokens t ON ebw.token_id = t.id
+            WHERE t.deleted_at IS NULL
+            GROUP BY wallet_address
+            HAVING COUNT(DISTINCT token_id) >= ?
+        """,
+            (min_tokens,),
+        )
+        existing_mtews = {row[0] for row in cursor.fetchall()}
+
+        # Wallets in this token that are MTEWs
+        mtews_in_token = token_wallets & existing_mtews
+
+        # Also check wallets that JUST became MTEWs with this token
+        # (they were in exactly 1 other token before)
+        cursor.execute(
+            """
+            SELECT wallet_address
+            FROM (
+                SELECT wallet_address, COUNT(DISTINCT token_id) as token_count
+                FROM early_buyer_wallets ebw
+                JOIN analyzed_tokens t ON ebw.token_id = t.id
+                WHERE t.deleted_at IS NULL AND ebw.token_id != ?
+                GROUP BY wallet_address
+            )
+            WHERE token_count = 1
+        """,
+            (token_id,),
+        )
+        wallets_with_one_other = {row[0] for row in cursor.fetchall()}
+        newly_minted_mtews = token_wallets & wallets_with_one_other
+
+        return list(mtews_in_token | newly_minted_mtews)
+
+
+# =============================================================================
+# SWAB (Smart Wallet Archive Builder) Functions
+# =============================================================================
+
+
+def get_swab_settings() -> Dict:
+    """
+    Get SWAB configuration settings.
+
+    Returns:
+        Dict with SWAB settings
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT auto_check_enabled, check_interval_minutes, daily_credit_budget,
+                   stale_threshold_minutes, min_token_count, last_check_at,
+                   credits_used_today, credits_reset_date, updated_at
+            FROM swab_settings
+            WHERE id = 1
+        """
+        )
+
+        row = cursor.fetchone()
+        if row:
+            return {
+                "auto_check_enabled": bool(row[0]),
+                "check_interval_minutes": row[1],
+                "daily_credit_budget": row[2],
+                "stale_threshold_minutes": row[3],
+                "min_token_count": row[4],
+                "last_check_at": row[5],
+                "credits_used_today": row[6] or 0,
+                "credits_reset_date": row[7],
+                "updated_at": row[8],
+            }
+
+        # Return defaults if not found
+        return {
+            "auto_check_enabled": False,
+            "check_interval_minutes": 30,
+            "daily_credit_budget": 500,
+            "stale_threshold_minutes": 15,
+            "min_token_count": 2,
+            "last_check_at": None,
+            "credits_used_today": 0,
+            "credits_reset_date": None,
+            "updated_at": None,
+        }
+
+
+def update_swab_settings(
+    auto_check_enabled: Optional[bool] = None,
+    check_interval_minutes: Optional[int] = None,
+    daily_credit_budget: Optional[int] = None,
+    stale_threshold_minutes: Optional[int] = None,
+    min_token_count: Optional[int] = None,
+) -> Dict:
+    """
+    Update SWAB configuration settings.
+
+    Args:
+        auto_check_enabled: Enable/disable auto-check
+        check_interval_minutes: Interval between checks
+        daily_credit_budget: Max credits per day for SWAB
+        stale_threshold_minutes: Position is stale after this many minutes
+        min_token_count: Minimum tokens for MTEW to be tracked
+
+    Returns:
+        Updated settings dict
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Build dynamic update query
+        updates = []
+        params = []
+
+        if auto_check_enabled is not None:
+            updates.append("auto_check_enabled = ?")
+            params.append(1 if auto_check_enabled else 0)
+
+        if check_interval_minutes is not None:
+            updates.append("check_interval_minutes = ?")
+            params.append(check_interval_minutes)
+
+        if daily_credit_budget is not None:
+            updates.append("daily_credit_budget = ?")
+            params.append(daily_credit_budget)
+
+        if stale_threshold_minutes is not None:
+            updates.append("stale_threshold_minutes = ?")
+            params.append(stale_threshold_minutes)
+
+        if min_token_count is not None:
+            updates.append("min_token_count = ?")
+            params.append(min_token_count)
+
+        if updates:
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            query = f"UPDATE swab_settings SET {', '.join(updates)} WHERE id = 1"
+            cursor.execute(query, params)
+
+    return get_swab_settings()
+
+
+def update_swab_last_check(credits_used: int = 0) -> None:
+    """
+    Update SWAB last check timestamp and credits used.
+
+    Args:
+        credits_used: Credits used in this check cycle
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Check if we need to reset daily credits
+        cursor.execute("SELECT credits_reset_date FROM swab_settings WHERE id = 1")
+        row = cursor.fetchone()
+        current_reset_date = row[0] if row else None
+
+        if current_reset_date != today:
+            # New day - reset credits
+            cursor.execute(
+                """
+                UPDATE swab_settings
+                SET last_check_at = CURRENT_TIMESTAMP,
+                    credits_used_today = ?,
+                    credits_reset_date = ?
+                WHERE id = 1
+            """,
+                (credits_used, today),
+            )
+        else:
+            # Same day - add to credits
+            cursor.execute(
+                """
+                UPDATE swab_settings
+                SET last_check_at = CURRENT_TIMESTAMP,
+                    credits_used_today = credits_used_today + ?
+                WHERE id = 1
+            """,
+                (credits_used,),
+            )
+
+
+def get_swab_positions(
+    min_token_count: Optional[int] = None,
+    status_filter: Optional[str] = None,  # 'holding', 'sold', 'stale', 'all'
+    pnl_min: Optional[float] = None,
+    pnl_max: Optional[float] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> Dict:
+    """
+    Get positions for SWAB display with filters.
+
+    Args:
+        min_token_count: Minimum tokens for MTEW to be included
+        status_filter: Filter by status ('holding', 'sold', 'stale', 'all')
+        pnl_min: Minimum PnL ratio filter
+        pnl_max: Maximum PnL ratio filter
+        limit: Max positions to return
+        offset: Pagination offset
+
+    Returns:
+        Dict with positions list and pagination info
+    """
+    if min_token_count is None:
+        settings = get_swab_settings()
+        min_token_count = settings["min_token_count"]
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Build WHERE clause - no longer filter by tracking_enabled by default
+        # We want to show ALL positions (including sold/stopped) for qualifying wallets
+        where_clauses = []
+        params = []
+
+        # Filter by MTEW token count
+        where_clauses.append(
+            """
+            p.wallet_address IN (
+                SELECT wallet_address
+                FROM early_buyer_wallets ebw
+                JOIN analyzed_tokens t ON ebw.token_id = t.id
+                WHERE t.deleted_at IS NULL
+                GROUP BY wallet_address
+                HAVING COUNT(DISTINCT token_id) >= ?
+            )
+        """
+        )
+        params.append(min_token_count)
+
+        # Status filter
+        if status_filter == "holding":
+            # Only active, still-holding positions
+            where_clauses.append("p.still_holding = 1")
+            where_clauses.append("(p.tracking_enabled = 1 OR p.tracking_enabled IS NULL)")
+        elif status_filter == "sold":
+            # Only sold positions (tracking stopped)
+            where_clauses.append("p.still_holding = 0")
+        elif status_filter == "stale":
+            settings = get_swab_settings()
+            where_clauses.append("p.still_holding = 1")
+            where_clauses.append("(p.tracking_enabled = 1 OR p.tracking_enabled IS NULL)")
+            where_clauses.append(
+                "(p.position_checked_at IS NULL OR p.position_checked_at < datetime('now', ?))"
+            )
+            params.append(f"-{settings['stale_threshold_minutes']} minutes")
+        # 'all' or None - show everything for qualifying wallets
+
+        # PnL filters
+        if pnl_min is not None:
+            where_clauses.append("p.pnl_ratio >= ?")
+            params.append(pnl_min)
+
+        if pnl_max is not None:
+            where_clauses.append("p.pnl_ratio <= ?")
+            params.append(pnl_max)
+
+        where_sql = " AND ".join(where_clauses)
+
+        # Get total count
+        count_query = f"""
+            SELECT COUNT(*)
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE {where_sql}
+        """
+        cursor.execute(count_query, params)
+        total_count = cursor.fetchone()[0]
+
+        # Get positions with pagination
+        query = f"""
+            SELECT
+                p.id,
+                p.wallet_address,
+                p.token_id,
+                t.token_name,
+                t.token_symbol,
+                t.token_address,
+                p.entry_timestamp,
+                p.entry_market_cap,
+                t.market_cap_usd_current,
+                p.still_holding,
+                p.current_balance,
+                p.current_balance_usd,
+                p.pnl_ratio,
+                p.fpnl_ratio,
+                p.exit_detected_at,
+                p.exit_market_cap,
+                p.position_checked_at,
+                p.tracking_enabled,
+                p.tracking_stopped_at,
+                p.tracking_stopped_reason,
+                p.entry_balance,
+                p.entry_balance_usd,
+                -- Calculate hold time in seconds
+                CAST((julianday(COALESCE(p.exit_detected_at, 'now')) - julianday(p.entry_timestamp)) * 86400 AS INTEGER) as hold_time_seconds
+            FROM mtew_token_positions p
+            JOIN analyzed_tokens t ON p.token_id = t.id
+            WHERE {where_sql}
+            ORDER BY p.entry_timestamp DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+
+        positions = []
+        for row in cursor.fetchall():
+            # Row indices:
+            # 0: id, 1: wallet_address, 2: token_id, 3: token_name, 4: token_symbol,
+            # 5: token_address, 6: entry_timestamp, 7: entry_market_cap, 8: market_cap_usd_current,
+            # 9: still_holding, 10: current_balance, 11: current_balance_usd, 12: pnl_ratio,
+            # 13: fpnl_ratio, 14: exit_detected_at, 15: exit_market_cap, 16: position_checked_at,
+            # 17: tracking_enabled, 18: tracking_stopped_at, 19: tracking_stopped_reason,
+            # 20: entry_balance, 21: entry_balance_usd, 22: hold_time_seconds
+            entry_balance_usd = row[21]
+            current_balance_usd = row[11]
+            # Calculate USD PnL (realized or unrealized)
+            pnl_usd = None
+            if entry_balance_usd is not None and current_balance_usd is not None:
+                pnl_usd = current_balance_usd - entry_balance_usd
+
+            # Calculate FPnL dynamically for sold positions: current_mc / entry_mc
+            # This shows what they would have NOW if they held (tracks current price)
+            entry_mc = row[7]
+            current_mc = row[8]
+            stored_fpnl = row[13]
+            still_holding = bool(row[9])
+
+            # For sold positions, calculate dynamic FPnL from current market cap
+            # For holding positions, use stored value (updated during position checks)
+            if not still_holding and entry_mc and entry_mc > 0 and current_mc:
+                dynamic_fpnl = current_mc / entry_mc
+            else:
+                dynamic_fpnl = stored_fpnl
+
+            positions.append(
+                {
+                    "id": row[0],
+                    "wallet_address": row[1],
+                    "token_id": row[2],
+                    "token_name": row[3],
+                    "token_symbol": row[4],
+                    "token_address": row[5],
+                    "entry_timestamp": row[6],
+                    "entry_market_cap": entry_mc,
+                    "current_market_cap": current_mc,
+                    "still_holding": still_holding,
+                    "current_balance": row[10],
+                    "current_balance_usd": row[11],
+                    "pnl_ratio": row[12],
+                    "fpnl_ratio": dynamic_fpnl,  # Dynamic for sold, stored for holding
+                    "exit_detected_at": row[14],
+                    "exit_market_cap": row[15],
+                    "position_checked_at": row[16],
+                    "tracking_enabled": bool(row[17]) if row[17] is not None else True,
+                    "tracking_stopped_at": row[18],
+                    "tracking_stopped_reason": row[19],
+                    "entry_balance": row[20],
+                    "entry_balance_usd": entry_balance_usd,
+                    "pnl_usd": pnl_usd,
+                    "hold_time_seconds": row[22],
+                }
+            )
+
+        return {
+            "positions": positions,
+            "total": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + len(positions) < total_count,
+        }
+
+
+def get_swab_wallet_summary(min_token_count: Optional[int] = None) -> List[Dict]:
+    """
+    Get aggregated wallet summary for SWAB display.
+
+    Args:
+        min_token_count: Minimum tokens for MTEW to be included
+
+    Returns:
+        List of wallet summaries with win rate, avg pnl, position counts
+    """
+    if min_token_count is None:
+        settings = get_swab_settings()
+        min_token_count = settings["min_token_count"]
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                p.wallet_address,
+                COUNT(*) as total_positions,
+                SUM(CASE WHEN p.still_holding = 1 AND p.tracking_enabled = 1 THEN 1 ELSE 0 END) as holding_count,
+                SUM(CASE WHEN p.still_holding = 0 THEN 1 ELSE 0 END) as sold_count,
+                SUM(CASE WHEN p.pnl_ratio > 1.0 THEN 1 ELSE 0 END) as win_count,
+                SUM(CASE WHEN p.pnl_ratio <= 1.0 AND p.pnl_ratio IS NOT NULL THEN 1 ELSE 0 END) as loss_count,
+                AVG(p.pnl_ratio) as avg_pnl_ratio,
+                MAX(p.position_checked_at) as last_checked
+            FROM mtew_token_positions p
+            WHERE p.wallet_address IN (
+                SELECT wallet_address
+                FROM early_buyer_wallets ebw
+                JOIN analyzed_tokens t ON ebw.token_id = t.id
+                WHERE t.deleted_at IS NULL
+                GROUP BY wallet_address
+                HAVING COUNT(DISTINCT token_id) >= ?
+            )
+            GROUP BY p.wallet_address
+            ORDER BY AVG(p.pnl_ratio) DESC NULLS LAST
+        """,
+            (min_token_count,),
+        )
+
+        wallets = []
+        for row in cursor.fetchall():
+            total = row[1]
+            wins = row[4] or 0
+            losses = row[5] or 0
+
+            win_rate = None
+            if wins + losses > 0:
+                win_rate = wins / (wins + losses)
+
+            wallets.append(
+                {
+                    "wallet_address": row[0],
+                    "total_positions": total,
+                    "holding_count": row[2] or 0,
+                    "sold_count": row[3] or 0,
+                    "win_count": wins,
+                    "loss_count": losses,
+                    "win_rate": win_rate,
+                    "avg_pnl_ratio": row[6],
+                    "last_checked": row[7],
+                }
+            )
+
+        return wallets
+
+
+def get_swab_stats() -> Dict:
+    """
+    Get overview statistics for SWAB.
+
+    Returns:
+        Dict with total positions, win rate, avg pnl, etc.
+    """
+    settings = get_swab_settings()
+    min_token_count = settings["min_token_count"]
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get position counts - filtered by MTEW token count gate
+        # Now counts ALL positions (including sold) for qualifying wallets
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) as total_positions,
+                SUM(CASE WHEN still_holding = 1 AND (tracking_enabled = 1 OR tracking_enabled IS NULL) THEN 1 ELSE 0 END) as holding,
+                SUM(CASE WHEN still_holding = 0 THEN 1 ELSE 0 END) as sold,
+                SUM(CASE WHEN pnl_ratio > 1.0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE WHEN pnl_ratio <= 1.0 AND pnl_ratio IS NOT NULL THEN 1 ELSE 0 END) as losers,
+                AVG(pnl_ratio) as avg_pnl,
+                COUNT(DISTINCT wallet_address) as unique_wallets,
+                COUNT(DISTINCT token_id) as unique_tokens
+            FROM mtew_token_positions
+            WHERE wallet_address IN (
+                SELECT wallet_address
+                FROM early_buyer_wallets ebw
+                JOIN analyzed_tokens t ON ebw.token_id = t.id
+                WHERE t.deleted_at IS NULL
+                GROUP BY wallet_address
+                HAVING COUNT(DISTINCT token_id) >= ?
+            )
+        """,
+            (min_token_count,),
+        )
+
+        row = cursor.fetchone()
+        total = row[0] or 0
+        holding = row[1] or 0
+        sold = row[2] or 0
+        winners = row[3] or 0
+        losers = row[4] or 0
+        avg_pnl = row[5]
+        unique_wallets = row[6] or 0
+        unique_tokens = row[7] or 0
+
+        # Win rate calculation
+        win_rate = None
+        if winners + losers > 0:
+            win_rate = winners / (winners + losers)
+
+        # Count stale positions - filtered by MTEW token count gate
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM mtew_token_positions
+            WHERE still_holding = 1
+            AND tracking_enabled = 1
+            AND (position_checked_at IS NULL OR position_checked_at < datetime('now', ?))
+            AND wallet_address IN (
+                SELECT wallet_address
+                FROM early_buyer_wallets ebw
+                JOIN analyzed_tokens t ON ebw.token_id = t.id
+                WHERE t.deleted_at IS NULL
+                GROUP BY wallet_address
+                HAVING COUNT(DISTINCT token_id) >= ?
+            )
+        """,
+            (f"-{settings['stale_threshold_minutes']} minutes", min_token_count),
+        )
+        stale_count = cursor.fetchone()[0]
+
+        # Estimate credits for checking stale positions
+        estimated_credits = stale_count * 10  # 10 credits per position check
+
+        return {
+            "total_positions": total,
+            "holding": holding,
+            "sold": sold,
+            "winners": winners,
+            "losers": losers,
+            "win_rate": win_rate,
+            "avg_pnl_ratio": avg_pnl,
+            "unique_wallets": unique_wallets,
+            "unique_tokens": unique_tokens,
+            "stale_positions": stale_count,
+            "estimated_check_credits": estimated_credits,
+            "credits_used_today": settings["credits_used_today"],
+            "daily_credit_budget": settings["daily_credit_budget"],
+            "credits_remaining": settings["daily_credit_budget"] - settings["credits_used_today"],
+        }
+
+
+def get_active_swab_wallets() -> List[str]:
+    """
+    Get all unique wallet addresses with active SWAB positions.
+
+    Used to create a Helius webhook for real-time sell detection.
+    Only returns wallets that:
+    - Have at least one position still holding
+    - Have tracking enabled
+
+    Returns:
+        List of unique wallet addresses
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT DISTINCT wallet_address
+            FROM mtew_token_positions
+            WHERE still_holding = 1
+            AND (tracking_enabled = 1 OR tracking_enabled IS NULL)
+            ORDER BY wallet_address
+        """
+        )
+
+        return [row[0] for row in cursor.fetchall()]
+
+
+def stop_tracking_position(position_id: int, reason: str = "manual") -> bool:
+    """
+    Stop tracking a specific position.
+
+    Args:
+        position_id: Position ID to stop tracking
+        reason: Reason for stopping ('manual', 'sold', etc.)
+
+    Returns:
+        True if stopped successfully
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE mtew_token_positions
+            SET tracking_enabled = 0,
+                tracking_stopped_at = CURRENT_TIMESTAMP,
+                tracking_stopped_reason = ?
+            WHERE id = ?
+        """,
+            (reason, position_id),
+        )
+
+        return cursor.rowcount > 0
+
+
+def stop_tracking_wallet_positions(wallet_address: str, reason: str = "manual") -> int:
+    """
+    Stop tracking all positions for a wallet.
+
+    Args:
+        wallet_address: Wallet address to stop tracking
+        reason: Reason for stopping
+
+    Returns:
+        Number of positions stopped
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE mtew_token_positions
+            SET tracking_enabled = 0,
+                tracking_stopped_at = CURRENT_TIMESTAMP,
+                tracking_stopped_reason = ?
+            WHERE wallet_address = ?
+            AND tracking_enabled = 1
+        """,
+            (reason, wallet_address),
+        )
+
+        return cursor.rowcount
+
+
+def resume_tracking_position(position_id: int) -> bool:
+    """
+    Resume tracking a previously stopped position.
+
+    Args:
+        position_id: Position ID to resume tracking
+
+    Returns:
+        True if resumed successfully
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE mtew_token_positions
+            SET tracking_enabled = 1,
+                tracking_stopped_at = NULL,
+                tracking_stopped_reason = NULL
+            WHERE id = ?
+        """,
+            (position_id,),
+        )
+
+        return cursor.rowcount > 0
+
+
+# =============================================================================
+# Smart/Dumb Wallet Label Functions
+# =============================================================================
+
+# Constants for label thresholds
+SMART_EXPECTANCY_THRESHOLD = 0.5
+DUMB_EXPECTANCY_THRESHOLD = -0.2
+MIN_CLOSED_POSITIONS = 5
+PNL_CAP_MAX = 10.0  # Cap wins at 10x to prevent outlier skewing
+PNL_CAP_MIN = 0.1   # Cap losses at 0.1x
+
+
+def calculate_wallet_expectancy(wallet_address: str) -> Dict[str, Any]:
+    """
+    Calculate expectancy score for a wallet based on closed (sold) positions.
+
+    Expectancy = (Win% × Avg_Capped_Win) - (Loss% × Avg_Capped_Loss)
+
+    Where wins/losses are capped at PNL_CAP_MAX/PNL_CAP_MIN to prevent
+    outliers from skewing the score.
+
+    Args:
+        wallet_address: Wallet address to calculate expectancy for
+
+    Returns:
+        Dict with expectancy score, win_rate, avg_pnl, closed_count, and suggested_label
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get all closed positions (sold) with PnL data
+        cursor.execute(
+            """
+            SELECT pnl_ratio
+            FROM mtew_token_positions
+            WHERE wallet_address = ?
+            AND still_holding = 0
+            AND pnl_ratio IS NOT NULL
+        """,
+            (wallet_address,),
+        )
+
+        pnl_values = [row[0] for row in cursor.fetchall()]
+
+    if not pnl_values:
+        return {
+            "wallet_address": wallet_address,
+            "expectancy": None,
+            "win_rate": None,
+            "avg_pnl": None,
+            "closed_count": 0,
+            "suggested_label": None,
+        }
+
+    # Cap PnL values to prevent outlier skewing
+    capped_pnl = [
+        max(PNL_CAP_MIN, min(PNL_CAP_MAX, pnl)) for pnl in pnl_values
+    ]
+
+    # Calculate metrics
+    wins = [p for p in capped_pnl if p > 1.0]
+    losses = [p for p in capped_pnl if p <= 1.0]
+
+    win_count = len(wins)
+    loss_count = len(losses)
+    total = win_count + loss_count
+
+    win_rate = win_count / total if total > 0 else 0
+
+    # Average win size (excess over 1.0)
+    avg_win_size = (sum(wins) / len(wins) - 1.0) if wins else 0
+
+    # Average loss size (shortfall from 1.0)
+    avg_loss_size = (1.0 - sum(losses) / len(losses)) if losses else 0
+
+    # Expectancy formula
+    loss_rate = 1 - win_rate
+    expectancy = (win_rate * avg_win_size) - (loss_rate * avg_loss_size)
+
+    # Average PnL (uncapped for display)
+    avg_pnl = sum(pnl_values) / len(pnl_values)
+
+    # Determine suggested label
+    suggested_label = None
+    if total >= MIN_CLOSED_POSITIONS:
+        if expectancy > SMART_EXPECTANCY_THRESHOLD:
+            suggested_label = "Smart"
+        elif expectancy < DUMB_EXPECTANCY_THRESHOLD:
+            suggested_label = "Dumb"
+
+    return {
+        "wallet_address": wallet_address,
+        "expectancy": round(expectancy, 3),
+        "win_rate": round(win_rate, 3),
+        "avg_pnl": round(avg_pnl, 2),
+        "closed_count": total,
+        "suggested_label": suggested_label,
+    }
+
+
+def update_wallet_smart_dumb_label(wallet_address: str) -> Optional[str]:
+    """
+    Calculate expectancy and update Smart/Dumb label for a wallet.
+
+    Removes any existing Smart/Dumb label and adds the new one if applicable.
+    Uses hysteresis to prevent label flapping near thresholds.
+
+    Args:
+        wallet_address: Wallet address to update label for
+
+    Returns:
+        The new label ('Smart', 'Dumb', or None if unlabeled)
+    """
+    metrics = calculate_wallet_expectancy(wallet_address)
+    suggested_label = metrics["suggested_label"]
+
+    # Get current labels
+    current_tags = get_wallet_tags(wallet_address)
+    current_label = None
+    for tag in current_tags:
+        if tag["tag"] in ("Smart", "Dumb"):
+            current_label = tag["tag"]
+            break
+
+    # Apply hysteresis - harder to remove a label than to gain it
+    # If currently labeled, require stronger evidence to change
+    if current_label == "Smart" and suggested_label != "Smart":
+        # To lose Smart label, expectancy must drop below 0.3 (not just below 0.5)
+        if metrics["expectancy"] is not None and metrics["expectancy"] > 0.3:
+            suggested_label = "Smart"  # Keep Smart label
+
+    if current_label == "Dumb" and suggested_label != "Dumb":
+        # To lose Dumb label, expectancy must rise above 0.0 (not just above -0.2)
+        if metrics["expectancy"] is not None and metrics["expectancy"] < 0.0:
+            suggested_label = "Dumb"  # Keep Dumb label
+
+    # Remove existing Smart/Dumb labels
+    if current_label:
+        remove_wallet_tag(wallet_address, current_label)
+
+    # Add new label if applicable
+    if suggested_label:
+        add_wallet_tag(wallet_address, suggested_label, is_kol=False)
+
+    return suggested_label
+
+
+def batch_update_wallet_labels(wallet_addresses: List[str]) -> Dict[str, Optional[str]]:
+    """
+    Update Smart/Dumb labels for multiple wallets.
+
+    Args:
+        wallet_addresses: List of wallet addresses to update
+
+    Returns:
+        Dict mapping wallet_address -> new label (or None)
+    """
+    results = {}
+    for wallet_address in wallet_addresses:
+        results[wallet_address] = update_wallet_smart_dumb_label(wallet_address)
+    return results
+
+
+def get_all_wallet_expectancies(min_closed: int = MIN_CLOSED_POSITIONS) -> List[Dict]:
+    """
+    Get expectancy metrics for all wallets with sufficient closed positions.
+
+    Args:
+        min_closed: Minimum closed positions required
+
+    Returns:
+        List of wallet expectancy dicts sorted by expectancy descending
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get all wallets with closed positions
+        cursor.execute(
+            """
+            SELECT DISTINCT wallet_address
+            FROM mtew_token_positions
+            WHERE still_holding = 0
+            AND pnl_ratio IS NOT NULL
+        """
+        )
+
+        wallets = [row[0] for row in cursor.fetchall()]
+
+    results = []
+    for wallet in wallets:
+        metrics = calculate_wallet_expectancy(wallet)
+        if metrics["closed_count"] >= min_closed:
+            results.append(metrics)
+
+    # Sort by expectancy descending
+    results.sort(key=lambda x: x["expectancy"] or 0, reverse=True)
+    return results
+
+
+def purge_swab_data() -> Dict[str, int]:
+    """
+    Purge all SWAB position tracking data for a fresh start.
+
+    This deletes:
+    - All records from mtew_token_positions
+    - All records from mtew_wallet_metrics (if exists)
+
+    Returns:
+        Dict with positions_deleted and metrics_deleted counts
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Delete all positions
+        cursor.execute("DELETE FROM mtew_token_positions")
+        positions_deleted = cursor.rowcount
+
+        # Delete all wallet metrics (if table exists)
+        metrics_deleted = 0
+        try:
+            cursor.execute("DELETE FROM mtew_wallet_metrics")
+            metrics_deleted = cursor.rowcount
+        except Exception:
+            # Table may not exist
+            pass
+
+        # Also remove Smart/Dumb tags from wallets
+        try:
+            cursor.execute(
+                """
+                DELETE FROM wallet_tags
+                WHERE tag IN ('smart', 'dumb', 'Smart', 'Dumb')
+                """
+            )
+        except Exception:
+            pass
+
+    return {
+        "positions_deleted": positions_deleted,
+        "metrics_deleted": metrics_deleted,
+    }
 
 
 # Initialize database on module import

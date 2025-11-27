@@ -13,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 
 # Import routers
-from meridinate.routers import analysis, metrics, settings_debug, tags, tokens, wallets, watchlist, webhooks
+from meridinate.routers import analysis, metrics, settings_debug, stats, swab, tags, tokens, wallets, watchlist, webhooks
 from meridinate.utils.models import AnalysisCompleteNotification, AnalysisStartNotification
 
 # Import WebSocket manager and notification endpoints
@@ -61,12 +61,14 @@ def create_app() -> FastAPI:
     # Register routers
     app.include_router(settings_debug.router, tags=["Settings & Health"])
     app.include_router(metrics.router, tags=["Metrics"])
+    app.include_router(stats.router, tags=["Stats"])
     app.include_router(watchlist.router, tags=["Watchlist"])
     app.include_router(tokens.router, tags=["Tokens"])
     app.include_router(analysis.router, tags=["Analysis"])
     app.include_router(wallets.router, tags=["Wallets"])
     app.include_router(tags.router, tags=["Tags"])
     app.include_router(webhooks.router, tags=["Webhooks"])
+    app.include_router(swab.router, tags=["SWAB"])
 
     # WebSocket endpoint
     @app.websocket("/ws")
@@ -135,6 +137,12 @@ def create_app() -> FastAPI:
         print("[OK] Fast JSON serialization (orjson - 5-10x faster)")
         if RATE_LIMIT_ENABLED:
             print("[OK] Rate limiting enabled (slowapi + Redis)")
+
+        # Start SWAB scheduler
+        from meridinate.scheduler import start_scheduler
+        start_scheduler()
+        print("[OK] SWAB scheduler initialized")
+
         print("=" * 80)
         print("Performance Features:")
         print("  - Cached requests: <10ms (instant on 2nd load)")
@@ -142,7 +150,15 @@ def create_app() -> FastAPI:
         print("  - Concurrent balance refresh: 10x faster than sequential")
         print("  - Heavy load: handles 100+ concurrent requests")
         print("  - WebSocket notifications: real-time analysis updates")
+        print("  - SWAB: Smart Wallet Archive Builder with scheduled position tracking")
         print("=" * 80)
+
+    # Shutdown event
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        from meridinate.scheduler import stop_scheduler
+        stop_scheduler()
+        print("[OK] SWAB scheduler stopped")
 
     return app
 

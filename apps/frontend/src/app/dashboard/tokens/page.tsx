@@ -6,8 +6,7 @@ import React, {
   useRef,
   useMemo,
   useCallback,
-  startTransition,
-  useContext
+  startTransition
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -20,7 +19,9 @@ import {
   getSolscanSettings,
   buildSolscanUrl,
   SolscanSettings,
-  API_BASE_URL
+  API_BASE_URL,
+  getCreditStatsToday,
+  CreditUsageStats
 } from '@/lib/api';
 import { shouldLog } from '@/lib/debug';
 import { TokensTable } from './tokens-table';
@@ -145,6 +146,15 @@ const WalletTopHoldersModal = dynamic(
   () =>
     import('./wallet-top-holders-modal').then((mod) => ({
       default: mod.WalletTopHoldersModal
+    })),
+  { ssr: false }
+);
+
+// Lazy load SWAB tab component
+const SwabTab = dynamic(
+  () =>
+    import('@/components/swab').then((mod) => ({
+      default: mod.SwabTab
     })),
   { ssr: false }
 );
@@ -846,6 +856,12 @@ export default function TokensPage() {
   // Scroll to top button ref
   const mtwSectionRef = useRef<HTMLDivElement>(null);
 
+  // Active tab for MTEW/SWAB tabbed interface
+  const [activeTab, setActiveTab] = useState<'mtew' | 'swab'>('mtew');
+
+  // Credit stats state for live tracking
+  const [creditStats, setCreditStats] = useState<CreditUsageStats | null>(null);
+
   // Track latest refetch request to prevent race conditions
   const latestRefetchId = useRef(0);
 
@@ -985,6 +1001,26 @@ export default function TokensPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [fetchData]);
+
+  // Fetch credit stats on mount and periodically refresh (every 30s)
+  useEffect(() => {
+    const fetchCreditStats = async () => {
+      try {
+        const stats = await getCreditStatsToday();
+        setCreditStats(stats);
+      } catch {
+        // Silently fail - status bar will fall back to token-based calculation
+      }
+    };
+
+    // Initial fetch
+    fetchCreditStats();
+
+    // Refresh every 30 seconds
+    const creditInterval = setInterval(fetchCreditStats, 30000);
+
+    return () => clearInterval(creditInterval);
+  }, []);
 
   // Poll for active analysis jobs and auto-refresh when they complete
   // Tab visibility-aware: pause polling when tab is hidden
@@ -2059,26 +2095,37 @@ export default function TokensPage() {
           </Popover>
         </div>
 
-        {/* Multi-Token Early Wallets Section */}
+        {/* Multi-Token Early Wallets / SWAB Tabbed Section */}
         {multiWallets && multiWallets.total > 0 && (
           <div ref={mtwSectionRef} className='bg-card rounded-lg border p-3'>
-            {/* Sticky Header with Title, Filters, Search, and Scroll to Top */}
+            {/* Tab Header */}
             <div className='bg-card sticky top-0 z-10 pt-1 pb-2'>
-              {/* Three-section layout: Title (left) | Filters + Search (center) | Scroll to Top (right) */}
-              <div className='relative flex items-start justify-between gap-4'>
-                {/* Left: Title and Count */}
-                <div className='flex shrink-0 items-center gap-2 pt-2'>
+              {/* Tab Navigation */}
+              <div className='flex items-center mb-2'>
+                {/* MTEW Tab */}
+                <button
+                  onClick={() => setActiveTab('mtew')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                    activeTab === 'mtew'
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
                   <Image
                     src='/icons/tokens/bunny_icon.png'
                     alt='Bunny'
-                    width={24}
-                    height={24}
-                    className='h-6 w-6'
+                    width={20}
+                    height={20}
+                    className='h-5 w-5'
                   />
-                  <h2 className='text-base font-bold whitespace-nowrap'>
-                    Multi-Token Early Wallets
-                  </h2>
-                  <span className='bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-semibold'>
+                  <span>Multi-Token Early Wallets</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      activeTab === 'mtew'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
                     {filteredWallets.length}
                   </span>
                   {filteredWallets.length !== multiWallets.total && (
@@ -2086,9 +2133,37 @@ export default function TokensPage() {
                       of {multiWallets.total}
                     </span>
                   )}
-                </div>
+                </button>
 
-                {/* Center: Filters and Search */}
+                {/* SWAB Tab */}
+                <button
+                  onClick={() => setActiveTab('swab')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                    activeTab === 'swab'
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <span className='text-lg'>📊</span>
+                  <span>Smart Wallet Archive Builder</span>
+                </button>
+              </div>
+
+              {/* Separator line */}
+              <div className='border-b -mx-3' />
+            </div>
+
+            {/* MTEW Tab Content */}
+            {activeTab === 'mtew' && (
+              <>
+                {/* MTEW Header with Filters, Search, and Scroll to Top */}
+                <div className='pt-2 pb-2'>
+                  {/* Three-section layout: Empty (left) | Filters + Search (center) | Scroll to Top (right) */}
+                  <div className='relative flex items-start justify-between gap-4'>
+                    {/* Left: Spacer for balance */}
+                    <div className='shrink-0 w-[200px]' />
+
+                    {/* Center: Filters and Search */}
                 <div className='flex flex-1 flex-col items-center gap-2'>
                   {/* Filters Button */}
                   <Popover
@@ -2875,6 +2950,13 @@ export default function TokensPage() {
                 </Button>
               </div>
             </div>
+            </>
+            )}
+
+            {/* SWAB Tab Content */}
+            {activeTab === 'swab' && (
+              <SwabTab isActive={true} />
+            )}
           </div>
         )}
 
@@ -2898,20 +2980,23 @@ export default function TokensPage() {
           data.tokens[0]?.credits_used ||
           null
         }
-        totalApiCreditsToday={data.tokens
-          .filter((token) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const analysisDate = new Date(
-              token.analysis_timestamp.replace(' ', 'T') + 'Z'
-            );
-            return analysisDate >= today;
-          })
-          .reduce(
-            (sum, token) =>
-              sum + (token.last_analysis_credits || token.credits_used || 0),
-            0
-          )}
+        totalApiCreditsToday={
+          creditStats?.total_credits ??
+          data.tokens
+            .filter((token) => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const analysisDate = new Date(
+                token.analysis_timestamp.replace(' ', 'T') + 'Z'
+              );
+              return analysisDate >= today;
+            })
+            .reduce(
+              (sum, token) =>
+                sum + (token.last_analysis_credits || token.credits_used || 0),
+              0
+            )
+        }
         isFiltered={!!(dateRange.from || dateRange.to)}
         filteredCount={filteredTokens.length}
       />

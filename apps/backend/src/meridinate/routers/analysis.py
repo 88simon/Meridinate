@@ -48,6 +48,7 @@ from meridinate.utils.models import (
     QueueTokenResponse,
 )
 from meridinate.utils.validators import is_valid_solana_address
+from meridinate.tasks.position_tracker import record_mtew_positions_for_token
 from meridinate.helius_api import TokenAnalyzer, generate_axiom_export, generate_token_acronym
 
 router = APIRouter()
@@ -168,6 +169,21 @@ def run_token_analysis_sync(
                 log_info(f"Marked {newly_marked_count} wallet(s) as NEW in multi-token panel")
         except Exception as meta_err:
             log_error("Failed to update multi-token wallet metadata", error=str(meta_err))
+
+        # Track MTEW positions for win rate calculation
+        try:
+            position_result = record_mtew_positions_for_token(
+                token_id=token_id,
+                token_address=token_address,
+                entry_market_cap=result.get("market_cap_usd"),
+                top_holders=result.get("top_holders"),
+            )
+            if position_result["positions_tracked"] > 0:
+                log_info(
+                    f"Recorded {position_result['positions_tracked']} MTEW position(s) for token {token_id}"
+                )
+        except Exception as pos_err:
+            log_error("Failed to record MTEW positions", error=str(pos_err))
 
         # Invalidate cached token list so the new analysis shows up immediately
         try:
