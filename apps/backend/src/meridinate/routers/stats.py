@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from meridinate.middleware.rate_limit import READ_RATE_LIMIT, conditional_rate_limit
-from meridinate.credit_tracker import credit_tracker, CreditOperation
+from meridinate.credit_tracker import get_credit_tracker, CreditOperation
 
 router = APIRouter()
 
@@ -62,7 +62,8 @@ async def get_credits_today(request: Request):
         Credit usage statistics including total credits, breakdown by operation,
         and transaction count for the current day.
     """
-    stats = credit_tracker.get_daily_usage()
+    tracker = get_credit_tracker()
+    stats = tracker.get_daily_usage()
 
     return CreditUsageStatsResponse(
         total_credits=stats.total_credits,
@@ -70,7 +71,7 @@ async def get_credits_today(request: Request):
         period_end=stats.period_end.isoformat(),
         by_operation=stats.by_operation,
         transaction_count=stats.transaction_count,
-        session_credits=credit_tracker.get_session_credits(),
+        session_credits=tracker.get_session_credits(),
     )
 
 
@@ -92,7 +93,8 @@ async def get_credits_range(
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
 
-    stats = credit_tracker.get_usage_range(start_date, end_date)
+    tracker = get_credit_tracker()
+    stats = tracker.get_usage_range(start_date, end_date)
 
     return CreditUsageStatsResponse(
         total_credits=stats.total_credits,
@@ -100,7 +102,7 @@ async def get_credits_range(
         period_end=stats.period_end.isoformat(),
         by_operation=stats.by_operation,
         transaction_count=stats.transaction_count,
-        session_credits=credit_tracker.get_session_credits(),
+        session_credits=tracker.get_session_credits(),
     )
 
 
@@ -132,7 +134,7 @@ async def get_credit_transactions(
             # Invalid operation name, will return empty results
             pass
 
-    transactions = credit_tracker.get_recent_transactions(
+    transactions = get_credit_tracker().get_recent_transactions(
         limit=limit,
         operation=op_filter,
         token_id=token_id,
@@ -167,7 +169,7 @@ async def get_token_credits(request: Request, token_id: int):
     Returns:
         Total credits used for the token.
     """
-    total = credit_tracker.get_token_credits(token_id)
+    total = get_credit_tracker().get_token_credits(token_id)
 
     return {"token_id": token_id, "total_credits": total}
 
@@ -207,7 +209,7 @@ async def estimate_operation_cost(
     """
     try:
         op = CreditOperation(operation)
-        estimated = credit_tracker.estimate_operation_cost(op, count)
+        estimated = get_credit_tracker().estimate_operation_cost(op, count)
         return {
             "operation": operation,
             "count": count,

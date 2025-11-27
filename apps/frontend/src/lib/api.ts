@@ -616,7 +616,8 @@ export function buildSolscanUrl(
 // Credit Stats API Functions
 // ============================================================================
 
-export type CreditUsageStats = components['schemas']['CreditUsageStatsResponse'];
+export type CreditUsageStats =
+  components['schemas']['CreditUsageStatsResponse'];
 
 /**
  * Get today's API credit usage
@@ -636,10 +637,15 @@ export async function getCreditStatsToday(): Promise<CreditUsageStats> {
 /**
  * Get API credit usage for a date range
  */
-export async function getCreditStatsRange(days: number = 7): Promise<CreditUsageStats> {
-  const res = await fetch(`${API_BASE_URL}/api/stats/credits/range?days=${days}`, {
-    cache: 'no-store'
-  });
+export async function getCreditStatsRange(
+  days: number = 7
+): Promise<CreditUsageStats> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/stats/credits/range?days=${days}`,
+    {
+      cache: 'no-store'
+    }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to fetch credit stats range');
@@ -660,9 +666,12 @@ export type SwabPosition = components['schemas']['PositionResponse'] & {
   entry_balance_usd?: number | null;
   pnl_usd?: number | null;
   hold_time_seconds?: number | null;
-  fpnl_ratio?: number | null;  // Fumbled PnL: what they would have made if held
+  fpnl_ratio?: number | null; // Fumbled PnL: what they would have made if held
 };
-export type SwabPositionsResponse = Omit<components['schemas']['PositionsResponse'], 'positions'> & {
+export type SwabPositionsResponse = Omit<
+  components['schemas']['PositionsResponse'],
+  'positions'
+> & {
   positions: SwabPosition[];
 };
 export type SwabWalletSummary = components['schemas']['WalletSummaryResponse'];
@@ -755,12 +764,16 @@ export async function getSwabPositions(params?: {
 }): Promise<SwabPositionsResponse> {
   const searchParams = new URLSearchParams();
 
-  if (params?.min_token_count) searchParams.set('min_token_count', String(params.min_token_count));
+  if (params?.min_token_count)
+    searchParams.set('min_token_count', String(params.min_token_count));
   if (params?.status) searchParams.set('status', params.status);
-  if (params?.pnl_min !== undefined) searchParams.set('pnl_min', String(params.pnl_min));
-  if (params?.pnl_max !== undefined) searchParams.set('pnl_max', String(params.pnl_max));
+  if (params?.pnl_min !== undefined)
+    searchParams.set('pnl_min', String(params.pnl_min));
+  if (params?.pnl_max !== undefined)
+    searchParams.set('pnl_max', String(params.pnl_max));
   if (params?.limit) searchParams.set('limit', String(params.limit));
-  if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
+  if (params?.offset !== undefined)
+    searchParams.set('offset', String(params.offset));
 
   const query = searchParams.toString();
   const url = `${API_BASE_URL}/api/swab/positions${query ? `?${query}` : ''}`;
@@ -800,11 +813,14 @@ export async function stopSwabPositionTracking(
   positionId: number,
   reason: string = 'manual'
 ): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/swab/positions/${positionId}/stop`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason })
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/api/swab/positions/${positionId}/stop`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to stop position tracking');
@@ -819,9 +835,12 @@ export async function stopSwabPositionTracking(
 export async function resumeSwabPositionTracking(
   positionId: number
 ): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/swab/positions/${positionId}/resume`, {
-    method: 'POST'
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/api/swab/positions/${positionId}/resume`,
+    {
+      method: 'POST'
+    }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to resume position tracking');
@@ -837,11 +856,14 @@ export async function stopSwabWalletTracking(
   walletAddress: string,
   reason: string = 'manual'
 ): Promise<{ success: boolean; message: string; positions_stopped: number }> {
-  const res = await fetch(`${API_BASE_URL}/api/swab/wallets/${walletAddress}/stop`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason })
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/api/swab/wallets/${walletAddress}/stop`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to stop wallet tracking');
@@ -856,7 +878,12 @@ export async function stopSwabWalletTracking(
 export async function batchStopSwabPositions(
   positionIds: number[],
   reason: string = 'manual'
-): Promise<{ success: boolean; positions_stopped: number; failed_ids: number[]; message: string }> {
+): Promise<{
+  success: boolean;
+  positions_stopped: number;
+  failed_ids: number[];
+  message: string;
+}> {
   const res = await fetch(`${API_BASE_URL}/api/swab/positions/batch-stop`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -879,8 +906,10 @@ export async function triggerSwabCheck(params?: {
 }): Promise<SwabCheckResult> {
   const searchParams = new URLSearchParams();
 
-  if (params?.max_positions) searchParams.set('max_positions', String(params.max_positions));
-  if (params?.max_credits) searchParams.set('max_credits', String(params.max_credits));
+  if (params?.max_positions)
+    searchParams.set('max_positions', String(params.max_positions));
+  if (params?.max_credits)
+    searchParams.set('max_credits', String(params.max_credits));
 
   const query = searchParams.toString();
   const url = `${API_BASE_URL}/api/swab/check${query ? `?${query}` : ''}`;
@@ -979,8 +1008,10 @@ export async function reconcileAllPositions(params?: {
   max_positions?: number;
 }): Promise<ReconciliationResponse> {
   const searchParams = new URLSearchParams();
-  if (params?.max_signatures) searchParams.set('max_signatures', params.max_signatures.toString());
-  if (params?.max_positions) searchParams.set('max_positions', params.max_positions.toString());
+  if (params?.max_signatures)
+    searchParams.set('max_signatures', params.max_signatures.toString());
+  if (params?.max_positions)
+    searchParams.set('max_positions', params.max_positions.toString());
 
   const url = searchParams.toString()
     ? `${API_BASE_URL}/api/swab/reconcile-all?${searchParams}`

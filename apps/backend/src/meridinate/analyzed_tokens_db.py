@@ -898,8 +898,9 @@ def init_database():
         # Initialize credit tracker (creates credit_transactions table)
         global _credit_tracker_initialized
         if not _credit_tracker_initialized:
-            from meridinate.credit_tracker import credit_tracker  # noqa: F401
+            from meridinate.credit_tracker import get_credit_tracker
 
+            get_credit_tracker()  # Initialize the singleton
             _credit_tracker_initialized = True
             print("[Database] Credit tracker initialized")
 

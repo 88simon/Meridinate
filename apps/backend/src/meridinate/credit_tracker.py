@@ -502,5 +502,17 @@ class CreditTracker:
         return base_cost * count
 
 
-# Global singleton instance
-credit_tracker = CreditTracker()
+# Lazy singleton - initialized on first access to avoid database lock during imports
+_credit_tracker_instance = None
+
+
+def get_credit_tracker() -> CreditTracker:
+    """Get the global credit tracker instance (lazy initialization)."""
+    global _credit_tracker_instance
+    if _credit_tracker_instance is None:
+        _credit_tracker_instance = CreditTracker()
+    return _credit_tracker_instance
+
+
+# Backwards compatibility alias (avoid using - prefer get_credit_tracker())
+credit_tracker = None  # Will be set on first import that needs it

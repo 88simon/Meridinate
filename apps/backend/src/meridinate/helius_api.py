@@ -19,7 +19,7 @@ import builtins
 
 from meridinate.debug_config import is_debug_enabled
 from meridinate.cache import ResponseCache
-from meridinate.credit_tracker import credit_tracker, CreditOperation
+from meridinate.credit_tracker import get_credit_tracker, CreditOperation
 
 # ============================================================================
 # OPSEC: PRODUCTION MODE - Disable Sensitive Logging
@@ -155,7 +155,7 @@ class HeliusAPI:
                 self._wallet_balance_cache.set(cache_key, usd_balance)
 
                 # getBalance costs 1 credit per call - record to tracker
-                credit_tracker.record(
+                get_credit_tracker().record(
                     CreditOperation.WALLET_BALANCE,
                     credits=1,
                     wallet_address=wallet_address,
@@ -206,7 +206,7 @@ class HeliusAPI:
             result = self._enhanced_call("token-metadata", {"mintAccounts": mint_address})
             if result and result[0]:
                 # Enhanced API token-metadata costs 1 credit - record to tracker
-                credit_tracker.record(
+                get_credit_tracker().record(
                     CreditOperation.TOKEN_METADATA,
                     credits=1,
                     context={"mint_address": mint_address, "method": "enhanced"},
@@ -272,7 +272,7 @@ class HeliusAPI:
                     "market_cap_usd": market_cap_usd,
                 }
                 # DAS API getAsset costs 1 credit - record to tracker
-                credit_tracker.record(
+                get_credit_tracker().record(
                     CreditOperation.TOKEN_METADATA,
                     credits=1,
                     context={"mint_address": mint_address, "method": "das"},
@@ -488,7 +488,7 @@ class HeliusAPI:
                         owner = account_data["data"]["parsed"]["info"]["owner"]
                         print(f"[Helius] Token account {account_address[:8]} -> Owner: {owner[:8]}")
                         # Record credit usage
-                        credit_tracker.record(
+                        get_credit_tracker().record(
                             CreditOperation.ACCOUNT_OWNER,
                             credits=1,
                             context={"account_address": account_address},
@@ -497,7 +497,7 @@ class HeliusAPI:
 
             print(f"[Helius] Could not determine owner for {account_address[:8]}")
             # Still costs 1 credit even if no result
-            credit_tracker.record(
+            get_credit_tracker().record(
                 CreditOperation.ACCOUNT_OWNER,
                 credits=1,
                 context={"account_address": account_address, "success": False},
@@ -549,7 +549,7 @@ class HeliusAPI:
             result = response.json()
 
             # getTokenAccountsByOwner costs 10 credits
-            credit_tracker.record(
+            get_credit_tracker().record(
                 CreditOperation.TOKEN_ACCOUNTS,
                 credits=10,
                 wallet_address=owner_address,
@@ -749,7 +749,7 @@ class HeliusAPI:
 
             credits_used = 1  # getTokenLargestAccounts costs 1 credit
             # Record initial credit for token largest accounts call
-            credit_tracker.record(
+            get_credit_tracker().record(
                 CreditOperation.TOKEN_LARGEST_ACCOUNTS,
                 credits=1,
                 context={"mint_address": mint_address},
@@ -964,7 +964,7 @@ class HeliusAPI:
                 result = self._rpc_call("getTransactionsForAddress", params)
                 api_calls += 1  # 100 credits per call
                 # Record high-cost transaction fetch
-                credit_tracker.record(
+                get_credit_tracker().record(
                     CreditOperation.TRANSACTIONS_FOR_ADDRESS,
                     credits=100,
                     context={"address": address, "batch_limit": batch_limit},
@@ -1523,7 +1523,7 @@ class HeliusAPI:
 
         # Record composite token analysis credit usage (for reporting purposes)
         # Individual operations already recorded above - this is a summary entry
-        credit_tracker.record(
+        get_credit_tracker().record(
             CreditOperation.TOKEN_ANALYSIS,
             credits=0,  # Don't double-count, individual ops already recorded
             context={

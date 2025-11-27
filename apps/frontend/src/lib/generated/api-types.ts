@@ -4,4953 +4,4953 @@
  */
 
 export interface paths {
-    "/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Root
-         * @description Root endpoint - API information
-         */
-        get: operations["root__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health Check
-         * @description Health check endpoint with WebSocket connection count
-         */
-        get: operations["health_check_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/debug-mode": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Debug Mode
-         * @description Get current debug mode status
-         */
-        get: operations["get_debug_mode_api_debug_mode_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/debug/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Debug Config
-         * @description Get debug configuration for frontend
-         */
-        get: operations["get_debug_config_api_debug_config_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Api Settings
-         * @description Get current API settings
-         *
-         *     Returns:
-         *         API settings dictionary
-         */
-        get: operations["get_api_settings_api_settings_get"];
-        put?: never;
-        /**
-         * Update Api Settings
-         * @description Update API settings
-         *
-         *     Args:
-         *         payload: Settings to update
-         *
-         *     Returns:
-         *         Updated settings
-         */
-        post: operations["update_api_settings_api_settings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/solscan-settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Solscan Settings
-         * @description Get current Solscan URL settings from action_wheel_settings.ini
-         *
-         *     Returns:
-         *         Solscan settings dictionary
-         */
-        get: operations["get_solscan_settings_api_solscan_settings_get"];
-        put?: never;
-        /**
-         * Update Solscan Settings
-         * @description Update Solscan URL settings in action_wheel_settings.ini
-         *
-         *     Args:
-         *         payload: Solscan settings to update
-         *
-         *     Returns:
-         *         Updated settings
-         */
-        post: operations["update_solscan_settings_api_solscan_settings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Metrics
-         * @description Get application metrics in Prometheus format
-         *
-         *     Returns metrics including:
-         *     - Application uptime
-         *     - Job queue depth by status
-         *     - Average processing and queue times
-         *     - Job success rate
-         *     - WebSocket connection stats
-         *     - HTTP request stats
-         *     - API usage (Helius, DexScreener, CoinGecko)
-         *     - Cache hit/miss rates
-         *     - Analysis phase timing breakdowns
-         */
-        get: operations["get_metrics_metrics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/metrics/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Health
-         * @description Get health check status
-         *
-         *     Returns basic health information including queue depth
-         *     and success_rate
-         */
-        get: operations["get_health_metrics_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/metrics/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Detailed Stats
-         * @description Get detailed statistics in JSON format
-         *
-         *     Returns comprehensive metrics including:
-         *     - Queue and job statistics
-         *     - API usage breakdown
-         *     - Cache performance
-         *     - Analysis phase timing
-         *     - WebSocket stats
-         */
-        get: operations["get_detailed_stats_metrics_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/credits/today": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Credits Today
-         * @description Get API credit usage for today.
-         *
-         *     Returns:
-         *         Credit usage statistics including total credits, breakdown by operation,
-         *         and transaction count for the current day.
-         */
-        get: operations["get_credits_today_api_stats_credits_today_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/credits/range": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Credits Range
-         * @description Get API credit usage for a date range.
-         *
-         *     Args:
-         *         days: Number of days to look back (default: 7, max: 90)
-         *
-         *     Returns:
-         *         Aggregated credit usage statistics for the specified period.
-         */
-        get: operations["get_credits_range_api_stats_credits_range_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/credits/transactions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Credit Transactions
-         * @description Get recent credit transactions with optional filtering.
-         *
-         *     Args:
-         *         limit: Maximum number of transactions to return
-         *         operation: Filter by operation type (e.g., 'wallet_balance', 'token_analysis')
-         *         token_id: Filter by token ID
-         *
-         *     Returns:
-         *         List of credit transactions with metadata.
-         */
-        get: operations["get_credit_transactions_api_stats_credits_transactions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/credits/token/{token_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Token Credits
-         * @description Get total credits used for a specific token.
-         *
-         *     Args:
-         *         token_id: Token ID to query
-         *
-         *     Returns:
-         *         Total credits used for the token.
-         */
-        get: operations["get_token_credits_api_stats_credits_token__token_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/credits/costs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Operation Costs
-         * @description Get credit cost estimates for each operation type.
-         *
-         *     Returns:
-         *         Dictionary mapping operation names to their credit costs.
-         */
-        get: operations["get_operation_costs_api_stats_credits_costs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stats/credits/estimate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Estimate Operation Cost
-         * @description Estimate credit cost for a planned operation.
-         *
-         *     Args:
-         *         operation: Operation type (e.g., 'wallet_balance', 'transactions_for_address')
-         *         count: Number of operations to perform
-         *
-         *     Returns:
-         *         Estimated credit cost.
-         */
-        get: operations["estimate_operation_cost_api_stats_credits_estimate_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register Address
-         * @description Register a wallet address for monitoring
-         *
-         *     Args:
-         *         payload: Address and optional note
-         *
-         *     Returns:
-         *         Registration status and details
-         */
-        post: operations["register_address_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/addresses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Addresses
-         * @description Get list of all monitored addresses
-         *
-         *     Returns:
-         *         Total count and list of addresses
-         */
-        get: operations["list_addresses_addresses_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/address/{address}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Address
-         * @description Get details of a specific monitored address
-         *
-         *     Args:
-         *         address: Solana wallet address
-         *
-         *     Returns:
-         *         Address details
-         */
-        get: operations["get_address_address__address__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Address
-         * @description Remove an address from monitoring
-         *
-         *     Args:
-         *         address: Solana wallet address
-         *
-         *     Returns:
-         *         Deletion status
-         */
-        delete: operations["delete_address_address__address__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/address/{address}/note": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Address Note
-         * @description Update the note for a monitored address
-         *
-         *     Args:
-         *         address: Solana wallet address
-         *         payload: New note text
-         *
-         *     Returns:
-         *         Update status
-         */
-        put: operations["update_address_note_address__address__note_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import Addresses
-         * @description Import multiple addresses at once
-         *
-         *     Args:
-         *         payload: List of address entries
-         *
-         *     Returns:
-         *         Import summary
-         */
-        post: operations["import_addresses_import_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/clear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Clear Addresses
-         * @description Clear all monitored addresses
-         *
-         *     Returns:
-         *         Clearing status
-         */
-        post: operations["clear_addresses_clear_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Tokens History
-         * @description Get all non-deleted tokens with wallet counts (with caching)
-         */
-        get: operations["get_tokens_history_api_tokens_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/trash": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Deleted Tokens
-         * @description Get all soft-deleted tokens
-         */
-        get: operations["get_deleted_tokens_api_tokens_trash_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/refresh-market-caps": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh Market Caps
-         * @description Refresh current market cap for multiple tokens
-         */
-        post: operations["refresh_market_caps_api_tokens_refresh_market_caps_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{token_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Token By Id
-         * @description Get token details with wallets and axiom export
-         */
-        get: operations["get_token_by_id_api_tokens__token_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Soft Delete Token
-         * @description Soft delete a token (move to trash)
-         */
-        delete: operations["soft_delete_token_api_tokens__token_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{token_id}/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Token Analysis History
-         * @description Get analysis history for a specific token
-         */
-        get: operations["get_token_analysis_history_api_tokens__token_id__history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{token_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Token
-         * @description Restore a soft-deleted token
-         */
-        post: operations["restore_token_api_tokens__token_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{token_id}/permanent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Permanent Delete Token
-         * @description Permanently delete a token and all associated data
-         */
-        delete: operations["permanent_delete_token_api_tokens__token_id__permanent_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{token_id}/gem-status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Update Gem Status
-         * @description Update the gem status of a token (gem, dud, or null to clear)
-         */
-        post: operations["update_gem_status_api_tokens__token_id__gem_status_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{token_id}/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Token Tags
-         * @description Get tags for a token
-         */
-        get: operations["get_token_tags_api_tokens__token_id__tags_get"];
-        put?: never;
-        /**
-         * Add Token Tag
-         * @description Add a tag to a token (e.g., gem, dud)
-         */
-        post: operations["add_token_tag_api_tokens__token_id__tags_post"];
-        /**
-         * Remove Token Tag
-         * @description Remove a tag from a token
-         */
-        delete: operations["remove_token_tag_api_tokens__token_id__tags_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokens/{mint_address}/top-holders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Top Holders
-         * @description Get top N token holders for a given token mint address.
-         *
-         *     This endpoint:
-         *     1. Calls Helius getTokenLargestAccounts API (1 credit)
-         *     2. Returns top N holders with their balances
-         *     3. Updates token's cumulative API credits if token exists in DB
-         *
-         *     Args:
-         *         mint_address: Token mint address to analyze
-         *         limit: Number of top holders to return (default: from settings, range: 5-20)
-         *
-         *     Returns:
-         *         TopHoldersResponse with holder addresses and balances
-         */
-        get: operations["get_top_holders_api_tokens__mint_address__top_holders_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analyze/token/redis": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Analyze Token Redis
-         * @description Analyze a token using Redis queue (arq worker)
-         *
-         *     This endpoint queues analysis jobs in Redis for processing by arq workers.
-         *     Requires Redis to be enabled (REDIS_ENABLED=true).
-         *     Returns immediately with job_id for status tracking.
-         */
-        post: operations["analyze_token_redis_analyze_token_redis_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analyze/token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Analyze Token
-         * @description Analyze a token to find early bidders (thread pool queue)
-         *
-         *     This endpoint uses Python thread pool for background processing.
-         *     For Redis-backed queue processing, use /analyze/token/redis instead.
-         */
-        post: operations["analyze_token_analyze_token_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analysis/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Analysis
-         * @description Get analysis job status and results
-         */
-        get: operations["get_analysis_analysis__job_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analysis": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Analyses
-         * @description List analysis jobs and completed tokens
-         */
-        get: operations["list_analyses_analysis_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analysis/{job_id}/csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export Analysis Csv
-         * @description Export analysis results as CSV
-         */
-        get: operations["export_analysis_csv_analysis__job_id__csv_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analysis/{job_id}/axiom": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Download Axiom Export
-         * @description Download Axiom wallet tracker JSON
-         */
-        get: operations["download_axiom_export_analysis__job_id__axiom_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/multi-token-wallets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Multi Early Buyer Wallets
-         * @description Get wallets that appear in multiple tokens
-         */
-        get: operations["get_multi_early_buyer_wallets_multi_token_wallets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wallets/refresh-balances": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh Wallet Balances
-         * @description Refresh wallet balances for multiple wallets (ASYNC)
-         */
-        post: operations["refresh_wallet_balances_wallets_refresh_balances_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wallets/{wallet_address}/top-holder-tokens": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Wallet Top Holder Tokens
-         * @description Get all tokens where this wallet is a top holder.
-         *
-         *     Returns a list of tokens with:
-         *     - token_id
-         *     - token_name
-         *     - token_symbol
-         *     - token_address
-         *     - top_holders (full list from top_holders_json)
-         *     - top_holders_limit (the limit used when analyzing)
-         *     - wallet_rank (this wallet's position in the top holders list, 1-indexed)
-         *     - last_updated (when top holders was last refreshed)
-         */
-        get: operations["get_wallet_top_holder_tokens_wallets__wallet_address__top_holder_tokens_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wallets/batch-top-holder-counts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Get Batch Top Holder Counts
-         * @description Get count of tokens where each wallet is a top holder.
-         *     Optimized batch endpoint that returns only counts, not full holder lists.
-         *
-         *     This is much more efficient than calling /wallets/{address}/top-holder-tokens
-         *     for each wallet when you only need the counts for badge display.
-         *
-         *     Request body: {"wallet_addresses": ["addr1", "addr2", ...]}
-         *     Returns: {"counts": {"addr1": 3, "addr2": 5, ...}}
-         */
-        post: operations["get_batch_top_holder_counts_wallets_batch_top_holder_counts_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wallets/{wallet_address}/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Wallet Tags
-         * @description Get tags for a wallet
-         */
-        get: operations["get_wallet_tags_wallets__wallet_address__tags_get"];
-        put?: never;
-        /**
-         * Add Wallet Tag
-         * @description Add a tag to a wallet
-         */
-        post: operations["add_wallet_tag_wallets__wallet_address__tags_post"];
-        /**
-         * Remove Wallet Tag
-         * @description Remove a tag from a wallet
-         */
-        delete: operations["remove_wallet_tag_wallets__wallet_address__tags_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get All Tags
-         * @description Get all unique tags
-         */
-        get: operations["get_all_tags_tags_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/codex": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Codex
-         * @description Get all wallets with tags (Codex)
-         */
-        get: operations["get_codex_codex_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wallets/batch-tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Get Batch Wallet Tags
-         * @description Get tags for multiple wallets in one query
-         */
-        post: operations["get_batch_wallet_tags_wallets_batch_tags_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tags/{tag}/wallets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Wallets By Tag
-         * @description Get all wallets with a specific tag
-         */
-        get: operations["get_wallets_by_tag_tags__tag__wallets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/webhooks/create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Webhook
-         * @description Create a Helius webhook for monitoring token wallets
-         */
-        post: operations["create_webhook_webhooks_create_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/webhooks/list": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Webhooks
-         * @description List all webhooks for this API key
-         */
-        get: operations["list_webhooks_webhooks_list_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/webhooks/{webhook_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Webhook Details
-         * @description Get details of a specific webhook
-         */
-        get: operations["get_webhook_details_webhooks__webhook_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Webhook
-         * @description Delete a webhook
-         */
-        delete: operations["delete_webhook_webhooks__webhook_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/webhooks/create-swab": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Swab Webhook
-         * @description Create a Helius webhook for all active SWAB positions.
-         *
-         *     This creates a single webhook monitoring all MTEW wallets that have
-         *     active (still holding) positions. When any of these wallets sends
-         *     tokens, the webhook callback will detect potential sells and update
-         *     positions in real-time.
-         *
-         *     Request body (optional):
-         *     - webhook_url: Custom callback URL (default: http://localhost:5003/webhooks/callback)
-         *
-         *     Returns:
-         *     - status: "queued" or "error"
-         *     - wallets_count: Number of wallets being monitored
-         *     - webhook_url: The callback URL configured
-         */
-        post: operations["create_swab_webhook_webhooks_create_swab_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/webhooks/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Webhook Callback
-         * @description Receive webhook notifications from Helius.
-         *
-         *     Processes token transfers to detect SWAB position updates in real-time:
-         *     - SELL: When tracked wallet sends tokens (fromUserAccount), capture exit price
-         *     - BUY/DCA: When tracked wallet receives tokens (toUserAccount), update cost basis
-         *     - RE-ENTRY: When a sold position buys again, reactivate and record buy
-         *
-         *     This webhook-first approach captures accurate prices before transactions
-         *     scroll out of the recent signature window.
-         */
-        post: operations["webhook_callback_webhooks_callback_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Settings
-         * @description Get SWAB configuration settings.
-         */
-        get: operations["get_settings_api_swab_settings_get"];
-        /**
-         * Update Settings
-         * @description Update SWAB configuration settings.
-         */
-        put: operations["update_settings_api_swab_settings_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/scheduler/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Scheduler Status
-         * @description Get SWAB scheduler status.
-         */
-        get: operations["get_scheduler_status_api_swab_scheduler_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Stats
-         * @description Get SWAB overview statistics.
-         */
-        get: operations["get_stats_api_swab_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/positions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Positions
-         * @description Get tracked positions with filters.
-         *
-         *     Query parameters:
-         *     - min_token_count: Minimum tokens for MTEW to be included
-         *     - status: Filter by status ('holding', 'sold', 'stale', 'all')
-         *     - pnl_min: Minimum PnL ratio
-         *     - pnl_max: Maximum PnL ratio
-         *     - limit: Max positions to return (default 50, max 500)
-         *     - offset: Pagination offset
-         */
-        get: operations["get_positions_api_swab_positions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/wallets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Wallet Summaries
-         * @description Get aggregated wallet summaries for SWAB.
-         *
-         *     Query parameters:
-         *     - min_token_count: Minimum tokens for MTEW to be included
-         */
-        get: operations["get_wallet_summaries_api_swab_wallets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/positions/{position_id}/stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stop Position Tracking
-         * @description Stop tracking a specific position.
-         */
-        post: operations["stop_position_tracking_api_swab_positions__position_id__stop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/positions/{position_id}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resume Position Tracking
-         * @description Resume tracking a previously stopped position.
-         */
-        post: operations["resume_position_tracking_api_swab_positions__position_id__resume_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/wallets/{wallet_address}/stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stop Wallet Tracking
-         * @description Stop tracking all positions for a wallet.
-         */
-        post: operations["stop_wallet_tracking_api_swab_wallets__wallet_address__stop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/positions/batch-stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Batch Stop Position Tracking
-         * @description Stop tracking multiple positions at once.
-         */
-        post: operations["batch_stop_position_tracking_api_swab_positions_batch_stop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Trigger Position Check
-         * @description Manually trigger a position check cycle.
-         *
-         *     Query parameters:
-         *     - max_positions: Maximum positions to check (default 50)
-         *     - max_credits: Maximum credits to spend (defaults to remaining daily budget)
-         */
-        post: operations["trigger_position_check_api_swab_check_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/update-pnl": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Trigger Pnl Update
-         * @description Update PnL ratios for all holding positions.
-         *
-         *     This is a free operation (uses DexScreener, not Helius credits).
-         */
-        post: operations["trigger_pnl_update_api_swab_update_pnl_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/expectancies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Wallet Expectancies
-         * @description Get expectancy calculations for all wallets with sufficient closed positions.
-         *
-         *     The expectancy formula is: (Win% × Avg_Win_Size) - (Loss% × Avg_Loss_Size)
-         *     - Smart: Expectancy > 0.5 AND min_closed positions
-         *     - Dumb: Expectancy < -0.2 AND min_closed positions
-         *
-         *     Query parameters:
-         *     - min_closed: Minimum closed positions required (default 5)
-         */
-        get: operations["get_wallet_expectancies_api_swab_expectancies_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/expectancies/{wallet_address}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Wallet Expectancy
-         * @description Get expectancy calculation for a specific wallet.
-         *
-         *     Returns the wallet's trading expectancy and Smart/Dumb label status.
-         */
-        get: operations["get_wallet_expectancy_api_swab_expectancies__wallet_address__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/labels/update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Trigger Label Update
-         * @description Trigger a batch update of all Smart/Dumb labels.
-         *
-         *     This recalculates expectancy for all eligible wallets and updates their labels.
-         */
-        post: operations["trigger_label_update_api_swab_labels_update_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/purge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Purge Swab Data
-         * @description Purge all SWAB position tracking data for a fresh start.
-         *
-         *     This deletes:
-         *     - All records from mtew_token_positions
-         *     - All wallet metrics
-         *     - Smart/Dumb labels from wallets
-         *
-         *     Use this when you want to reset SWAB tracking entirely.
-         */
-        post: operations["purge_swab_data_api_swab_purge_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/reconcile/{token_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Reconcile Token Positions
-         * @description Reconcile sold positions for a specific token using Helius transaction history.
-         *
-         *     This endpoint fixes positions where:
-         *     - The position was marked as sold (still_holding = 0)
-         *     - But the sell was never recorded with actual price data (total_sold_usd = 0)
-         *
-         *     For each such position, it:
-         *     1. Fetches recent transaction history from Helius
-         *     2. Finds the sell transaction (where wallet sent tokens)
-         *     3. Updates the position with accurate USD received and PnL
-         *
-         *     Query parameters:
-         *     - max_signatures: Max signatures to check per wallet (default 50, max 200)
-         *                       Higher = more likely to find old sells, but uses more credits
-         *
-         *     Returns:
-         *     - positions_found: Number of positions needing reconciliation
-         *     - positions_reconciled: Successfully updated
-         *     - positions_no_tx_found: Sell transaction not found in recent history
-         *     - credits_used: Helius API credits consumed
-         */
-        post: operations["reconcile_token_positions_api_swab_reconcile__token_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/swab/reconcile-all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Reconcile All Positions
-         * @description Reconcile all sold positions across all tokens that need reconciliation.
-         *
-         *     This is a batch operation that processes up to max_positions positions
-         *     that have missing sell data.
-         *
-         *     Query parameters:
-         *     - max_signatures: Max signatures to check per wallet (default 50)
-         *     - max_positions: Max positions to process in this batch (default 50)
-         *
-         *     Returns:
-         *     - positions_found: Number of positions needing reconciliation
-         *     - positions_reconciled: Successfully updated
-         *     - positions_no_tx_found: Sell transaction not found
-         *     - credits_used: Helius API credits consumed
-         */
-        post: operations["reconcile_all_positions_api_swab_reconcile_all_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notify/analysis_complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Notify Analysis Complete
-         * @description HTTP endpoint to trigger analysis complete notifications
-         */
-        post: operations["notify_analysis_complete_notify_analysis_complete_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notify/analysis_start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Notify Analysis Start
-         * @description HTTP endpoint to trigger analysis start notifications
-         */
-        post: operations["notify_analysis_start_notify_analysis_start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  '/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Root
+     * @description Root endpoint - API information
+     */
+    get: operations['root__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Health Check
+     * @description Health check endpoint with WebSocket connection count
+     */
+    get: operations['health_check_health_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/debug-mode': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Debug Mode
+     * @description Get current debug mode status
+     */
+    get: operations['get_debug_mode_api_debug_mode_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/debug/config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Debug Config
+     * @description Get debug configuration for frontend
+     */
+    get: operations['get_debug_config_api_debug_config_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Api Settings
+     * @description Get current API settings
+     *
+     *     Returns:
+     *         API settings dictionary
+     */
+    get: operations['get_api_settings_api_settings_get'];
+    put?: never;
+    /**
+     * Update Api Settings
+     * @description Update API settings
+     *
+     *     Args:
+     *         payload: Settings to update
+     *
+     *     Returns:
+     *         Updated settings
+     */
+    post: operations['update_api_settings_api_settings_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/solscan-settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Solscan Settings
+     * @description Get current Solscan URL settings from action_wheel_settings.ini
+     *
+     *     Returns:
+     *         Solscan settings dictionary
+     */
+    get: operations['get_solscan_settings_api_solscan_settings_get'];
+    put?: never;
+    /**
+     * Update Solscan Settings
+     * @description Update Solscan URL settings in action_wheel_settings.ini
+     *
+     *     Args:
+     *         payload: Solscan settings to update
+     *
+     *     Returns:
+     *         Updated settings
+     */
+    post: operations['update_solscan_settings_api_solscan_settings_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/metrics': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Metrics
+     * @description Get application metrics in Prometheus format
+     *
+     *     Returns metrics including:
+     *     - Application uptime
+     *     - Job queue depth by status
+     *     - Average processing and queue times
+     *     - Job success rate
+     *     - WebSocket connection stats
+     *     - HTTP request stats
+     *     - API usage (Helius, DexScreener, CoinGecko)
+     *     - Cache hit/miss rates
+     *     - Analysis phase timing breakdowns
+     */
+    get: operations['get_metrics_metrics_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/metrics/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Health
+     * @description Get health check status
+     *
+     *     Returns basic health information including queue depth
+     *     and success_rate
+     */
+    get: operations['get_health_metrics_health_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/metrics/stats': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Detailed Stats
+     * @description Get detailed statistics in JSON format
+     *
+     *     Returns comprehensive metrics including:
+     *     - Queue and job statistics
+     *     - API usage breakdown
+     *     - Cache performance
+     *     - Analysis phase timing
+     *     - WebSocket stats
+     */
+    get: operations['get_detailed_stats_metrics_stats_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/today': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Credits Today
+     * @description Get API credit usage for today.
+     *
+     *     Returns:
+     *         Credit usage statistics including total credits, breakdown by operation,
+     *         and transaction count for the current day.
+     */
+    get: operations['get_credits_today_api_stats_credits_today_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/range': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Credits Range
+     * @description Get API credit usage for a date range.
+     *
+     *     Args:
+     *         days: Number of days to look back (default: 7, max: 90)
+     *
+     *     Returns:
+     *         Aggregated credit usage statistics for the specified period.
+     */
+    get: operations['get_credits_range_api_stats_credits_range_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/transactions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Credit Transactions
+     * @description Get recent credit transactions with optional filtering.
+     *
+     *     Args:
+     *         limit: Maximum number of transactions to return
+     *         operation: Filter by operation type (e.g., 'wallet_balance', 'token_analysis')
+     *         token_id: Filter by token ID
+     *
+     *     Returns:
+     *         List of credit transactions with metadata.
+     */
+    get: operations['get_credit_transactions_api_stats_credits_transactions_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/token/{token_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Token Credits
+     * @description Get total credits used for a specific token.
+     *
+     *     Args:
+     *         token_id: Token ID to query
+     *
+     *     Returns:
+     *         Total credits used for the token.
+     */
+    get: operations['get_token_credits_api_stats_credits_token__token_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/costs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Operation Costs
+     * @description Get credit cost estimates for each operation type.
+     *
+     *     Returns:
+     *         Dictionary mapping operation names to their credit costs.
+     */
+    get: operations['get_operation_costs_api_stats_credits_costs_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/estimate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Estimate Operation Cost
+     * @description Estimate credit cost for a planned operation.
+     *
+     *     Args:
+     *         operation: Operation type (e.g., 'wallet_balance', 'transactions_for_address')
+     *         count: Number of operations to perform
+     *
+     *     Returns:
+     *         Estimated credit cost.
+     */
+    get: operations['estimate_operation_cost_api_stats_credits_estimate_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/register': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Register Address
+     * @description Register a wallet address for monitoring
+     *
+     *     Args:
+     *         payload: Address and optional note
+     *
+     *     Returns:
+     *         Registration status and details
+     */
+    post: operations['register_address_register_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/addresses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Addresses
+     * @description Get list of all monitored addresses
+     *
+     *     Returns:
+     *         Total count and list of addresses
+     */
+    get: operations['list_addresses_addresses_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/address/{address}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Address
+     * @description Get details of a specific monitored address
+     *
+     *     Args:
+     *         address: Solana wallet address
+     *
+     *     Returns:
+     *         Address details
+     */
+    get: operations['get_address_address__address__get'];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Address
+     * @description Remove an address from monitoring
+     *
+     *     Args:
+     *         address: Solana wallet address
+     *
+     *     Returns:
+     *         Deletion status
+     */
+    delete: operations['delete_address_address__address__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/address/{address}/note': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Update Address Note
+     * @description Update the note for a monitored address
+     *
+     *     Args:
+     *         address: Solana wallet address
+     *         payload: New note text
+     *
+     *     Returns:
+     *         Update status
+     */
+    put: operations['update_address_note_address__address__note_put'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Import Addresses
+     * @description Import multiple addresses at once
+     *
+     *     Args:
+     *         payload: List of address entries
+     *
+     *     Returns:
+     *         Import summary
+     */
+    post: operations['import_addresses_import_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clear': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clear Addresses
+     * @description Clear all monitored addresses
+     *
+     *     Returns:
+     *         Clearing status
+     */
+    post: operations['clear_addresses_clear_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Tokens History
+     * @description Get all non-deleted tokens with wallet counts (with caching)
+     */
+    get: operations['get_tokens_history_api_tokens_history_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/trash': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Deleted Tokens
+     * @description Get all soft-deleted tokens
+     */
+    get: operations['get_deleted_tokens_api_tokens_trash_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/refresh-market-caps': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Refresh Market Caps
+     * @description Refresh current market cap for multiple tokens
+     */
+    post: operations['refresh_market_caps_api_tokens_refresh_market_caps_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Token By Id
+     * @description Get token details with wallets and axiom export
+     */
+    get: operations['get_token_by_id_api_tokens__token_id__get'];
+    put?: never;
+    post?: never;
+    /**
+     * Soft Delete Token
+     * @description Soft delete a token (move to trash)
+     */
+    delete: operations['soft_delete_token_api_tokens__token_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_id}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Token Analysis History
+     * @description Get analysis history for a specific token
+     */
+    get: operations['get_token_analysis_history_api_tokens__token_id__history_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_id}/restore': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Restore Token
+     * @description Restore a soft-deleted token
+     */
+    post: operations['restore_token_api_tokens__token_id__restore_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_id}/permanent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Permanent Delete Token
+     * @description Permanently delete a token and all associated data
+     */
+    delete: operations['permanent_delete_token_api_tokens__token_id__permanent_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_id}/gem-status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Update Gem Status
+     * @description Update the gem status of a token (gem, dud, or null to clear)
+     */
+    post: operations['update_gem_status_api_tokens__token_id__gem_status_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_id}/tags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Token Tags
+     * @description Get tags for a token
+     */
+    get: operations['get_token_tags_api_tokens__token_id__tags_get'];
+    put?: never;
+    /**
+     * Add Token Tag
+     * @description Add a tag to a token (e.g., gem, dud)
+     */
+    post: operations['add_token_tag_api_tokens__token_id__tags_post'];
+    /**
+     * Remove Token Tag
+     * @description Remove a tag from a token
+     */
+    delete: operations['remove_token_tag_api_tokens__token_id__tags_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{mint_address}/top-holders': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Top Holders
+     * @description Get top N token holders for a given token mint address.
+     *
+     *     This endpoint:
+     *     1. Calls Helius getTokenLargestAccounts API (1 credit)
+     *     2. Returns top N holders with their balances
+     *     3. Updates token's cumulative API credits if token exists in DB
+     *
+     *     Args:
+     *         mint_address: Token mint address to analyze
+     *         limit: Number of top holders to return (default: from settings, range: 5-20)
+     *
+     *     Returns:
+     *         TopHoldersResponse with holder addresses and balances
+     */
+    get: operations['get_top_holders_api_tokens__mint_address__top_holders_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analyze/token/redis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Analyze Token Redis
+     * @description Analyze a token using Redis queue (arq worker)
+     *
+     *     This endpoint queues analysis jobs in Redis for processing by arq workers.
+     *     Requires Redis to be enabled (REDIS_ENABLED=true).
+     *     Returns immediately with job_id for status tracking.
+     */
+    post: operations['analyze_token_redis_analyze_token_redis_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analyze/token': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Analyze Token
+     * @description Analyze a token to find early bidders (thread pool queue)
+     *
+     *     This endpoint uses Python thread pool for background processing.
+     *     For Redis-backed queue processing, use /analyze/token/redis instead.
+     */
+    post: operations['analyze_token_analyze_token_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analysis/{job_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Analysis
+     * @description Get analysis job status and results
+     */
+    get: operations['get_analysis_analysis__job_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analysis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Analyses
+     * @description List analysis jobs and completed tokens
+     */
+    get: operations['list_analyses_analysis_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analysis/{job_id}/csv': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Export Analysis Csv
+     * @description Export analysis results as CSV
+     */
+    get: operations['export_analysis_csv_analysis__job_id__csv_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/analysis/{job_id}/axiom': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Download Axiom Export
+     * @description Download Axiom wallet tracker JSON
+     */
+    get: operations['download_axiom_export_analysis__job_id__axiom_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/multi-token-wallets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Multi Early Buyer Wallets
+     * @description Get wallets that appear in multiple tokens
+     */
+    get: operations['get_multi_early_buyer_wallets_multi_token_wallets_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/wallets/refresh-balances': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Refresh Wallet Balances
+     * @description Refresh wallet balances for multiple wallets (ASYNC)
+     */
+    post: operations['refresh_wallet_balances_wallets_refresh_balances_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/wallets/{wallet_address}/top-holder-tokens': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Top Holder Tokens
+     * @description Get all tokens where this wallet is a top holder.
+     *
+     *     Returns a list of tokens with:
+     *     - token_id
+     *     - token_name
+     *     - token_symbol
+     *     - token_address
+     *     - top_holders (full list from top_holders_json)
+     *     - top_holders_limit (the limit used when analyzing)
+     *     - wallet_rank (this wallet's position in the top holders list, 1-indexed)
+     *     - last_updated (when top holders was last refreshed)
+     */
+    get: operations['get_wallet_top_holder_tokens_wallets__wallet_address__top_holder_tokens_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/wallets/batch-top-holder-counts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Get Batch Top Holder Counts
+     * @description Get count of tokens where each wallet is a top holder.
+     *     Optimized batch endpoint that returns only counts, not full holder lists.
+     *
+     *     This is much more efficient than calling /wallets/{address}/top-holder-tokens
+     *     for each wallet when you only need the counts for badge display.
+     *
+     *     Request body: {"wallet_addresses": ["addr1", "addr2", ...]}
+     *     Returns: {"counts": {"addr1": 3, "addr2": 5, ...}}
+     */
+    post: operations['get_batch_top_holder_counts_wallets_batch_top_holder_counts_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/wallets/{wallet_address}/tags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Tags
+     * @description Get tags for a wallet
+     */
+    get: operations['get_wallet_tags_wallets__wallet_address__tags_get'];
+    put?: never;
+    /**
+     * Add Wallet Tag
+     * @description Add a tag to a wallet
+     */
+    post: operations['add_wallet_tag_wallets__wallet_address__tags_post'];
+    /**
+     * Remove Wallet Tag
+     * @description Remove a tag from a wallet
+     */
+    delete: operations['remove_wallet_tag_wallets__wallet_address__tags_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get All Tags
+     * @description Get all unique tags
+     */
+    get: operations['get_all_tags_tags_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/codex': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Codex
+     * @description Get all wallets with tags (Codex)
+     */
+    get: operations['get_codex_codex_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/wallets/batch-tags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Get Batch Wallet Tags
+     * @description Get tags for multiple wallets in one query
+     */
+    post: operations['get_batch_wallet_tags_wallets_batch_tags_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tags/{tag}/wallets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallets By Tag
+     * @description Get all wallets with a specific tag
+     */
+    get: operations['get_wallets_by_tag_tags__tag__wallets_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/create': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Webhook
+     * @description Create a Helius webhook for monitoring token wallets
+     */
+    post: operations['create_webhook_webhooks_create_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/list': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Webhooks
+     * @description List all webhooks for this API key
+     */
+    get: operations['list_webhooks_webhooks_list_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/{webhook_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Webhook Details
+     * @description Get details of a specific webhook
+     */
+    get: operations['get_webhook_details_webhooks__webhook_id__get'];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Webhook
+     * @description Delete a webhook
+     */
+    delete: operations['delete_webhook_webhooks__webhook_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/create-swab': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Swab Webhook
+     * @description Create a Helius webhook for all active SWAB positions.
+     *
+     *     This creates a single webhook monitoring all MTEW wallets that have
+     *     active (still holding) positions. When any of these wallets sends
+     *     tokens, the webhook callback will detect potential sells and update
+     *     positions in real-time.
+     *
+     *     Request body (optional):
+     *     - webhook_url: Custom callback URL (default: http://localhost:5003/webhooks/callback)
+     *
+     *     Returns:
+     *     - status: "queued" or "error"
+     *     - wallets_count: Number of wallets being monitored
+     *     - webhook_url: The callback URL configured
+     */
+    post: operations['create_swab_webhook_webhooks_create_swab_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/callback': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Webhook Callback
+     * @description Receive webhook notifications from Helius.
+     *
+     *     Processes token transfers to detect SWAB position updates in real-time:
+     *     - SELL: When tracked wallet sends tokens (fromUserAccount), capture exit price
+     *     - BUY/DCA: When tracked wallet receives tokens (toUserAccount), update cost basis
+     *     - RE-ENTRY: When a sold position buys again, reactivate and record buy
+     *
+     *     This webhook-first approach captures accurate prices before transactions
+     *     scroll out of the recent signature window.
+     */
+    post: operations['webhook_callback_webhooks_callback_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Settings
+     * @description Get SWAB configuration settings.
+     */
+    get: operations['get_settings_api_swab_settings_get'];
+    /**
+     * Update Settings
+     * @description Update SWAB configuration settings.
+     */
+    put: operations['update_settings_api_swab_settings_put'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/scheduler/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Scheduler Status
+     * @description Get SWAB scheduler status.
+     */
+    get: operations['get_scheduler_status_api_swab_scheduler_status_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/stats': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Stats
+     * @description Get SWAB overview statistics.
+     */
+    get: operations['get_stats_api_swab_stats_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/positions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Positions
+     * @description Get tracked positions with filters.
+     *
+     *     Query parameters:
+     *     - min_token_count: Minimum tokens for MTEW to be included
+     *     - status: Filter by status ('holding', 'sold', 'stale', 'all')
+     *     - pnl_min: Minimum PnL ratio
+     *     - pnl_max: Maximum PnL ratio
+     *     - limit: Max positions to return (default 50, max 500)
+     *     - offset: Pagination offset
+     */
+    get: operations['get_positions_api_swab_positions_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/wallets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Summaries
+     * @description Get aggregated wallet summaries for SWAB.
+     *
+     *     Query parameters:
+     *     - min_token_count: Minimum tokens for MTEW to be included
+     */
+    get: operations['get_wallet_summaries_api_swab_wallets_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/positions/{position_id}/stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Stop Position Tracking
+     * @description Stop tracking a specific position.
+     */
+    post: operations['stop_position_tracking_api_swab_positions__position_id__stop_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/positions/{position_id}/resume': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Resume Position Tracking
+     * @description Resume tracking a previously stopped position.
+     */
+    post: operations['resume_position_tracking_api_swab_positions__position_id__resume_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/wallets/{wallet_address}/stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Stop Wallet Tracking
+     * @description Stop tracking all positions for a wallet.
+     */
+    post: operations['stop_wallet_tracking_api_swab_wallets__wallet_address__stop_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/positions/batch-stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Batch Stop Position Tracking
+     * @description Stop tracking multiple positions at once.
+     */
+    post: operations['batch_stop_position_tracking_api_swab_positions_batch_stop_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Trigger Position Check
+     * @description Manually trigger a position check cycle.
+     *
+     *     Query parameters:
+     *     - max_positions: Maximum positions to check (default 50)
+     *     - max_credits: Maximum credits to spend (defaults to remaining daily budget)
+     */
+    post: operations['trigger_position_check_api_swab_check_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/update-pnl': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Trigger Pnl Update
+     * @description Update PnL ratios for all holding positions.
+     *
+     *     This is a free operation (uses DexScreener, not Helius credits).
+     */
+    post: operations['trigger_pnl_update_api_swab_update_pnl_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/expectancies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Expectancies
+     * @description Get expectancy calculations for all wallets with sufficient closed positions.
+     *
+     *     The expectancy formula is: (Win% × Avg_Win_Size) - (Loss% × Avg_Loss_Size)
+     *     - Smart: Expectancy > 0.5 AND min_closed positions
+     *     - Dumb: Expectancy < -0.2 AND min_closed positions
+     *
+     *     Query parameters:
+     *     - min_closed: Minimum closed positions required (default 5)
+     */
+    get: operations['get_wallet_expectancies_api_swab_expectancies_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/expectancies/{wallet_address}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Expectancy
+     * @description Get expectancy calculation for a specific wallet.
+     *
+     *     Returns the wallet's trading expectancy and Smart/Dumb label status.
+     */
+    get: operations['get_wallet_expectancy_api_swab_expectancies__wallet_address__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/labels/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Trigger Label Update
+     * @description Trigger a batch update of all Smart/Dumb labels.
+     *
+     *     This recalculates expectancy for all eligible wallets and updates their labels.
+     */
+    post: operations['trigger_label_update_api_swab_labels_update_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/purge': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Purge Swab Data
+     * @description Purge all SWAB position tracking data for a fresh start.
+     *
+     *     This deletes:
+     *     - All records from mtew_token_positions
+     *     - All wallet metrics
+     *     - Smart/Dumb labels from wallets
+     *
+     *     Use this when you want to reset SWAB tracking entirely.
+     */
+    post: operations['purge_swab_data_api_swab_purge_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/reconcile/{token_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reconcile Token Positions
+     * @description Reconcile sold positions for a specific token using Helius transaction history.
+     *
+     *     This endpoint fixes positions where:
+     *     - The position was marked as sold (still_holding = 0)
+     *     - But the sell was never recorded with actual price data (total_sold_usd = 0)
+     *
+     *     For each such position, it:
+     *     1. Fetches recent transaction history from Helius
+     *     2. Finds the sell transaction (where wallet sent tokens)
+     *     3. Updates the position with accurate USD received and PnL
+     *
+     *     Query parameters:
+     *     - max_signatures: Max signatures to check per wallet (default 50, max 200)
+     *                       Higher = more likely to find old sells, but uses more credits
+     *
+     *     Returns:
+     *     - positions_found: Number of positions needing reconciliation
+     *     - positions_reconciled: Successfully updated
+     *     - positions_no_tx_found: Sell transaction not found in recent history
+     *     - credits_used: Helius API credits consumed
+     */
+    post: operations['reconcile_token_positions_api_swab_reconcile__token_id__post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/swab/reconcile-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reconcile All Positions
+     * @description Reconcile all sold positions across all tokens that need reconciliation.
+     *
+     *     This is a batch operation that processes up to max_positions positions
+     *     that have missing sell data.
+     *
+     *     Query parameters:
+     *     - max_signatures: Max signatures to check per wallet (default 50)
+     *     - max_positions: Max positions to process in this batch (default 50)
+     *
+     *     Returns:
+     *     - positions_found: Number of positions needing reconciliation
+     *     - positions_reconciled: Successfully updated
+     *     - positions_no_tx_found: Sell transaction not found
+     *     - credits_used: Helius API credits consumed
+     */
+    post: operations['reconcile_all_positions_api_swab_reconcile_all_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/notify/analysis_complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Notify Analysis Complete
+     * @description HTTP endpoint to trigger analysis complete notifications
+     */
+    post: operations['notify_analysis_complete_notify_analysis_complete_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/notify/analysis_start': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Notify Analysis Start
+     * @description HTTP endpoint to trigger analysis start notifications
+     */
+    post: operations['notify_analysis_start_notify_analysis_start_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** AddTagRequest */
-        AddTagRequest: {
-            /** Tag */
-            tag: string;
-            /**
-             * Is Kol
-             * @default false
-             */
-            is_kol: boolean;
-        };
-        /** AddressNoteRequest */
-        AddressNoteRequest: {
-            /** Note */
-            note?: string | null;
-        };
-        /**
-         * AnalysisCompleteNotification
-         * @description Notification payload for analysis completion
-         */
-        AnalysisCompleteNotification: {
-            /** Job Id */
-            job_id: string;
-            /** Token Name */
-            token_name: string;
-            /** Token Symbol */
-            token_symbol: string;
-            /** Acronym */
-            acronym: string;
-            /** Wallets Found */
-            wallets_found: number;
-            /** Token Id */
-            token_id: number;
-        };
-        /** AnalysisHistory */
-        AnalysisHistory: {
-            /** Token Id */
-            token_id: number;
-            /** Total Runs */
-            total_runs: number;
-            /** Runs */
-            runs: components["schemas"]["AnalysisRun"][];
-        };
-        /**
-         * AnalysisJob
-         * @description Analysis job status
-         */
-        AnalysisJob: {
-            /** Job Id */
-            job_id: string;
-            /** Token Address */
-            token_address: string;
-            /** Status */
-            status: string;
-            /** Created At */
-            created_at: string;
-            /** Result */
-            result?: {
-                [key: string]: unknown;
-            } | null;
-            /** Error */
-            error?: string | null;
-            /** Axiom File */
-            axiom_file?: string | null;
-            /** Result File */
-            result_file?: string | null;
-        };
-        /**
-         * AnalysisJobSummary
-         * @description Summary info for analysis job in list view
-         */
-        AnalysisJobSummary: {
-            /** Job Id */
-            job_id: string;
-            /** Status */
-            status: string;
-            /** Token Address */
-            token_address: string;
-            /** Token Name */
-            token_name?: string | null;
-            /** Token Symbol */
-            token_symbol?: string | null;
-            /** Acronym */
-            acronym?: string | null;
-            /** Wallets Found */
-            wallets_found?: number | null;
-            /** Timestamp */
-            timestamp?: string | null;
-            /** Credits Used */
-            credits_used?: number | null;
-            /** Results Url */
-            results_url: string;
-        };
-        /**
-         * AnalysisListResponse
-         * @description Response for listing analysis jobs
-         */
-        AnalysisListResponse: {
-            /** Total */
-            total: number;
-            /** Jobs */
-            jobs: components["schemas"]["AnalysisJobSummary"][];
-        };
-        /** AnalysisRun */
-        AnalysisRun: {
-            /** Id */
-            id: number;
-            /** Analysis Timestamp */
-            analysis_timestamp: string;
-            /** Wallets Found */
-            wallets_found: number;
-            /** Credits Used */
-            credits_used: number;
-            /** Wallets */
-            wallets: components["schemas"]["Wallet"][];
-        };
-        /**
-         * AnalysisSettings
-         * @description API settings for token analysis
-         */
-        AnalysisSettings: {
-            /**
-             * Transactionlimit
-             * @default 500
-             */
-            transactionLimit: number;
-            /**
-             * Minusdfilter
-             * @default 50
-             */
-            minUsdFilter: number;
-            /**
-             * Walletcount
-             * @default 10
-             */
-            walletCount: number;
-            /**
-             * Apiratedelay
-             * @default 100
-             */
-            apiRateDelay: number;
-            /**
-             * Maxcreditsperanalysis
-             * @default 1000
-             */
-            maxCreditsPerAnalysis: number;
-            /**
-             * Maxretries
-             * @default 3
-             */
-            maxRetries: number;
-            /**
-             * Topholderslimit
-             * @description Number of top token holders to fetch (Helius API max: 20)
-             * @default 10
-             */
-            topHoldersLimit: number;
-        };
-        /**
-         * AnalysisStartNotification
-         * @description Notification payload for analysis start
-         */
-        AnalysisStartNotification: {
-            /** Job Id */
-            job_id: string;
-            /** Token Name */
-            token_name: string;
-            /** Token Symbol */
-            token_symbol: string;
-        };
-        /**
-         * AnalyzeTokenRequest
-         * @description Request model for token analysis
-         */
-        AnalyzeTokenRequest: {
-            /**
-             * Address
-             * @description Solana token address
-             */
-            address: string;
-            api_settings?: components["schemas"]["AnalysisSettings"] | null;
-            /** Min Usd */
-            min_usd?: number | null;
-            /**
-             * Time Window Hours
-             * @default 999999
-             */
-            time_window_hours: number;
-        };
-        /**
-         * BatchStopTrackingRequest
-         * @description Request to stop tracking multiple positions.
-         */
-        BatchStopTrackingRequest: {
-            /** Position Ids */
-            position_ids: number[];
-            /**
-             * Reason
-             * @default manual
-             */
-            reason: string;
-        };
-        /** BatchTagsRequest */
-        BatchTagsRequest: {
-            /** Addresses */
-            addresses: string[];
-        };
-        /**
-         * CheckResultResponse
-         * @description Position check result response model.
-         */
-        CheckResultResponse: {
-            /** Positions Checked */
-            positions_checked: number;
-            /** Still Holding */
-            still_holding: number;
-            /** Sold */
-            sold: number;
-            /** Errors */
-            errors: number;
-            /** Credits Used */
-            credits_used: number;
-            /** Duration Ms */
-            duration_ms: number;
-            /** Wallets Recalculated */
-            wallets_recalculated: number;
-        };
-        /** CodexResponse */
-        CodexResponse: {
-            /** Wallets */
-            wallets: components["schemas"]["CodexWallet"][];
-        };
-        /** CodexWallet */
-        CodexWallet: {
-            /** Wallet Address */
-            wallet_address: string;
-            /** Tags */
-            tags: components["schemas"]["WalletTag"][];
-            /** Token Count */
-            token_count: number;
-        };
-        /** CreateWebhookRequest */
-        CreateWebhookRequest: {
-            /** Token Id */
-            token_id: number;
-            /** Webhook Url */
-            webhook_url?: string | null;
-        };
-        /**
-         * CreditTransactionResponse
-         * @description Response model for a single credit transaction.
-         */
-        CreditTransactionResponse: {
-            /** Id */
-            id: number;
-            /** Operation */
-            operation: string;
-            /** Credits */
-            credits: number;
-            /** Timestamp */
-            timestamp: string | null;
-            /** Token Id */
-            token_id: number | null;
-            /** Wallet Address */
-            wallet_address: string | null;
-            /** Context */
-            context: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * CreditTransactionsListResponse
-         * @description Response model for credit transactions list.
-         */
-        CreditTransactionsListResponse: {
-            /** Transactions */
-            transactions: components["schemas"]["CreditTransactionResponse"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * CreditUsageStatsResponse
-         * @description Response model for credit usage statistics.
-         */
-        CreditUsageStatsResponse: {
-            /** Total Credits */
-            total_credits: number;
-            /** Period Start */
-            period_start: string;
-            /** Period End */
-            period_end: string;
-            /** By Operation */
-            by_operation: {
-                [key: string]: number;
-            };
-            /** Transaction Count */
-            transaction_count: number;
-            /** Session Credits */
-            session_credits: number;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** ImportAddressEntry */
-        ImportAddressEntry: {
-            /** Address */
-            address: string;
-            /** Registered At */
-            registered_at?: string | null;
-            /** Threshold */
-            threshold?: number | null;
-            /** Total Notifications */
-            total_notifications?: number | null;
-            /** Last Notification */
-            last_notification?: string | null;
-            /** Note */
-            note?: string | null;
-        };
-        /** ImportAddressesRequest */
-        ImportAddressesRequest: {
-            /** Addresses */
-            addresses: components["schemas"]["ImportAddressEntry"][];
-        };
-        /**
-         * MessageResponse
-         * @description Simple message response
-         */
-        MessageResponse: {
-            /** Message */
-            message: string;
-        };
-        /** MultiTokenWallet */
-        MultiTokenWallet: {
-            /** Wallet Address */
-            wallet_address: string;
-            /** Token Count */
-            token_count: number;
-            /** Token Names */
-            token_names: string[];
-            /** Token Addresses */
-            token_addresses: string[];
-            /** Token Ids */
-            token_ids: number[];
-            /** Gem Statuses */
-            gem_statuses: (string | null)[];
-            /** Wallet Balance Usd */
-            wallet_balance_usd: number | null;
-            /** Wallet Balance Usd Previous */
-            wallet_balance_usd_previous?: number | null;
-            /** Wallet Balance Updated At */
-            wallet_balance_updated_at?: string | null;
-            /**
-             * Is New
-             * @default false
-             */
-            is_new: boolean;
-            /** Marked At Analysis Id */
-            marked_at_analysis_id?: number | null;
-        };
-        /** MultiTokenWalletsResponse */
-        MultiTokenWalletsResponse: {
-            /** Total */
-            total: number;
-            /** Wallets */
-            wallets: components["schemas"]["MultiTokenWallet"][];
-        };
-        /**
-         * OperationCostsResponse
-         * @description Response model for operation cost estimates.
-         */
-        OperationCostsResponse: {
-            /** Costs */
-            costs: {
-                [key: string]: number;
-            };
-        };
-        /**
-         * PositionResponse
-         * @description Individual position response model.
-         */
-        PositionResponse: {
-            /** Id */
-            id: number;
-            /** Wallet Address */
-            wallet_address: string;
-            /** Token Id */
-            token_id: number;
-            /** Token Name */
-            token_name: string;
-            /** Token Symbol */
-            token_symbol: string;
-            /** Token Address */
-            token_address: string;
-            /** Entry Timestamp */
-            entry_timestamp?: string | null;
-            /** Entry Market Cap */
-            entry_market_cap?: number | null;
-            /** Current Market Cap */
-            current_market_cap?: number | null;
-            /** Still Holding */
-            still_holding: boolean;
-            /** Current Balance */
-            current_balance?: number | null;
-            /** Current Balance Usd */
-            current_balance_usd?: number | null;
-            /** Pnl Ratio */
-            pnl_ratio?: number | null;
-            /** Fpnl Ratio */
-            fpnl_ratio?: number | null;
-            /** Exit Detected At */
-            exit_detected_at?: string | null;
-            /** Exit Market Cap */
-            exit_market_cap?: number | null;
-            /** Position Checked At */
-            position_checked_at?: string | null;
-            /** Tracking Enabled */
-            tracking_enabled: boolean;
-            /** Tracking Stopped At */
-            tracking_stopped_at?: string | null;
-            /** Tracking Stopped Reason */
-            tracking_stopped_reason?: string | null;
-            /** Entry Balance */
-            entry_balance?: number | null;
-            /** Entry Balance Usd */
-            entry_balance_usd?: number | null;
-            /** Pnl Usd */
-            pnl_usd?: number | null;
-            /** Hold Time Seconds */
-            hold_time_seconds?: number | null;
-        };
-        /**
-         * PositionsResponse
-         * @description Paginated positions response model.
-         */
-        PositionsResponse: {
-            /** Positions */
-            positions: components["schemas"]["PositionResponse"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-            /** Has More */
-            has_more: boolean;
-        };
-        /**
-         * QueueTokenResponse
-         * @description Response when queuing a token for analysis
-         */
-        QueueTokenResponse: {
-            /** Status */
-            status: string;
-            /** Job Id */
-            job_id: string;
-            /** Token Address */
-            token_address: string;
-            /** Api Settings */
-            api_settings: {
-                [key: string]: unknown;
-            };
-            /** Results Url */
-            results_url: string;
-        };
-        /**
-         * ReconciliationResponse
-         * @description Reconciliation endpoint response.
-         */
-        ReconciliationResponse: {
-            /** Positions Found */
-            positions_found: number;
-            /** Positions Reconciled */
-            positions_reconciled: number;
-            /** Positions No Tx Found */
-            positions_no_tx_found: number;
-            /** Positions Error */
-            positions_error: number;
-            /** Credits Used */
-            credits_used: number;
-            /** Results */
-            results: components["schemas"]["ReconciliationResultItem"][];
-        };
-        /**
-         * ReconciliationResultItem
-         * @description Individual position reconciliation result.
-         */
-        ReconciliationResultItem: {
-            /** Wallet Address */
-            wallet_address: string;
-            /** Token Symbol */
-            token_symbol: string;
-            /** Status */
-            status: string;
-            /** Old Pnl Ratio */
-            old_pnl_ratio?: number | null;
-            /** New Pnl Ratio */
-            new_pnl_ratio?: number | null;
-            /** Tokens Sold */
-            tokens_sold?: number | null;
-            /** Usd Received */
-            usd_received?: number | null;
-            /** Error Message */
-            error_message?: string | null;
-        };
-        /** RefreshBalancesRequest */
-        RefreshBalancesRequest: {
-            /** Wallet Addresses */
-            wallet_addresses: string[];
-        };
-        /** RefreshBalancesResponse */
-        RefreshBalancesResponse: {
-            /** Message */
-            message: string;
-            /** Results */
-            results: components["schemas"]["RefreshBalancesResult"][];
-            /** Total Wallets */
-            total_wallets: number;
-            /** Successful */
-            successful: number;
-            /** Api Credits Used */
-            api_credits_used: number;
-        };
-        /** RefreshBalancesResult */
-        RefreshBalancesResult: {
-            /** Wallet Address */
-            wallet_address: string;
-            /** Balance Usd */
-            balance_usd: number | null;
-            /** Previous Balance Usd */
-            previous_balance_usd?: number | null;
-            /** Updated At */
-            updated_at?: string | null;
-            /** Success */
-            success: boolean;
-        };
-        /** RefreshMarketCapResult */
-        RefreshMarketCapResult: {
-            /** Token Id */
-            token_id: number;
-            /** Market Cap Usd Current */
-            market_cap_usd_current: number | null;
-            /** Market Cap Usd Previous */
-            market_cap_usd_previous: number | null;
-            /** Market Cap Updated At */
-            market_cap_updated_at: string | null;
-            /** Market Cap Ath */
-            market_cap_ath: number | null;
-            /** Market Cap Ath Timestamp */
-            market_cap_ath_timestamp: string | null;
-            /** Success */
-            success: boolean;
-        };
-        /** RefreshMarketCapsRequest */
-        RefreshMarketCapsRequest: {
-            /** Token Ids */
-            token_ids: number[];
-        };
-        /** RefreshMarketCapsResponse */
-        RefreshMarketCapsResponse: {
-            /** Message */
-            message: string;
-            /** Results */
-            results: components["schemas"]["RefreshMarketCapResult"][];
-            /** Total Tokens */
-            total_tokens: number;
-            /** Successful */
-            successful: number;
-            /** Api Credits Used */
-            api_credits_used: number;
-        };
-        /** RegisterAddressRequest */
-        RegisterAddressRequest: {
-            /** Address */
-            address: string;
-            /** Note */
-            note?: string | null;
-            /** Timestamp */
-            timestamp?: string | null;
-        };
-        /** RemoveTagRequest */
-        RemoveTagRequest: {
-            /** Tag */
-            tag: string;
-        };
-        /**
-         * StopTrackingRequest
-         * @description Request to stop tracking.
-         */
-        StopTrackingRequest: {
-            /**
-             * Reason
-             * @default manual
-             */
-            reason: string;
-        };
-        /**
-         * SwabSettingsResponse
-         * @description SWAB settings response model.
-         */
-        SwabSettingsResponse: {
-            /** Auto Check Enabled */
-            auto_check_enabled: boolean;
-            /** Check Interval Minutes */
-            check_interval_minutes: number;
-            /** Daily Credit Budget */
-            daily_credit_budget: number;
-            /** Stale Threshold Minutes */
-            stale_threshold_minutes: number;
-            /** Min Token Count */
-            min_token_count: number;
-            /** Last Check At */
-            last_check_at?: string | null;
-            /** Credits Used Today */
-            credits_used_today: number;
-            /** Credits Reset Date */
-            credits_reset_date?: string | null;
-            /** Updated At */
-            updated_at?: string | null;
-        };
-        /**
-         * SwabSettingsUpdate
-         * @description SWAB settings update request model.
-         */
-        SwabSettingsUpdate: {
-            /** Auto Check Enabled */
-            auto_check_enabled?: boolean | null;
-            /** Check Interval Minutes */
-            check_interval_minutes?: number | null;
-            /** Daily Credit Budget */
-            daily_credit_budget?: number | null;
-            /** Stale Threshold Minutes */
-            stale_threshold_minutes?: number | null;
-            /** Min Token Count */
-            min_token_count?: number | null;
-        };
-        /**
-         * SwabStatsResponse
-         * @description SWAB overview statistics response model.
-         */
-        SwabStatsResponse: {
-            /** Total Positions */
-            total_positions: number;
-            /** Holding */
-            holding: number;
-            /** Sold */
-            sold: number;
-            /** Winners */
-            winners: number;
-            /** Losers */
-            losers: number;
-            /** Win Rate */
-            win_rate?: number | null;
-            /** Avg Pnl Ratio */
-            avg_pnl_ratio?: number | null;
-            /** Unique Wallets */
-            unique_wallets: number;
-            /** Unique Tokens */
-            unique_tokens: number;
-            /** Stale Positions */
-            stale_positions: number;
-            /** Estimated Check Credits */
-            estimated_check_credits: number;
-            /** Credits Used Today */
-            credits_used_today: number;
-            /** Daily Credit Budget */
-            daily_credit_budget: number;
-            /** Credits Remaining */
-            credits_remaining: number;
-        };
-        /** TagsResponse */
-        TagsResponse: {
-            /** Tags */
-            tags: string[];
-        };
-        /** Token */
-        Token: {
-            /** Id */
-            id: number;
-            /** Token Address */
-            token_address: string;
-            /** Token Name */
-            token_name: string | null;
-            /** Token Symbol */
-            token_symbol: string | null;
-            /** Acronym */
-            acronym: string;
-            /** Analysis Timestamp */
-            analysis_timestamp: string;
-            /** First Buy Timestamp */
-            first_buy_timestamp: string | null;
-            /** Wallets Found */
-            wallets_found: number;
-            /** Credits Used */
-            credits_used?: number | null;
-            /** Last Analysis Credits */
-            last_analysis_credits?: number | null;
-            /** Wallet Addresses */
-            wallet_addresses?: string[] | null;
-            /** Deleted At */
-            deleted_at?: string | null;
-            /** Market Cap Usd */
-            market_cap_usd?: number | null;
-            /** Market Cap Usd Current */
-            market_cap_usd_current?: number | null;
-            /** Market Cap Usd Previous */
-            market_cap_usd_previous?: number | null;
-            /** Market Cap Updated At */
-            market_cap_updated_at?: string | null;
-            /** Market Cap Ath */
-            market_cap_ath?: number | null;
-            /** Market Cap Ath Timestamp */
-            market_cap_ath_timestamp?: string | null;
-            /** Gem Status */
-            gem_status?: string | null;
-            /**
-             * State Version
-             * @default 0
-             */
-            state_version: number;
-            /**
-             * Tags
-             * @default []
-             */
-            tags: string[];
-            /** Top Holders */
-            top_holders?: components["schemas"]["TopHolder"][] | null;
-            /** Top Holders Updated At */
-            top_holders_updated_at?: string | null;
-        };
-        /**
-         * TokenDetail
-         * @description Token with wallet details and axiom data
-         */
-        TokenDetail: {
-            /** Id */
-            id: number;
-            /** Token Address */
-            token_address: string;
-            /** Token Name */
-            token_name: string | null;
-            /** Token Symbol */
-            token_symbol: string | null;
-            /** Acronym */
-            acronym: string;
-            /** Analysis Timestamp */
-            analysis_timestamp: string;
-            /** First Buy Timestamp */
-            first_buy_timestamp: string | null;
-            /** Wallets Found */
-            wallets_found: number;
-            /** Credits Used */
-            credits_used?: number | null;
-            /** Last Analysis Credits */
-            last_analysis_credits?: number | null;
-            /** Deleted At */
-            deleted_at?: string | null;
-            /** Market Cap Usd */
-            market_cap_usd?: number | null;
-            /** Market Cap Usd Current */
-            market_cap_usd_current?: number | null;
-            /** Market Cap Usd Previous */
-            market_cap_usd_previous?: number | null;
-            /** Market Cap Updated At */
-            market_cap_updated_at?: string | null;
-            /** Market Cap Ath */
-            market_cap_ath?: number | null;
-            /** Market Cap Ath Timestamp */
-            market_cap_ath_timestamp?: string | null;
-            /** Gem Status */
-            gem_status?: string | null;
-            /**
-             * State Version
-             * @default 0
-             */
-            state_version: number;
-            /**
-             * Tags
-             * @default []
-             */
-            tags: string[];
-            /** Top Holders */
-            top_holders?: components["schemas"]["TopHolder"][] | null;
-            /** Top Holders Updated At */
-            top_holders_updated_at?: string | null;
-            /** Wallets */
-            wallets: components["schemas"]["Wallet"][];
-            /** Axiom Json */
-            axiom_json: unknown[];
-        };
-        /**
-         * TokenTagRequest
-         * @description Request model for adding a token tag
-         */
-        TokenTagRequest: {
-            /** Tag */
-            tag: string;
-        };
-        /**
-         * TokenTagsResponse
-         * @description Response model for token tags
-         */
-        TokenTagsResponse: {
-            /** Tags */
-            tags: string[];
-        };
-        /** TokensResponse */
-        TokensResponse: {
-            /** Total */
-            total: number;
-            /** Total Wallets */
-            total_wallets: number;
-            /** Tokens */
-            tokens: components["schemas"]["Token"][];
-        };
-        /**
-         * TopHolder
-         * @description Individual token holder information
-         */
-        TopHolder: {
-            /** Address */
-            address: string;
-            /** Amount */
-            amount: string;
-            /** Decimals */
-            decimals: number;
-            /** Uiamountstring */
-            uiAmountString: string;
-            /** Token Balance Usd */
-            token_balance_usd?: number | null;
-            /** Wallet Balance Usd */
-            wallet_balance_usd?: number | null;
-        };
-        /**
-         * TopHoldersResponse
-         * @description Response containing top token holders
-         */
-        TopHoldersResponse: {
-            /** Token Address */
-            token_address: string;
-            /** Token Symbol */
-            token_symbol?: string | null;
-            /** Holders */
-            holders: components["schemas"]["TopHolder"][];
-            /** Total Holders */
-            total_holders: number;
-            /** Api Credits Used */
-            api_credits_used: number;
-        };
-        /**
-         * UpdateGemStatusRequest
-         * @description Request to update gem status of a token
-         */
-        UpdateGemStatusRequest: {
-            /** Gem Status */
-            gem_status?: string | null;
-        };
-        /** UpdateSettingsRequest */
-        UpdateSettingsRequest: {
-            /** Transactionlimit */
-            transactionLimit?: number | null;
-            /** Minusdfilter */
-            minUsdFilter?: number | null;
-            /** Walletcount */
-            walletCount?: number | null;
-            /** Apiratedelay */
-            apiRateDelay?: number | null;
-            /** Maxcreditsperanalysis */
-            maxCreditsPerAnalysis?: number | null;
-            /** Maxretries */
-            maxRetries?: number | null;
-            /**
-             * Topholderslimit
-             * @description Number of top token holders to fetch (Helius API max: 20)
-             */
-            topHoldersLimit?: number | null;
-        };
-        /**
-         * UpdateSolscanSettingsRequest
-         * @description Request model for updating Solscan settings
-         */
-        UpdateSolscanSettingsRequest: {
-            /** Activity Type */
-            activity_type?: string | null;
-            /** Exclude Amount Zero */
-            exclude_amount_zero?: string | null;
-            /** Remove Spam */
-            remove_spam?: string | null;
-            /** Value */
-            value?: string | null;
-            /** Token Address */
-            token_address?: string | null;
-            /** Page Size */
-            page_size?: string | null;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-        /** Wallet */
-        Wallet: {
-            /** Id */
-            id: number;
-            /** Wallet Address */
-            wallet_address: string;
-            /** First Buy Timestamp */
-            first_buy_timestamp: string;
-            /** Total Usd */
-            total_usd: number | null;
-            /** Transaction Count */
-            transaction_count: number | null;
-            /** Average Buy Usd */
-            average_buy_usd: number | null;
-            /** Wallet Balance Usd */
-            wallet_balance_usd: number | null;
-            /** Wallet Balance Usd Previous */
-            wallet_balance_usd_previous?: number | null;
-            /** Wallet Balance Updated At */
-            wallet_balance_updated_at?: string | null;
-        };
-        /**
-         * WalletExpectancyResponse
-         * @description Wallet expectancy calculation response model.
-         */
-        WalletExpectancyResponse: {
-            /** Wallet Address */
-            wallet_address: string;
-            /** Expectancy */
-            expectancy: number;
-            /** Win Rate */
-            win_rate: number;
-            /** Avg Win */
-            avg_win: number;
-            /** Avg Loss */
-            avg_loss: number;
-            /** Closed Positions */
-            closed_positions: number;
-            /** Wins */
-            wins: number;
-            /** Losses */
-            losses: number;
-            /** Current Label */
-            current_label?: string | null;
-        };
-        /**
-         * WalletSummaryResponse
-         * @description Wallet summary response model.
-         */
-        WalletSummaryResponse: {
-            /** Wallet Address */
-            wallet_address: string;
-            /** Total Positions */
-            total_positions: number;
-            /** Holding Count */
-            holding_count: number;
-            /** Sold Count */
-            sold_count: number;
-            /** Win Count */
-            win_count: number;
-            /** Loss Count */
-            loss_count: number;
-            /** Win Rate */
-            win_rate?: number | null;
-            /** Avg Pnl Ratio */
-            avg_pnl_ratio?: number | null;
-            /** Last Checked */
-            last_checked?: string | null;
-        };
-        /** WalletTag */
-        WalletTag: {
-            /** Tag */
-            tag: string;
-            /** Is Kol */
-            is_kol: boolean;
-        };
-        /** WalletTagsResponse */
-        WalletTagsResponse: {
-            /** Tags */
-            tags: components["schemas"]["WalletTag"][];
-        };
+  schemas: {
+    /** AddTagRequest */
+    AddTagRequest: {
+      /** Tag */
+      tag: string;
+      /**
+       * Is Kol
+       * @default false
+       */
+      is_kol: boolean;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AddressNoteRequest */
+    AddressNoteRequest: {
+      /** Note */
+      note?: string | null;
+    };
+    /**
+     * AnalysisCompleteNotification
+     * @description Notification payload for analysis completion
+     */
+    AnalysisCompleteNotification: {
+      /** Job Id */
+      job_id: string;
+      /** Token Name */
+      token_name: string;
+      /** Token Symbol */
+      token_symbol: string;
+      /** Acronym */
+      acronym: string;
+      /** Wallets Found */
+      wallets_found: number;
+      /** Token Id */
+      token_id: number;
+    };
+    /** AnalysisHistory */
+    AnalysisHistory: {
+      /** Token Id */
+      token_id: number;
+      /** Total Runs */
+      total_runs: number;
+      /** Runs */
+      runs: components['schemas']['AnalysisRun'][];
+    };
+    /**
+     * AnalysisJob
+     * @description Analysis job status
+     */
+    AnalysisJob: {
+      /** Job Id */
+      job_id: string;
+      /** Token Address */
+      token_address: string;
+      /** Status */
+      status: string;
+      /** Created At */
+      created_at: string;
+      /** Result */
+      result?: {
+        [key: string]: unknown;
+      } | null;
+      /** Error */
+      error?: string | null;
+      /** Axiom File */
+      axiom_file?: string | null;
+      /** Result File */
+      result_file?: string | null;
+    };
+    /**
+     * AnalysisJobSummary
+     * @description Summary info for analysis job in list view
+     */
+    AnalysisJobSummary: {
+      /** Job Id */
+      job_id: string;
+      /** Status */
+      status: string;
+      /** Token Address */
+      token_address: string;
+      /** Token Name */
+      token_name?: string | null;
+      /** Token Symbol */
+      token_symbol?: string | null;
+      /** Acronym */
+      acronym?: string | null;
+      /** Wallets Found */
+      wallets_found?: number | null;
+      /** Timestamp */
+      timestamp?: string | null;
+      /** Credits Used */
+      credits_used?: number | null;
+      /** Results Url */
+      results_url: string;
+    };
+    /**
+     * AnalysisListResponse
+     * @description Response for listing analysis jobs
+     */
+    AnalysisListResponse: {
+      /** Total */
+      total: number;
+      /** Jobs */
+      jobs: components['schemas']['AnalysisJobSummary'][];
+    };
+    /** AnalysisRun */
+    AnalysisRun: {
+      /** Id */
+      id: number;
+      /** Analysis Timestamp */
+      analysis_timestamp: string;
+      /** Wallets Found */
+      wallets_found: number;
+      /** Credits Used */
+      credits_used: number;
+      /** Wallets */
+      wallets: components['schemas']['Wallet'][];
+    };
+    /**
+     * AnalysisSettings
+     * @description API settings for token analysis
+     */
+    AnalysisSettings: {
+      /**
+       * Transactionlimit
+       * @default 500
+       */
+      transactionLimit: number;
+      /**
+       * Minusdfilter
+       * @default 50
+       */
+      minUsdFilter: number;
+      /**
+       * Walletcount
+       * @default 10
+       */
+      walletCount: number;
+      /**
+       * Apiratedelay
+       * @default 100
+       */
+      apiRateDelay: number;
+      /**
+       * Maxcreditsperanalysis
+       * @default 1000
+       */
+      maxCreditsPerAnalysis: number;
+      /**
+       * Maxretries
+       * @default 3
+       */
+      maxRetries: number;
+      /**
+       * Topholderslimit
+       * @description Number of top token holders to fetch (Helius API max: 20)
+       * @default 10
+       */
+      topHoldersLimit: number;
+    };
+    /**
+     * AnalysisStartNotification
+     * @description Notification payload for analysis start
+     */
+    AnalysisStartNotification: {
+      /** Job Id */
+      job_id: string;
+      /** Token Name */
+      token_name: string;
+      /** Token Symbol */
+      token_symbol: string;
+    };
+    /**
+     * AnalyzeTokenRequest
+     * @description Request model for token analysis
+     */
+    AnalyzeTokenRequest: {
+      /**
+       * Address
+       * @description Solana token address
+       */
+      address: string;
+      api_settings?: components['schemas']['AnalysisSettings'] | null;
+      /** Min Usd */
+      min_usd?: number | null;
+      /**
+       * Time Window Hours
+       * @default 999999
+       */
+      time_window_hours: number;
+    };
+    /**
+     * BatchStopTrackingRequest
+     * @description Request to stop tracking multiple positions.
+     */
+    BatchStopTrackingRequest: {
+      /** Position Ids */
+      position_ids: number[];
+      /**
+       * Reason
+       * @default manual
+       */
+      reason: string;
+    };
+    /** BatchTagsRequest */
+    BatchTagsRequest: {
+      /** Addresses */
+      addresses: string[];
+    };
+    /**
+     * CheckResultResponse
+     * @description Position check result response model.
+     */
+    CheckResultResponse: {
+      /** Positions Checked */
+      positions_checked: number;
+      /** Still Holding */
+      still_holding: number;
+      /** Sold */
+      sold: number;
+      /** Errors */
+      errors: number;
+      /** Credits Used */
+      credits_used: number;
+      /** Duration Ms */
+      duration_ms: number;
+      /** Wallets Recalculated */
+      wallets_recalculated: number;
+    };
+    /** CodexResponse */
+    CodexResponse: {
+      /** Wallets */
+      wallets: components['schemas']['CodexWallet'][];
+    };
+    /** CodexWallet */
+    CodexWallet: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Tags */
+      tags: components['schemas']['WalletTag'][];
+      /** Token Count */
+      token_count: number;
+    };
+    /** CreateWebhookRequest */
+    CreateWebhookRequest: {
+      /** Token Id */
+      token_id: number;
+      /** Webhook Url */
+      webhook_url?: string | null;
+    };
+    /**
+     * CreditTransactionResponse
+     * @description Response model for a single credit transaction.
+     */
+    CreditTransactionResponse: {
+      /** Id */
+      id: number;
+      /** Operation */
+      operation: string;
+      /** Credits */
+      credits: number;
+      /** Timestamp */
+      timestamp: string | null;
+      /** Token Id */
+      token_id: number | null;
+      /** Wallet Address */
+      wallet_address: string | null;
+      /** Context */
+      context: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /**
+     * CreditTransactionsListResponse
+     * @description Response model for credit transactions list.
+     */
+    CreditTransactionsListResponse: {
+      /** Transactions */
+      transactions: components['schemas']['CreditTransactionResponse'][];
+      /** Total */
+      total: number;
+    };
+    /**
+     * CreditUsageStatsResponse
+     * @description Response model for credit usage statistics.
+     */
+    CreditUsageStatsResponse: {
+      /** Total Credits */
+      total_credits: number;
+      /** Period Start */
+      period_start: string;
+      /** Period End */
+      period_end: string;
+      /** By Operation */
+      by_operation: {
+        [key: string]: number;
+      };
+      /** Transaction Count */
+      transaction_count: number;
+      /** Session Credits */
+      session_credits: number;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][];
+    };
+    /** ImportAddressEntry */
+    ImportAddressEntry: {
+      /** Address */
+      address: string;
+      /** Registered At */
+      registered_at?: string | null;
+      /** Threshold */
+      threshold?: number | null;
+      /** Total Notifications */
+      total_notifications?: number | null;
+      /** Last Notification */
+      last_notification?: string | null;
+      /** Note */
+      note?: string | null;
+    };
+    /** ImportAddressesRequest */
+    ImportAddressesRequest: {
+      /** Addresses */
+      addresses: components['schemas']['ImportAddressEntry'][];
+    };
+    /**
+     * MessageResponse
+     * @description Simple message response
+     */
+    MessageResponse: {
+      /** Message */
+      message: string;
+    };
+    /** MultiTokenWallet */
+    MultiTokenWallet: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Token Count */
+      token_count: number;
+      /** Token Names */
+      token_names: string[];
+      /** Token Addresses */
+      token_addresses: string[];
+      /** Token Ids */
+      token_ids: number[];
+      /** Gem Statuses */
+      gem_statuses: (string | null)[];
+      /** Wallet Balance Usd */
+      wallet_balance_usd: number | null;
+      /** Wallet Balance Usd Previous */
+      wallet_balance_usd_previous?: number | null;
+      /** Wallet Balance Updated At */
+      wallet_balance_updated_at?: string | null;
+      /**
+       * Is New
+       * @default false
+       */
+      is_new: boolean;
+      /** Marked At Analysis Id */
+      marked_at_analysis_id?: number | null;
+    };
+    /** MultiTokenWalletsResponse */
+    MultiTokenWalletsResponse: {
+      /** Total */
+      total: number;
+      /** Wallets */
+      wallets: components['schemas']['MultiTokenWallet'][];
+    };
+    /**
+     * OperationCostsResponse
+     * @description Response model for operation cost estimates.
+     */
+    OperationCostsResponse: {
+      /** Costs */
+      costs: {
+        [key: string]: number;
+      };
+    };
+    /**
+     * PositionResponse
+     * @description Individual position response model.
+     */
+    PositionResponse: {
+      /** Id */
+      id: number;
+      /** Wallet Address */
+      wallet_address: string;
+      /** Token Id */
+      token_id: number;
+      /** Token Name */
+      token_name: string;
+      /** Token Symbol */
+      token_symbol: string;
+      /** Token Address */
+      token_address: string;
+      /** Entry Timestamp */
+      entry_timestamp?: string | null;
+      /** Entry Market Cap */
+      entry_market_cap?: number | null;
+      /** Current Market Cap */
+      current_market_cap?: number | null;
+      /** Still Holding */
+      still_holding: boolean;
+      /** Current Balance */
+      current_balance?: number | null;
+      /** Current Balance Usd */
+      current_balance_usd?: number | null;
+      /** Pnl Ratio */
+      pnl_ratio?: number | null;
+      /** Fpnl Ratio */
+      fpnl_ratio?: number | null;
+      /** Exit Detected At */
+      exit_detected_at?: string | null;
+      /** Exit Market Cap */
+      exit_market_cap?: number | null;
+      /** Position Checked At */
+      position_checked_at?: string | null;
+      /** Tracking Enabled */
+      tracking_enabled: boolean;
+      /** Tracking Stopped At */
+      tracking_stopped_at?: string | null;
+      /** Tracking Stopped Reason */
+      tracking_stopped_reason?: string | null;
+      /** Entry Balance */
+      entry_balance?: number | null;
+      /** Entry Balance Usd */
+      entry_balance_usd?: number | null;
+      /** Pnl Usd */
+      pnl_usd?: number | null;
+      /** Hold Time Seconds */
+      hold_time_seconds?: number | null;
+    };
+    /**
+     * PositionsResponse
+     * @description Paginated positions response model.
+     */
+    PositionsResponse: {
+      /** Positions */
+      positions: components['schemas']['PositionResponse'][];
+      /** Total */
+      total: number;
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Has More */
+      has_more: boolean;
+    };
+    /**
+     * QueueTokenResponse
+     * @description Response when queuing a token for analysis
+     */
+    QueueTokenResponse: {
+      /** Status */
+      status: string;
+      /** Job Id */
+      job_id: string;
+      /** Token Address */
+      token_address: string;
+      /** Api Settings */
+      api_settings: {
+        [key: string]: unknown;
+      };
+      /** Results Url */
+      results_url: string;
+    };
+    /**
+     * ReconciliationResponse
+     * @description Reconciliation endpoint response.
+     */
+    ReconciliationResponse: {
+      /** Positions Found */
+      positions_found: number;
+      /** Positions Reconciled */
+      positions_reconciled: number;
+      /** Positions No Tx Found */
+      positions_no_tx_found: number;
+      /** Positions Error */
+      positions_error: number;
+      /** Credits Used */
+      credits_used: number;
+      /** Results */
+      results: components['schemas']['ReconciliationResultItem'][];
+    };
+    /**
+     * ReconciliationResultItem
+     * @description Individual position reconciliation result.
+     */
+    ReconciliationResultItem: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Token Symbol */
+      token_symbol: string;
+      /** Status */
+      status: string;
+      /** Old Pnl Ratio */
+      old_pnl_ratio?: number | null;
+      /** New Pnl Ratio */
+      new_pnl_ratio?: number | null;
+      /** Tokens Sold */
+      tokens_sold?: number | null;
+      /** Usd Received */
+      usd_received?: number | null;
+      /** Error Message */
+      error_message?: string | null;
+    };
+    /** RefreshBalancesRequest */
+    RefreshBalancesRequest: {
+      /** Wallet Addresses */
+      wallet_addresses: string[];
+    };
+    /** RefreshBalancesResponse */
+    RefreshBalancesResponse: {
+      /** Message */
+      message: string;
+      /** Results */
+      results: components['schemas']['RefreshBalancesResult'][];
+      /** Total Wallets */
+      total_wallets: number;
+      /** Successful */
+      successful: number;
+      /** Api Credits Used */
+      api_credits_used: number;
+    };
+    /** RefreshBalancesResult */
+    RefreshBalancesResult: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Balance Usd */
+      balance_usd: number | null;
+      /** Previous Balance Usd */
+      previous_balance_usd?: number | null;
+      /** Updated At */
+      updated_at?: string | null;
+      /** Success */
+      success: boolean;
+    };
+    /** RefreshMarketCapResult */
+    RefreshMarketCapResult: {
+      /** Token Id */
+      token_id: number;
+      /** Market Cap Usd Current */
+      market_cap_usd_current: number | null;
+      /** Market Cap Usd Previous */
+      market_cap_usd_previous: number | null;
+      /** Market Cap Updated At */
+      market_cap_updated_at: string | null;
+      /** Market Cap Ath */
+      market_cap_ath: number | null;
+      /** Market Cap Ath Timestamp */
+      market_cap_ath_timestamp: string | null;
+      /** Success */
+      success: boolean;
+    };
+    /** RefreshMarketCapsRequest */
+    RefreshMarketCapsRequest: {
+      /** Token Ids */
+      token_ids: number[];
+    };
+    /** RefreshMarketCapsResponse */
+    RefreshMarketCapsResponse: {
+      /** Message */
+      message: string;
+      /** Results */
+      results: components['schemas']['RefreshMarketCapResult'][];
+      /** Total Tokens */
+      total_tokens: number;
+      /** Successful */
+      successful: number;
+      /** Api Credits Used */
+      api_credits_used: number;
+    };
+    /** RegisterAddressRequest */
+    RegisterAddressRequest: {
+      /** Address */
+      address: string;
+      /** Note */
+      note?: string | null;
+      /** Timestamp */
+      timestamp?: string | null;
+    };
+    /** RemoveTagRequest */
+    RemoveTagRequest: {
+      /** Tag */
+      tag: string;
+    };
+    /**
+     * StopTrackingRequest
+     * @description Request to stop tracking.
+     */
+    StopTrackingRequest: {
+      /**
+       * Reason
+       * @default manual
+       */
+      reason: string;
+    };
+    /**
+     * SwabSettingsResponse
+     * @description SWAB settings response model.
+     */
+    SwabSettingsResponse: {
+      /** Auto Check Enabled */
+      auto_check_enabled: boolean;
+      /** Check Interval Minutes */
+      check_interval_minutes: number;
+      /** Daily Credit Budget */
+      daily_credit_budget: number;
+      /** Stale Threshold Minutes */
+      stale_threshold_minutes: number;
+      /** Min Token Count */
+      min_token_count: number;
+      /** Last Check At */
+      last_check_at?: string | null;
+      /** Credits Used Today */
+      credits_used_today: number;
+      /** Credits Reset Date */
+      credits_reset_date?: string | null;
+      /** Updated At */
+      updated_at?: string | null;
+    };
+    /**
+     * SwabSettingsUpdate
+     * @description SWAB settings update request model.
+     */
+    SwabSettingsUpdate: {
+      /** Auto Check Enabled */
+      auto_check_enabled?: boolean | null;
+      /** Check Interval Minutes */
+      check_interval_minutes?: number | null;
+      /** Daily Credit Budget */
+      daily_credit_budget?: number | null;
+      /** Stale Threshold Minutes */
+      stale_threshold_minutes?: number | null;
+      /** Min Token Count */
+      min_token_count?: number | null;
+    };
+    /**
+     * SwabStatsResponse
+     * @description SWAB overview statistics response model.
+     */
+    SwabStatsResponse: {
+      /** Total Positions */
+      total_positions: number;
+      /** Holding */
+      holding: number;
+      /** Sold */
+      sold: number;
+      /** Winners */
+      winners: number;
+      /** Losers */
+      losers: number;
+      /** Win Rate */
+      win_rate?: number | null;
+      /** Avg Pnl Ratio */
+      avg_pnl_ratio?: number | null;
+      /** Unique Wallets */
+      unique_wallets: number;
+      /** Unique Tokens */
+      unique_tokens: number;
+      /** Stale Positions */
+      stale_positions: number;
+      /** Estimated Check Credits */
+      estimated_check_credits: number;
+      /** Credits Used Today */
+      credits_used_today: number;
+      /** Daily Credit Budget */
+      daily_credit_budget: number;
+      /** Credits Remaining */
+      credits_remaining: number;
+    };
+    /** TagsResponse */
+    TagsResponse: {
+      /** Tags */
+      tags: string[];
+    };
+    /** Token */
+    Token: {
+      /** Id */
+      id: number;
+      /** Token Address */
+      token_address: string;
+      /** Token Name */
+      token_name: string | null;
+      /** Token Symbol */
+      token_symbol: string | null;
+      /** Acronym */
+      acronym: string;
+      /** Analysis Timestamp */
+      analysis_timestamp: string;
+      /** First Buy Timestamp */
+      first_buy_timestamp: string | null;
+      /** Wallets Found */
+      wallets_found: number;
+      /** Credits Used */
+      credits_used?: number | null;
+      /** Last Analysis Credits */
+      last_analysis_credits?: number | null;
+      /** Wallet Addresses */
+      wallet_addresses?: string[] | null;
+      /** Deleted At */
+      deleted_at?: string | null;
+      /** Market Cap Usd */
+      market_cap_usd?: number | null;
+      /** Market Cap Usd Current */
+      market_cap_usd_current?: number | null;
+      /** Market Cap Usd Previous */
+      market_cap_usd_previous?: number | null;
+      /** Market Cap Updated At */
+      market_cap_updated_at?: string | null;
+      /** Market Cap Ath */
+      market_cap_ath?: number | null;
+      /** Market Cap Ath Timestamp */
+      market_cap_ath_timestamp?: string | null;
+      /** Gem Status */
+      gem_status?: string | null;
+      /**
+       * State Version
+       * @default 0
+       */
+      state_version: number;
+      /**
+       * Tags
+       * @default []
+       */
+      tags: string[];
+      /** Top Holders */
+      top_holders?: components['schemas']['TopHolder'][] | null;
+      /** Top Holders Updated At */
+      top_holders_updated_at?: string | null;
+    };
+    /**
+     * TokenDetail
+     * @description Token with wallet details and axiom data
+     */
+    TokenDetail: {
+      /** Id */
+      id: number;
+      /** Token Address */
+      token_address: string;
+      /** Token Name */
+      token_name: string | null;
+      /** Token Symbol */
+      token_symbol: string | null;
+      /** Acronym */
+      acronym: string;
+      /** Analysis Timestamp */
+      analysis_timestamp: string;
+      /** First Buy Timestamp */
+      first_buy_timestamp: string | null;
+      /** Wallets Found */
+      wallets_found: number;
+      /** Credits Used */
+      credits_used?: number | null;
+      /** Last Analysis Credits */
+      last_analysis_credits?: number | null;
+      /** Deleted At */
+      deleted_at?: string | null;
+      /** Market Cap Usd */
+      market_cap_usd?: number | null;
+      /** Market Cap Usd Current */
+      market_cap_usd_current?: number | null;
+      /** Market Cap Usd Previous */
+      market_cap_usd_previous?: number | null;
+      /** Market Cap Updated At */
+      market_cap_updated_at?: string | null;
+      /** Market Cap Ath */
+      market_cap_ath?: number | null;
+      /** Market Cap Ath Timestamp */
+      market_cap_ath_timestamp?: string | null;
+      /** Gem Status */
+      gem_status?: string | null;
+      /**
+       * State Version
+       * @default 0
+       */
+      state_version: number;
+      /**
+       * Tags
+       * @default []
+       */
+      tags: string[];
+      /** Top Holders */
+      top_holders?: components['schemas']['TopHolder'][] | null;
+      /** Top Holders Updated At */
+      top_holders_updated_at?: string | null;
+      /** Wallets */
+      wallets: components['schemas']['Wallet'][];
+      /** Axiom Json */
+      axiom_json: unknown[];
+    };
+    /**
+     * TokenTagRequest
+     * @description Request model for adding a token tag
+     */
+    TokenTagRequest: {
+      /** Tag */
+      tag: string;
+    };
+    /**
+     * TokenTagsResponse
+     * @description Response model for token tags
+     */
+    TokenTagsResponse: {
+      /** Tags */
+      tags: string[];
+    };
+    /** TokensResponse */
+    TokensResponse: {
+      /** Total */
+      total: number;
+      /** Total Wallets */
+      total_wallets: number;
+      /** Tokens */
+      tokens: components['schemas']['Token'][];
+    };
+    /**
+     * TopHolder
+     * @description Individual token holder information
+     */
+    TopHolder: {
+      /** Address */
+      address: string;
+      /** Amount */
+      amount: string;
+      /** Decimals */
+      decimals: number;
+      /** Uiamountstring */
+      uiAmountString: string;
+      /** Token Balance Usd */
+      token_balance_usd?: number | null;
+      /** Wallet Balance Usd */
+      wallet_balance_usd?: number | null;
+    };
+    /**
+     * TopHoldersResponse
+     * @description Response containing top token holders
+     */
+    TopHoldersResponse: {
+      /** Token Address */
+      token_address: string;
+      /** Token Symbol */
+      token_symbol?: string | null;
+      /** Holders */
+      holders: components['schemas']['TopHolder'][];
+      /** Total Holders */
+      total_holders: number;
+      /** Api Credits Used */
+      api_credits_used: number;
+    };
+    /**
+     * UpdateGemStatusRequest
+     * @description Request to update gem status of a token
+     */
+    UpdateGemStatusRequest: {
+      /** Gem Status */
+      gem_status?: string | null;
+    };
+    /** UpdateSettingsRequest */
+    UpdateSettingsRequest: {
+      /** Transactionlimit */
+      transactionLimit?: number | null;
+      /** Minusdfilter */
+      minUsdFilter?: number | null;
+      /** Walletcount */
+      walletCount?: number | null;
+      /** Apiratedelay */
+      apiRateDelay?: number | null;
+      /** Maxcreditsperanalysis */
+      maxCreditsPerAnalysis?: number | null;
+      /** Maxretries */
+      maxRetries?: number | null;
+      /**
+       * Topholderslimit
+       * @description Number of top token holders to fetch (Helius API max: 20)
+       */
+      topHoldersLimit?: number | null;
+    };
+    /**
+     * UpdateSolscanSettingsRequest
+     * @description Request model for updating Solscan settings
+     */
+    UpdateSolscanSettingsRequest: {
+      /** Activity Type */
+      activity_type?: string | null;
+      /** Exclude Amount Zero */
+      exclude_amount_zero?: string | null;
+      /** Remove Spam */
+      remove_spam?: string | null;
+      /** Value */
+      value?: string | null;
+      /** Token Address */
+      token_address?: string | null;
+      /** Page Size */
+      page_size?: string | null;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+    /** Wallet */
+    Wallet: {
+      /** Id */
+      id: number;
+      /** Wallet Address */
+      wallet_address: string;
+      /** First Buy Timestamp */
+      first_buy_timestamp: string;
+      /** Total Usd */
+      total_usd: number | null;
+      /** Transaction Count */
+      transaction_count: number | null;
+      /** Average Buy Usd */
+      average_buy_usd: number | null;
+      /** Wallet Balance Usd */
+      wallet_balance_usd: number | null;
+      /** Wallet Balance Usd Previous */
+      wallet_balance_usd_previous?: number | null;
+      /** Wallet Balance Updated At */
+      wallet_balance_updated_at?: string | null;
+    };
+    /**
+     * WalletExpectancyResponse
+     * @description Wallet expectancy calculation response model.
+     */
+    WalletExpectancyResponse: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Expectancy */
+      expectancy: number;
+      /** Win Rate */
+      win_rate: number;
+      /** Avg Win */
+      avg_win: number;
+      /** Avg Loss */
+      avg_loss: number;
+      /** Closed Positions */
+      closed_positions: number;
+      /** Wins */
+      wins: number;
+      /** Losses */
+      losses: number;
+      /** Current Label */
+      current_label?: string | null;
+    };
+    /**
+     * WalletSummaryResponse
+     * @description Wallet summary response model.
+     */
+    WalletSummaryResponse: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Total Positions */
+      total_positions: number;
+      /** Holding Count */
+      holding_count: number;
+      /** Sold Count */
+      sold_count: number;
+      /** Win Count */
+      win_count: number;
+      /** Loss Count */
+      loss_count: number;
+      /** Win Rate */
+      win_rate?: number | null;
+      /** Avg Pnl Ratio */
+      avg_pnl_ratio?: number | null;
+      /** Last Checked */
+      last_checked?: string | null;
+    };
+    /** WalletTag */
+    WalletTag: {
+      /** Tag */
+      tag: string;
+      /** Is Kol */
+      is_kol: boolean;
+    };
+    /** WalletTagsResponse */
+    WalletTagsResponse: {
+      /** Tags */
+      tags: components['schemas']['WalletTag'][];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    root__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    health_check_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_debug_mode_api_debug_mode_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_debug_config_api_debug_config_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_api_settings_api_settings_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    update_api_settings_api_settings_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateSettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_solscan_settings_api_solscan_settings_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    update_solscan_settings_api_solscan_settings_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateSolscanSettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_metrics_metrics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
-    };
-    get_health_metrics_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_detailed_stats_metrics_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_credits_today_api_stats_credits_today_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreditUsageStatsResponse"];
-                };
-            };
-        };
-    };
-    get_credits_range_api_stats_credits_range_get: {
-        parameters: {
-            query?: {
-                /** @description Number of days to look back */
-                days?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreditUsageStatsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_credit_transactions_api_stats_credits_transactions_get: {
-        parameters: {
-            query?: {
-                /** @description Maximum number of transactions */
-                limit?: number;
-                /** @description Filter by operation type */
-                operation?: string | null;
-                /** @description Filter by token ID */
-                token_id?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreditTransactionsListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_token_credits_api_stats_credits_token__token_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_operation_costs_api_stats_credits_costs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OperationCostsResponse"];
-                };
-            };
-        };
-    };
-    estimate_operation_cost_api_stats_credits_estimate_get: {
-        parameters: {
-            query: {
-                /** @description Operation type to estimate */
-                operation: string;
-                /** @description Number of operations */
-                count?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    register_address_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterAddressRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_addresses_addresses_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_address_address__address__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                address: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_address_address__address__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                address: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_address_note_address__address__note_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                address: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AddressNoteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    import_addresses_import_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImportAddressesRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    clear_addresses_clear_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_tokens_history_api_tokens_history_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokensResponse"];
-                };
-            };
-        };
-    };
-    get_deleted_tokens_api_tokens_trash_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokensResponse"];
-                };
-            };
-        };
-    };
-    refresh_market_caps_api_tokens_refresh_market_caps_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshMarketCapsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RefreshMarketCapsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_token_by_id_api_tokens__token_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    soft_delete_token_api_tokens__token_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_token_analysis_history_api_tokens__token_id__history_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisHistory"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_token_api_tokens__token_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    permanent_delete_token_api_tokens__token_id__permanent_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_gem_status_api_tokens__token_id__gem_status_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateGemStatusRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_token_tags_api_tokens__token_id__tags_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenTagsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_token_tag_api_tokens__token_id__tags_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TokenTagRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_token_tag_api_tokens__token_id__tags_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TokenTagRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_top_holders_api_tokens__mint_address__top_holders_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                mint_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TopHoldersResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analyze_token_redis_analyze_token_redis_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalyzeTokenRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QueueTokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analyze_token_analyze_token_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalyzeTokenRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QueueTokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_analysis_analysis__job_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisJob"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_analyses_analysis_get: {
-        parameters: {
-            query?: {
-                search?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_analysis_csv_analysis__job_id__csv_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    download_axiom_export_analysis__job_id__axiom_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_multi_early_buyer_wallets_multi_token_wallets_get: {
-        parameters: {
-            query?: {
-                min_tokens?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MultiTokenWalletsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    refresh_wallet_balances_wallets_refresh_balances_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshBalancesRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RefreshBalancesResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_wallet_top_holder_tokens_wallets__wallet_address__top_holder_tokens_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                wallet_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_batch_top_holder_counts_wallets_batch_top_holder_counts_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": string[];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_wallet_tags_wallets__wallet_address__tags_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                wallet_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletTagsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_wallet_tag_wallets__wallet_address__tags_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                wallet_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AddTagRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_wallet_tag_wallets__wallet_address__tags_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                wallet_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RemoveTagRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_all_tags_tags_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagsResponse"];
-                };
-            };
-        };
-    };
-    get_codex_codex_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CodexResponse"];
-                };
-            };
-        };
-    };
-    get_batch_wallet_tags_wallets_batch_tags_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BatchTagsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_wallets_by_tag_tags__tag__wallets_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tag: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_webhook_webhooks_create_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateWebhookRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_webhooks_webhooks_list_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_webhook_details_webhooks__webhook_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                webhook_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_webhook_webhooks__webhook_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                webhook_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_swab_webhook_webhooks_create_swab_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    webhook_callback_webhooks_callback_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_settings_api_swab_settings_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SwabSettingsResponse"];
-                };
-            };
-        };
-    };
-    update_settings_api_swab_settings_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SwabSettingsUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SwabSettingsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_scheduler_status_api_swab_scheduler_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_stats_api_swab_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SwabStatsResponse"];
-                };
-            };
-        };
-    };
-    get_positions_api_swab_positions_get: {
-        parameters: {
-            query?: {
-                min_token_count?: number | null;
-                status?: string | null;
-                pnl_min?: number | null;
-                pnl_max?: number | null;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PositionsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_wallet_summaries_api_swab_wallets_get: {
-        parameters: {
-            query?: {
-                min_token_count?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletSummaryResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stop_position_tracking_api_swab_positions__position_id__stop_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                position_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StopTrackingRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resume_position_tracking_api_swab_positions__position_id__resume_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                position_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stop_wallet_tracking_api_swab_wallets__wallet_address__stop_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                wallet_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StopTrackingRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    batch_stop_position_tracking_api_swab_positions_batch_stop_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BatchStopTrackingRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    trigger_position_check_api_swab_check_post: {
-        parameters: {
-            query?: {
-                max_positions?: number;
-                max_credits?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CheckResultResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    trigger_pnl_update_api_swab_update_pnl_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_wallet_expectancies_api_swab_expectancies_get: {
-        parameters: {
-            query?: {
-                min_closed?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletExpectancyResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_wallet_expectancy_api_swab_expectancies__wallet_address__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                wallet_address: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletExpectancyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    trigger_label_update_api_swab_labels_update_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    purge_swab_data_api_swab_purge_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    reconcile_token_positions_api_swab_reconcile__token_id__post: {
-        parameters: {
-            query?: {
-                max_signatures?: number;
-            };
-            header?: never;
-            path: {
-                token_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReconciliationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reconcile_all_positions_api_swab_reconcile_all_post: {
-        parameters: {
-            query?: {
-                max_signatures?: number;
-                max_positions?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReconciliationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    notify_analysis_complete_notify_analysis_complete_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalysisCompleteNotification"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    notify_analysis_start_notify_analysis_start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnalysisStartNotification"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
+  root__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  health_check_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_debug_mode_api_debug_mode_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_debug_config_api_debug_config_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_api_settings_api_settings_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  update_api_settings_api_settings_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateSettingsRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_solscan_settings_api_solscan_settings_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  update_solscan_settings_api_solscan_settings_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateSolscanSettingsRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_metrics_metrics_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/plain': string;
+        };
+      };
+    };
+  };
+  get_health_metrics_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_detailed_stats_metrics_stats_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_credits_today_api_stats_credits_today_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreditUsageStatsResponse'];
+        };
+      };
+    };
+  };
+  get_credits_range_api_stats_credits_range_get: {
+    parameters: {
+      query?: {
+        /** @description Number of days to look back */
+        days?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreditUsageStatsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_credit_transactions_api_stats_credits_transactions_get: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of transactions */
+        limit?: number;
+        /** @description Filter by operation type */
+        operation?: string | null;
+        /** @description Filter by token ID */
+        token_id?: number | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreditTransactionsListResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_token_credits_api_stats_credits_token__token_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_operation_costs_api_stats_credits_costs_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OperationCostsResponse'];
+        };
+      };
+    };
+  };
+  estimate_operation_cost_api_stats_credits_estimate_get: {
+    parameters: {
+      query: {
+        /** @description Operation type to estimate */
+        operation: string;
+        /** @description Number of operations */
+        count?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  register_address_register_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegisterAddressRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_addresses_addresses_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_address_address__address__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_address_address__address__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  update_address_note_address__address__note_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        address: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AddressNoteRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  import_addresses_import_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ImportAddressesRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  clear_addresses_clear_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_tokens_history_api_tokens_history_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokensResponse'];
+        };
+      };
+    };
+  };
+  get_deleted_tokens_api_tokens_trash_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokensResponse'];
+        };
+      };
+    };
+  };
+  refresh_market_caps_api_tokens_refresh_market_caps_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RefreshMarketCapsRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RefreshMarketCapsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_token_by_id_api_tokens__token_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokenDetail'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  soft_delete_token_api_tokens__token_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_token_analysis_history_api_tokens__token_id__history_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalysisHistory'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  restore_token_api_tokens__token_id__restore_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  permanent_delete_token_api_tokens__token_id__permanent_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  update_gem_status_api_tokens__token_id__gem_status_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateGemStatusRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_token_tags_api_tokens__token_id__tags_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokenTagsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  add_token_tag_api_tokens__token_id__tags_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TokenTagRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  remove_token_tag_api_tokens__token_id__tags_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TokenTagRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_top_holders_api_tokens__mint_address__top_holders_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        mint_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TopHoldersResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  analyze_token_redis_analyze_token_redis_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnalyzeTokenRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['QueueTokenResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  analyze_token_analyze_token_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnalyzeTokenRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['QueueTokenResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_analysis_analysis__job_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalysisJob'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_analyses_analysis_get: {
+    parameters: {
+      query?: {
+        search?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnalysisListResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  export_analysis_csv_analysis__job_id__csv_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  download_axiom_export_analysis__job_id__axiom_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_multi_early_buyer_wallets_multi_token_wallets_get: {
+    parameters: {
+      query?: {
+        min_tokens?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MultiTokenWalletsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  refresh_wallet_balances_wallets_refresh_balances_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RefreshBalancesRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RefreshBalancesResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_wallet_top_holder_tokens_wallets__wallet_address__top_holder_tokens_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_batch_top_holder_counts_wallets_batch_top_holder_counts_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': string[];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_wallet_tags_wallets__wallet_address__tags_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WalletTagsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  add_wallet_tag_wallets__wallet_address__tags_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AddTagRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  remove_wallet_tag_wallets__wallet_address__tags_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RemoveTagRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_all_tags_tags_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TagsResponse'];
+        };
+      };
+    };
+  };
+  get_codex_codex_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CodexResponse'];
+        };
+      };
+    };
+  };
+  get_batch_wallet_tags_wallets_batch_tags_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BatchTagsRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_wallets_by_tag_tags__tag__wallets_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tag: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  create_webhook_webhooks_create_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateWebhookRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_webhooks_webhooks_list_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_webhook_details_webhooks__webhook_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        webhook_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_webhook_webhooks__webhook_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        webhook_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  create_swab_webhook_webhooks_create_swab_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  webhook_callback_webhooks_callback_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_settings_api_swab_settings_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SwabSettingsResponse'];
+        };
+      };
+    };
+  };
+  update_settings_api_swab_settings_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SwabSettingsUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SwabSettingsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_scheduler_status_api_swab_scheduler_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_stats_api_swab_stats_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SwabStatsResponse'];
+        };
+      };
+    };
+  };
+  get_positions_api_swab_positions_get: {
+    parameters: {
+      query?: {
+        min_token_count?: number | null;
+        status?: string | null;
+        pnl_min?: number | null;
+        pnl_max?: number | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_wallet_summaries_api_swab_wallets_get: {
+    parameters: {
+      query?: {
+        min_token_count?: number | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WalletSummaryResponse'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  stop_position_tracking_api_swab_positions__position_id__stop_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        position_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StopTrackingRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  resume_position_tracking_api_swab_positions__position_id__resume_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        position_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  stop_wallet_tracking_api_swab_wallets__wallet_address__stop_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StopTrackingRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  batch_stop_position_tracking_api_swab_positions_batch_stop_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BatchStopTrackingRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  trigger_position_check_api_swab_check_post: {
+    parameters: {
+      query?: {
+        max_positions?: number;
+        max_credits?: number | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CheckResultResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  trigger_pnl_update_api_swab_update_pnl_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  get_wallet_expectancies_api_swab_expectancies_get: {
+    parameters: {
+      query?: {
+        min_closed?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WalletExpectancyResponse'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_wallet_expectancy_api_swab_expectancies__wallet_address__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WalletExpectancyResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  trigger_label_update_api_swab_labels_update_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  purge_swab_data_api_swab_purge_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  reconcile_token_positions_api_swab_reconcile__token_id__post: {
+    parameters: {
+      query?: {
+        max_signatures?: number;
+      };
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReconciliationResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  reconcile_all_positions_api_swab_reconcile_all_post: {
+    parameters: {
+      query?: {
+        max_signatures?: number;
+        max_positions?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReconciliationResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  notify_analysis_complete_notify_analysis_complete_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnalysisCompleteNotification'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  notify_analysis_start_notify_analysis_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnalysisStartNotification'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
 }

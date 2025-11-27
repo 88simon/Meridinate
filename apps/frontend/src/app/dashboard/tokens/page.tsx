@@ -2101,14 +2101,14 @@ export default function TokensPage() {
             {/* Tab Header */}
             <div className='bg-card sticky top-0 z-10 pt-1 pb-2'>
               {/* Tab Navigation */}
-              <div className='flex items-center mb-2'>
+              <div className='mb-2 flex items-center'>
                 {/* MTEW Tab */}
                 <button
                   onClick={() => setActiveTab('mtew')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                  className={`flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'mtew'
                       ? 'border-primary text-primary bg-primary/5'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border-transparent'
                   }`}
                 >
                   <Image
@@ -2138,10 +2138,10 @@ export default function TokensPage() {
                 {/* SWAB Tab */}
                 <button
                   onClick={() => setActiveTab('swab')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                  className={`flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                     activeTab === 'swab'
                       ? 'border-primary text-primary bg-primary/5'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border-transparent'
                   }`}
                 >
                   <span className='text-lg'>📊</span>
@@ -2150,7 +2150,7 @@ export default function TokensPage() {
               </div>
 
               {/* Separator line */}
-              <div className='border-b -mx-3' />
+              <div className='-mx-3 border-b' />
             </div>
 
             {/* MTEW Tab Content */}
@@ -2161,802 +2161,826 @@ export default function TokensPage() {
                   {/* Three-section layout: Empty (left) | Filters + Search (center) | Scroll to Top (right) */}
                   <div className='relative flex items-start justify-between gap-4'>
                     {/* Left: Spacer for balance */}
-                    <div className='shrink-0 w-[200px]' />
+                    <div className='w-[200px] shrink-0' />
 
                     {/* Center: Filters and Search */}
-                <div className='flex flex-1 flex-col items-center gap-2'>
-                  {/* Filters Button */}
-                  <Popover
-                    open={isFilterPopoverOpen}
-                    onOpenChange={setIsFilterPopoverOpen}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='h-7 gap-1.5'
+                    <div className='flex flex-1 flex-col items-center gap-2'>
+                      {/* Filters Button */}
+                      <Popover
+                        open={isFilterPopoverOpen}
+                        onOpenChange={setIsFilterPopoverOpen}
                       >
-                        <Filter className='h-3.5 w-3.5' />
-                        Filters
-                        {(() => {
-                          const activeCount =
-                            mtwFilters.walletTags.length +
-                            (mtwFilters.tokenStatus.hasGems ? 1 : 0) +
-                            (mtwFilters.tokenStatus.hasDuds ? 1 : 0) +
-                            (mtwFilters.tokenStatus.hasUntagged ? 1 : 0) +
-                            (mtwFilters.tokenStatus.allGems ? 1 : 0) +
-                            (mtwFilters.tokenStatus.allDuds ? 1 : 0) +
-                            (mtwFilters.balanceRange.min !== null ||
-                            mtwFilters.balanceRange.max !== null
-                              ? 1
-                              : 0) +
-                            (mtwFilters.tokenCountRange.min !== null ||
-                            mtwFilters.tokenCountRange.max !== null
-                              ? 1
-                              : 0) +
-                            (mtwFilters.topHolder.isTopHolder ? 1 : 0);
-                          return activeCount > 0 ? (
-                            <span className='bg-primary text-primary-foreground ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold'>
-                              {activeCount}
-                            </span>
-                          ) : null;
-                        })()}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-auto p-4' align='center'>
-                      <MTWTFilterPopover
-                        filters={mtwFilters}
-                        onChange={setMtwFilters}
-                        onClear={() => setMtwFilters(DEFAULT_MTWT_FILTERS)}
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* Search Bar */}
-                  <div className='relative flex w-full max-w-md items-center gap-1'>
-                    <div className='relative flex-1'>
-                      <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
-                      <input
-                        type='text'
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder='Search tokens, wallets, tags... (try "gem token:Ant")'
-                        className='bg-background focus:ring-primary h-8 w-full rounded-md border pr-8 pl-9 text-xs focus:ring-2 focus:outline-none'
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery('')}
-                          className='text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2'
-                        >
-                          <X className='h-3.5 w-3.5' />
-                        </button>
-                      )}
-                    </div>
-                    <Popover
-                      open={isSearchHelpOpen}
-                      onOpenChange={setIsSearchHelpOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          className='h-8 w-8 p-0'
-                          aria-label='Search help'
-                        >
-                          <Info className='h-4 w-4' />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className='w-auto p-4' align='center'>
-                        <SearchHelpPopover />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                {/* Right: Scroll to Top Button (always visible) */}
-                <div className='shrink-0 pt-2'>
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 w-7 p-0'
-                          onClick={scrollToTop}
-                          aria-label='Scroll to top'
-                        >
-                          <ChevronUp className='h-4 w-4' />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className='text-xs'>Scroll to top</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
-            </div>
-
-            <p className='text-muted-foreground mb-2 text-center text-xs'>
-              Wallets appearing in multiple analyzed tokens
-            </p>
-
-            {/* Active Filters Chips */}
-            {(() => {
-              const activeFilters: Array<{
-                label: string;
-                onRemove: () => void;
-              }> = [];
-
-              // Wallet tags filters
-              mtwFilters.walletTags.forEach((tag) => {
-                activeFilters.push({
-                  label: `Tag: ${tag}`,
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      walletTags: mtwFilters.walletTags.filter((t) => t !== tag)
-                    })
-                });
-              });
-
-              // Token status filters
-              if (mtwFilters.tokenStatus.hasGems) {
-                activeFilters.push({
-                  label: 'Has GEMs',
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      tokenStatus: { ...mtwFilters.tokenStatus, hasGems: false }
-                    })
-                });
-              }
-              if (mtwFilters.tokenStatus.hasDuds) {
-                activeFilters.push({
-                  label: 'Has DUDs',
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      tokenStatus: { ...mtwFilters.tokenStatus, hasDuds: false }
-                    })
-                });
-              }
-              if (mtwFilters.tokenStatus.hasUntagged) {
-                activeFilters.push({
-                  label: 'Has untagged',
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      tokenStatus: {
-                        ...mtwFilters.tokenStatus,
-                        hasUntagged: false
-                      }
-                    })
-                });
-              }
-              if (mtwFilters.tokenStatus.allGems) {
-                activeFilters.push({
-                  label: 'All GEMs',
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      tokenStatus: { ...mtwFilters.tokenStatus, allGems: false }
-                    })
-                });
-              }
-              if (mtwFilters.tokenStatus.allDuds) {
-                activeFilters.push({
-                  label: 'All DUDs',
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      tokenStatus: { ...mtwFilters.tokenStatus, allDuds: false }
-                    })
-                });
-              }
-
-              // Balance range filter
-              if (
-                mtwFilters.balanceRange.min !== null ||
-                mtwFilters.balanceRange.max !== null
-              ) {
-                const min = mtwFilters.balanceRange.min;
-                const max = mtwFilters.balanceRange.max;
-                let label = 'Balance: ';
-                if (min !== null && max !== null) {
-                  label += `$${min.toLocaleString()} - $${max.toLocaleString()}`;
-                } else if (min !== null) {
-                  label += `≥ $${min.toLocaleString()}`;
-                } else if (max !== null) {
-                  label += `≤ $${max.toLocaleString()}`;
-                }
-                activeFilters.push({
-                  label,
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      balanceRange: { min: null, max: null }
-                    })
-                });
-              }
-
-              // Token count range filter
-              if (
-                mtwFilters.tokenCountRange.min !== null ||
-                mtwFilters.tokenCountRange.max !== null
-              ) {
-                const min = mtwFilters.tokenCountRange.min;
-                const max = mtwFilters.tokenCountRange.max;
-                let label = 'Tokens: ';
-                if (min !== null && max !== null) {
-                  label += `${min} - ${max}`;
-                } else if (min !== null) {
-                  label += `≥ ${min}`;
-                } else if (max !== null) {
-                  label += `≤ ${max}`;
-                }
-                activeFilters.push({
-                  label,
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      tokenCountRange: { min: null, max: null }
-                    })
-                });
-              }
-
-              // Top holder filter
-              if (mtwFilters.topHolder.isTopHolder) {
-                activeFilters.push({
-                  label: 'Is top holder',
-                  onRemove: () =>
-                    setMtwFilters({
-                      ...mtwFilters,
-                      topHolder: { ...mtwFilters.topHolder, isTopHolder: false }
-                    })
-                });
-              }
-
-              if (activeFilters.length === 0) return null;
-
-              return (
-                <div className='mb-3 flex flex-wrap gap-1.5'>
-                  {activeFilters.map((filter, index) => (
-                    <span
-                      key={index}
-                      className='bg-primary/10 text-primary flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium'
-                    >
-                      {filter.label}
-                      <button
-                        onClick={filter.onRemove}
-                        className='hover:bg-primary/20 rounded-full p-0.5 transition-colors'
-                      >
-                        <X className='h-2.5 w-2.5' />
-                      </button>
-                    </span>
-                  ))}
-                  {activeFilters.length > 1 && (
-                    <button
-                      onClick={() => setMtwFilters(DEFAULT_MTWT_FILTERS)}
-                      className='text-muted-foreground hover:text-foreground text-xs underline'
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Top Selection Controls - Sticky Bar */}
-            {selectedWallets.size > 0 && (
-              <div className='bg-primary/10 border-primary/20 sticky top-0 z-20 mb-2 flex items-center justify-center gap-2 rounded-md border p-2 shadow-md backdrop-blur-sm'>
-                <span className='text-primary text-xs font-medium'>
-                  {selectedWallets.size} wallet
-                  {selectedWallets.size !== 1 ? 's' : ''} selected
-                </span>
-                <div className='flex items-center gap-1.5'>
-                  {/* Bulk Refresh Balance */}
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => handleRefreshBalances()}
-                    className='h-6 gap-1 px-2 text-xs'
-                    title={`Refresh ${selectedWallets.size} wallet balance(s) - ${selectedWallets.size} API credit(s)`}
-                  >
-                    <RefreshCw className='h-3 w-3' />
-                    Refresh ({selectedWallets.size})
-                  </Button>
-
-                  {/* Bulk Tags */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='h-6 gap-1 px-2 text-xs'
-                      >
-                        <Tags className='h-3 w-3' />
-                        Tags ({selectedWallets.size})
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-56'>
-                      <BulkTagsPopover
-                        selectedWallets={Array.from(selectedWallets)}
-                        onTagsApplied={() => {
-                          toast.success('Tags applied to selected wallets');
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* Deselect All */}
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => setSelectedWallets(new Set())}
-                    className='h-6 px-2 text-xs'
-                  >
-                    Deselect All
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div
-              ref={walletContainerRef}
-              onScroll={handleWalletScroll}
-              className={`overflow-x-auto ${isWalletPanelExpanded ? 'max-h-[600px] overflow-y-auto' : ''}`}
-            >
-              <table
-                className='w-full table-fixed'
-                style={{ minWidth: '1000px' }}
-              >
-                <colgroup>
-                  <col style={{ width: '320px' }} />
-                  <col style={{ width: '220px' }} />
-                  <col style={{ width: '140px' }} />
-                  <col style={{ width: '80px' }} />
-                  <col style={{ width: 'auto' }} />
-                </colgroup>
-                <thead
-                  className={
-                    isWalletPanelExpanded ? 'bg-card sticky top-0 z-10' : ''
-                  }
-                >
-                  <tr className='border-b'>
-                    <th className='pr-4 pb-2 text-left text-xs font-medium'>
-                      <button
-                        onClick={() => handleSort('address')}
-                        className='hover:text-primary flex items-center gap-1 transition-colors'
-                      >
-                        <span>Wallet Address</span>
-                        {sortColumn === 'address' &&
-                          (sortDirection === 'asc' ? (
-                            <ChevronUp className='h-3 w-3' />
-                          ) : (
-                            <ChevronDown className='h-3 w-3' />
-                          ))}
-                      </button>
-                    </th>
-                    <th className='px-4 pb-2 text-left text-xs font-medium'>
-                      <div className='flex items-center justify-start gap-1'>
-                        <button
-                          onClick={() => handleSort('balance')}
-                          className='hover:text-primary flex items-center gap-1 transition-colors'
-                        >
-                          <span>Balance (USD)</span>
-                          {sortColumn === 'balance' &&
-                            (sortDirection === 'asc' ? (
-                              <ChevronUp className='h-3 w-3' />
-                            ) : (
-                              <ChevronDown className='h-3 w-3' />
-                            ))}
-                        </button>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                className='h-5 w-5 p-0'
-                                onClick={handleRefreshAllBalances}
-                              >
-                                <RefreshCw className='h-3 w-3' />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className='text-xs'>
-                                Refresh all visible wallet balances
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                className='h-5 w-5 p-0'
-                              >
-                                <Info className='h-3 w-3' />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className='text-xs'>
-                                Refreshing a single wallet balance costs 1 API
-                                credit
-                              </p>
-                              <p className='text-xs'>
-                                Refreshing all {walletsToDisplay.length}{' '}
-                                wallet(s) costs {walletsToDisplay.length} API
-                                credits
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </th>
-                    <th className='px-4 pb-2 text-left text-xs font-medium'>
-                      Tags
-                    </th>
-                    <th className='px-4 pb-2 text-center text-xs font-medium'>
-                      <button
-                        onClick={() => handleSort('tokens')}
-                        className='hover:text-primary mx-auto flex items-center gap-1 transition-colors'
-                      >
-                        <span>Tokens</span>
-                        {sortColumn === 'tokens' &&
-                          (sortDirection === 'asc' ? (
-                            <ChevronUp className='h-3 w-3' />
-                          ) : (
-                            <ChevronDown className='h-3 w-3' />
-                          ))}
-                      </button>
-                    </th>
-                    <th className='pb-2 pl-4 text-left text-xs font-medium'>
-                      <button
-                        onClick={() => handleSort('new')}
-                        className='hover:text-primary flex items-center gap-1 transition-colors'
-                      >
-                        <span>Token Names</span>
-                        {sortColumn === 'new' &&
-                          (sortDirection === 'asc' ? (
-                            <ChevronUp className='h-3 w-3' />
-                          ) : (
-                            <ChevronDown className='h-3 w-3' />
-                          ))}
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {walletPaddingTop > 0 && (
-                    <tr aria-hidden='true'>
-                      <td
-                        colSpan={5}
-                        className='p-0'
-                        style={{ height: walletPaddingTop }}
-                      />
-                    </tr>
-                  )}
-                  {walletsToDisplay.map((wallet) => {
-                    const isSelected = selectedWallets.has(
-                      wallet.wallet_address
-                    );
-                    const cn = (...classes: (string | boolean)[]) =>
-                      classes.filter(Boolean).join(' ');
-                    return (
-                      <tr
-                        key={wallet.wallet_address}
-                        className={cn(
-                          'cursor-pointer border-b transition-all duration-200 ease-out',
-                          'hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]',
-                          isSelected &&
-                            'bg-primary/20 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3),0_0_10px_rgba(59,130,246,0.2)]',
-                          isSelected &&
-                            'hover:bg-primary/25 hover:shadow-[inset_0_0_0_2px_rgba(59,130,246,0.4),0_0_15px_rgba(59,130,246,0.3)]',
-                          isSelected && 'active:bg-primary/30',
-                          !isSelected && 'hover:bg-muted/50',
-                          !isSelected && 'active:bg-muted/70'
-                        )}
-                        onClick={(e) =>
-                          handleWalletRowClick(wallet.wallet_address, e)
-                        }
-                      >
-                        <td className='py-1.5 pr-4'>
-                          <div className='flex flex-col gap-0.5'>
-                            <div className='flex items-center gap-1.5 overflow-hidden'>
-                              <a
-                                href={buildSolscanUrl(
-                                  wallet.wallet_address,
-                                  solscanSettings
-                                )}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className='text-primary truncate font-sans text-xs hover:underline'
-                              >
-                                {wallet.wallet_address}
-                              </a>
-                              {wallet.is_new && (
-                                <span className='flex-shrink-0 rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase'>
-                                  NEW
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            className='h-7 gap-1.5'
+                          >
+                            <Filter className='h-3.5 w-3.5' />
+                            Filters
+                            {(() => {
+                              const activeCount =
+                                mtwFilters.walletTags.length +
+                                (mtwFilters.tokenStatus.hasGems ? 1 : 0) +
+                                (mtwFilters.tokenStatus.hasDuds ? 1 : 0) +
+                                (mtwFilters.tokenStatus.hasUntagged ? 1 : 0) +
+                                (mtwFilters.tokenStatus.allGems ? 1 : 0) +
+                                (mtwFilters.tokenStatus.allDuds ? 1 : 0) +
+                                (mtwFilters.balanceRange.min !== null ||
+                                mtwFilters.balanceRange.max !== null
+                                  ? 1
+                                  : 0) +
+                                (mtwFilters.tokenCountRange.min !== null ||
+                                mtwFilters.tokenCountRange.max !== null
+                                  ? 1
+                                  : 0) +
+                                (mtwFilters.topHolder.isTopHolder ? 1 : 0);
+                              return activeCount > 0 ? (
+                                <span className='bg-primary text-primary-foreground ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold'>
+                                  {activeCount}
                                 </span>
-                              )}
-                              <a
-                                href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                title='Search on Twitter/X'
-                                className='flex-shrink-0'
-                              >
-                                <Button
-                                  variant='ghost'
-                                  size='sm'
-                                  className='h-6 w-6 p-0'
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Twitter className='h-3 w-3' />
-                                </Button>
-                              </a>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                className='h-6 w-6 flex-shrink-0 p-0'
-                                onClick={() => {
-                                  navigator.clipboard.writeText(
-                                    wallet.wallet_address
-                                  );
-                                  toast.success('Address copied to clipboard');
-                                }}
-                              >
-                                <Copy className='h-3 w-3' />
-                              </Button>
-                            </div>
-                            <WalletTagLabels
-                              walletAddress={wallet.wallet_address}
-                            />
-                          </div>
-                        </td>
-                        <td className='px-4 py-1.5 font-mono text-xs'>
-                          <div className='flex items-center gap-1.5'>
+                              ) : null;
+                            })()}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className='w-auto p-4' align='center'>
+                          <MTWTFilterPopover
+                            filters={mtwFilters}
+                            onChange={setMtwFilters}
+                            onClear={() => setMtwFilters(DEFAULT_MTWT_FILTERS)}
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      {/* Search Bar */}
+                      <div className='relative flex w-full max-w-md items-center gap-1'>
+                        <div className='relative flex-1'>
+                          <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+                          <input
+                            type='text'
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder='Search tokens, wallets, tags... (try "gem token:Ant")'
+                            className='bg-background focus:ring-primary h-8 w-full rounded-md border pr-8 pl-9 text-xs focus:ring-2 focus:outline-none'
+                          />
+                          {searchQuery && (
+                            <button
+                              onClick={() => setSearchQuery('')}
+                              className='text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2'
+                            >
+                              <X className='h-3.5 w-3.5' />
+                            </button>
+                          )}
+                        </div>
+                        <Popover
+                          open={isSearchHelpOpen}
+                          onOpenChange={setIsSearchHelpOpen}
+                        >
+                          <PopoverTrigger asChild>
                             <Button
                               variant='ghost'
                               size='sm'
-                              className='h-5 w-5 flex-shrink-0 p-0'
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRefreshBalances([wallet.wallet_address]);
-                              }}
-                              title={`Refresh balance - 1 API credit`}
+                              className='h-8 w-8 p-0'
+                              aria-label='Search help'
                             >
-                              <RefreshCw className='h-3 w-3' />
+                              <Info className='h-4 w-4' />
                             </Button>
-                            <div className='flex min-w-0 flex-col gap-0.5'>
-                              <div className='flex items-center gap-1'>
-                                {(() => {
-                                  const trend = getWalletTrend(wallet);
-                                  const current = wallet.wallet_balance_usd;
-                                  const formatted =
-                                    current !== null && current !== undefined
-                                      ? `$${Math.round(current).toLocaleString()}`
-                                      : 'N/A';
-                                  if (trend === 'up') {
-                                    return (
-                                      <span className='flex items-center gap-1 text-green-600'>
-                                        <span>▲</span>
-                                        <span>{formatted}</span>
-                                      </span>
-                                    );
-                                  }
-                                  if (trend === 'down') {
-                                    return (
-                                      <span className='flex items-center gap-1 text-red-600'>
-                                        <span>▼</span>
-                                        <span>{formatted}</span>
-                                      </span>
-                                    );
-                                  }
-                                  return <span>{formatted}</span>;
-                                })()}
-                              </div>
-                              <div className='text-muted-foreground truncate text-[11px]'>
-                                {formatWalletTimestamp(
-                                  wallet.wallet_balance_updated_at as
-                                    | string
-                                    | null
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className='px-4 py-1.5'>
-                          <div className='flex items-center gap-1.5'>
-                            <WalletTags
-                              walletAddress={wallet.wallet_address}
-                              iconOnly
-                            />
-                            <AdditionalTagsPopover
-                              walletAddress={wallet.wallet_address}
-                              compact
-                            />
-                            {/* Top Holder Tag */}
-                            {topHolderCounts.has(wallet.wallet_address) &&
-                              topHolderCounts.get(wallet.wallet_address)! >
-                                0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedWalletForTopHolders(
-                                      wallet.wallet_address
-                                    );
-                                    setIsWalletTopHoldersModalOpen(true);
-                                  }}
-                                  className='relative rounded bg-purple-500/90 px-2 py-0.5 text-[10px] font-bold text-white uppercase transition-colors hover:bg-purple-600'
-                                >
-                                  TOP HOLDER
-                                  {/* Notification Badge */}
-                                  <span className='border-background absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border bg-red-500 text-[9px] font-bold text-white'>
-                                    {topHolderCounts.get(wallet.wallet_address)}
-                                  </span>
-                                </button>
-                              )}
-                          </div>
-                        </td>
-                        <td className='px-4 py-1.5 text-center'>
-                          <span className='bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-bold'>
-                            {wallet.token_count}
-                          </span>
-                        </td>
-                        <td className='py-1.5 pl-4'>
-                          <div className='flex flex-wrap gap-1.5 overflow-hidden'>
-                            {wallet.token_names.map((name, idx) => {
-                              // Show NEW badge for the latest scanned token (regardless of multi-token threshold)
-                              const latestTokenId = data.tokens[0]?.id;
-                              const isNewToken =
-                                wallet.token_ids[idx] === latestTokenId;
-                              const gemStatus = wallet.gem_statuses?.[idx];
+                          </PopoverTrigger>
+                          <PopoverContent className='w-auto p-4' align='center'>
+                            <SearchHelpPopover />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
 
-                              return (
-                                <a
-                                  key={idx}
-                                  href={`https://gmgn.ai/sol/token/${wallet.token_addresses[idx]}?min=0.1&isInputValue=true`}
-                                  target='_blank'
-                                  rel='noopener noreferrer'
-                                  className='bg-muted hover:bg-muted/80 flex items-center gap-1 rounded px-1.5 py-0.5 text-xs'
-                                >
-                                  {name}
-                                  {gemStatus === 'gem' && (
-                                    <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
-                                      GEM
-                                    </span>
-                                  )}
-                                  {gemStatus === 'dud' && (
-                                    <span className='rounded bg-red-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
-                                      DUD
-                                    </span>
-                                  )}
-                                  {isNewToken && (
-                                    <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
-                                      NEW
-                                    </span>
-                                  )}
-                                </a>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {walletPaddingBottom > 0 && (
-                    <tr aria-hidden='true'>
-                      <td
-                        colSpan={5}
-                        className='p-0'
-                        style={{ height: walletPaddingBottom }}
-                      />
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Collapse/Expand Controls */}
-            <div className='mt-1 border-t pt-1'>
-              {/* Wallet count info */}
-              <div className='mb-1 flex items-center justify-center'>
-                <div className='text-muted-foreground text-[11px]'>
-                  {isWalletPanelExpanded ? (
-                    <>Showing all {multiWallets.wallets.length} wallets</>
-                  ) : (
-                    <>
-                      Showing {walletsToDisplay.length} of{' '}
-                      {multiWallets.wallets.length} wallets
-                    </>
-                  )}
+                    {/* Right: Scroll to Top Button (always visible) */}
+                    <div className='shrink-0 pt-2'>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              className='h-7 w-7 p-0'
+                              onClick={scrollToTop}
+                              aria-label='Scroll to top'
+                            >
+                              <ChevronUp className='h-4 w-4' />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className='text-xs'>Scroll to top</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Bottom Selection Controls */}
-              {selectedWallets.size > 0 && (
-                <div className='bg-primary/10 border-primary/20 mb-1 flex items-center justify-center gap-2 rounded-md border p-1'>
-                  <span className='text-primary text-[11px] font-medium'>
-                    {selectedWallets.size} wallet
-                    {selectedWallets.size !== 1 ? 's' : ''} selected
-                  </span>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => setSelectedWallets(new Set())}
-                    className='h-5 px-1.5 text-[11px]'
-                  >
-                    Deselect All
-                  </Button>
-                </div>
-              )}
+                <p className='text-muted-foreground mb-2 text-center text-xs'>
+                  Wallets appearing in multiple analyzed tokens
+                </p>
 
-              {/* Centered pagination and expand/collapse */}
-              <div className='flex items-center justify-center gap-2'>
-                {/* Pagination controls (only when collapsed) */}
-                {!isWalletPanelExpanded && totalWalletPages > 1 && (
-                  <div className='flex items-center gap-1'>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => setWalletPage((p) => Math.max(0, p - 1))}
-                      disabled={walletPage === 0}
-                      className='h-5 px-1'
-                    >
-                      <ChevronLeft className='h-3 w-3' />
-                    </Button>
-                    <span className='text-muted-foreground px-1 text-[11px]'>
-                      Page {walletPage + 1} / {totalWalletPages}
+                {/* Active Filters Chips */}
+                {(() => {
+                  const activeFilters: Array<{
+                    label: string;
+                    onRemove: () => void;
+                  }> = [];
+
+                  // Wallet tags filters
+                  mtwFilters.walletTags.forEach((tag) => {
+                    activeFilters.push({
+                      label: `Tag: ${tag}`,
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          walletTags: mtwFilters.walletTags.filter(
+                            (t) => t !== tag
+                          )
+                        })
+                    });
+                  });
+
+                  // Token status filters
+                  if (mtwFilters.tokenStatus.hasGems) {
+                    activeFilters.push({
+                      label: 'Has GEMs',
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          tokenStatus: {
+                            ...mtwFilters.tokenStatus,
+                            hasGems: false
+                          }
+                        })
+                    });
+                  }
+                  if (mtwFilters.tokenStatus.hasDuds) {
+                    activeFilters.push({
+                      label: 'Has DUDs',
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          tokenStatus: {
+                            ...mtwFilters.tokenStatus,
+                            hasDuds: false
+                          }
+                        })
+                    });
+                  }
+                  if (mtwFilters.tokenStatus.hasUntagged) {
+                    activeFilters.push({
+                      label: 'Has untagged',
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          tokenStatus: {
+                            ...mtwFilters.tokenStatus,
+                            hasUntagged: false
+                          }
+                        })
+                    });
+                  }
+                  if (mtwFilters.tokenStatus.allGems) {
+                    activeFilters.push({
+                      label: 'All GEMs',
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          tokenStatus: {
+                            ...mtwFilters.tokenStatus,
+                            allGems: false
+                          }
+                        })
+                    });
+                  }
+                  if (mtwFilters.tokenStatus.allDuds) {
+                    activeFilters.push({
+                      label: 'All DUDs',
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          tokenStatus: {
+                            ...mtwFilters.tokenStatus,
+                            allDuds: false
+                          }
+                        })
+                    });
+                  }
+
+                  // Balance range filter
+                  if (
+                    mtwFilters.balanceRange.min !== null ||
+                    mtwFilters.balanceRange.max !== null
+                  ) {
+                    const min = mtwFilters.balanceRange.min;
+                    const max = mtwFilters.balanceRange.max;
+                    let label = 'Balance: ';
+                    if (min !== null && max !== null) {
+                      label += `$${min.toLocaleString()} - $${max.toLocaleString()}`;
+                    } else if (min !== null) {
+                      label += `≥ $${min.toLocaleString()}`;
+                    } else if (max !== null) {
+                      label += `≤ $${max.toLocaleString()}`;
+                    }
+                    activeFilters.push({
+                      label,
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          balanceRange: { min: null, max: null }
+                        })
+                    });
+                  }
+
+                  // Token count range filter
+                  if (
+                    mtwFilters.tokenCountRange.min !== null ||
+                    mtwFilters.tokenCountRange.max !== null
+                  ) {
+                    const min = mtwFilters.tokenCountRange.min;
+                    const max = mtwFilters.tokenCountRange.max;
+                    let label = 'Tokens: ';
+                    if (min !== null && max !== null) {
+                      label += `${min} - ${max}`;
+                    } else if (min !== null) {
+                      label += `≥ ${min}`;
+                    } else if (max !== null) {
+                      label += `≤ ${max}`;
+                    }
+                    activeFilters.push({
+                      label,
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          tokenCountRange: { min: null, max: null }
+                        })
+                    });
+                  }
+
+                  // Top holder filter
+                  if (mtwFilters.topHolder.isTopHolder) {
+                    activeFilters.push({
+                      label: 'Is top holder',
+                      onRemove: () =>
+                        setMtwFilters({
+                          ...mtwFilters,
+                          topHolder: {
+                            ...mtwFilters.topHolder,
+                            isTopHolder: false
+                          }
+                        })
+                    });
+                  }
+
+                  if (activeFilters.length === 0) return null;
+
+                  return (
+                    <div className='mb-3 flex flex-wrap gap-1.5'>
+                      {activeFilters.map((filter, index) => (
+                        <span
+                          key={index}
+                          className='bg-primary/10 text-primary flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium'
+                        >
+                          {filter.label}
+                          <button
+                            onClick={filter.onRemove}
+                            className='hover:bg-primary/20 rounded-full p-0.5 transition-colors'
+                          >
+                            <X className='h-2.5 w-2.5' />
+                          </button>
+                        </span>
+                      ))}
+                      {activeFilters.length > 1 && (
+                        <button
+                          onClick={() => setMtwFilters(DEFAULT_MTWT_FILTERS)}
+                          className='text-muted-foreground hover:text-foreground text-xs underline'
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Top Selection Controls - Sticky Bar */}
+                {selectedWallets.size > 0 && (
+                  <div className='bg-primary/10 border-primary/20 sticky top-0 z-20 mb-2 flex items-center justify-center gap-2 rounded-md border p-2 shadow-md backdrop-blur-sm'>
+                    <span className='text-primary text-xs font-medium'>
+                      {selectedWallets.size} wallet
+                      {selectedWallets.size !== 1 ? 's' : ''} selected
                     </span>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() =>
-                        setWalletPage((p) =>
-                          Math.min(totalWalletPages - 1, p + 1)
-                        )
-                      }
-                      disabled={walletPage >= totalWalletPages - 1}
-                      className='h-5 px-1'
-                    >
-                      <ChevronRight className='h-3 w-3' />
-                    </Button>
+                    <div className='flex items-center gap-1.5'>
+                      {/* Bulk Refresh Balance */}
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => handleRefreshBalances()}
+                        className='h-6 gap-1 px-2 text-xs'
+                        title={`Refresh ${selectedWallets.size} wallet balance(s) - ${selectedWallets.size} API credit(s)`}
+                      >
+                        <RefreshCw className='h-3 w-3' />
+                        Refresh ({selectedWallets.size})
+                      </Button>
+
+                      {/* Bulk Tags */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            className='h-6 gap-1 px-2 text-xs'
+                          >
+                            <Tags className='h-3 w-3' />
+                            Tags ({selectedWallets.size})
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className='w-56'>
+                          <BulkTagsPopover
+                            selectedWallets={Array.from(selectedWallets)}
+                            onTagsApplied={() => {
+                              toast.success('Tags applied to selected wallets');
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      {/* Deselect All */}
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => setSelectedWallets(new Set())}
+                        className='h-6 px-2 text-xs'
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
                   </div>
                 )}
 
-                {/* Expand/Collapse button */}
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => setIsWalletPanelExpanded((prev) => !prev)}
-                  className='h-5 gap-1 px-1.5 text-[11px]'
+                <div
+                  ref={walletContainerRef}
+                  onScroll={handleWalletScroll}
+                  className={`overflow-x-auto ${isWalletPanelExpanded ? 'max-h-[600px] overflow-y-auto' : ''}`}
                 >
-                  {isWalletPanelExpanded ? (
-                    <>
-                      <ChevronUp className='h-3 w-3' />
-                      Collapse
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className='h-3 w-3' />
-                      Expand All
-                    </>
+                  <table
+                    className='w-full table-fixed'
+                    style={{ minWidth: '1000px' }}
+                  >
+                    <colgroup>
+                      <col style={{ width: '320px' }} />
+                      <col style={{ width: '220px' }} />
+                      <col style={{ width: '140px' }} />
+                      <col style={{ width: '80px' }} />
+                      <col style={{ width: 'auto' }} />
+                    </colgroup>
+                    <thead
+                      className={
+                        isWalletPanelExpanded ? 'bg-card sticky top-0 z-10' : ''
+                      }
+                    >
+                      <tr className='border-b'>
+                        <th className='pr-4 pb-2 text-left text-xs font-medium'>
+                          <button
+                            onClick={() => handleSort('address')}
+                            className='hover:text-primary flex items-center gap-1 transition-colors'
+                          >
+                            <span>Wallet Address</span>
+                            {sortColumn === 'address' &&
+                              (sortDirection === 'asc' ? (
+                                <ChevronUp className='h-3 w-3' />
+                              ) : (
+                                <ChevronDown className='h-3 w-3' />
+                              ))}
+                          </button>
+                        </th>
+                        <th className='px-4 pb-2 text-left text-xs font-medium'>
+                          <div className='flex items-center justify-start gap-1'>
+                            <button
+                              onClick={() => handleSort('balance')}
+                              className='hover:text-primary flex items-center gap-1 transition-colors'
+                            >
+                              <span>Balance (USD)</span>
+                              {sortColumn === 'balance' &&
+                                (sortDirection === 'asc' ? (
+                                  <ChevronUp className='h-3 w-3' />
+                                ) : (
+                                  <ChevronDown className='h-3 w-3' />
+                                ))}
+                            </button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-5 w-5 p-0'
+                                    onClick={handleRefreshAllBalances}
+                                  >
+                                    <RefreshCw className='h-3 w-3' />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className='text-xs'>
+                                    Refresh all visible wallet balances
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-5 w-5 p-0'
+                                  >
+                                    <Info className='h-3 w-3' />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className='text-xs'>
+                                    Refreshing a single wallet balance costs 1
+                                    API credit
+                                  </p>
+                                  <p className='text-xs'>
+                                    Refreshing all {walletsToDisplay.length}{' '}
+                                    wallet(s) costs {walletsToDisplay.length}{' '}
+                                    API credits
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </th>
+                        <th className='px-4 pb-2 text-left text-xs font-medium'>
+                          Tags
+                        </th>
+                        <th className='px-4 pb-2 text-center text-xs font-medium'>
+                          <button
+                            onClick={() => handleSort('tokens')}
+                            className='hover:text-primary mx-auto flex items-center gap-1 transition-colors'
+                          >
+                            <span>Tokens</span>
+                            {sortColumn === 'tokens' &&
+                              (sortDirection === 'asc' ? (
+                                <ChevronUp className='h-3 w-3' />
+                              ) : (
+                                <ChevronDown className='h-3 w-3' />
+                              ))}
+                          </button>
+                        </th>
+                        <th className='pb-2 pl-4 text-left text-xs font-medium'>
+                          <button
+                            onClick={() => handleSort('new')}
+                            className='hover:text-primary flex items-center gap-1 transition-colors'
+                          >
+                            <span>Token Names</span>
+                            {sortColumn === 'new' &&
+                              (sortDirection === 'asc' ? (
+                                <ChevronUp className='h-3 w-3' />
+                              ) : (
+                                <ChevronDown className='h-3 w-3' />
+                              ))}
+                          </button>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {walletPaddingTop > 0 && (
+                        <tr aria-hidden='true'>
+                          <td
+                            colSpan={5}
+                            className='p-0'
+                            style={{ height: walletPaddingTop }}
+                          />
+                        </tr>
+                      )}
+                      {walletsToDisplay.map((wallet) => {
+                        const isSelected = selectedWallets.has(
+                          wallet.wallet_address
+                        );
+                        const cn = (...classes: (string | boolean)[]) =>
+                          classes.filter(Boolean).join(' ');
+                        return (
+                          <tr
+                            key={wallet.wallet_address}
+                            className={cn(
+                              'cursor-pointer border-b transition-all duration-200 ease-out',
+                              'hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]',
+                              isSelected &&
+                                'bg-primary/20 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3),0_0_10px_rgba(59,130,246,0.2)]',
+                              isSelected &&
+                                'hover:bg-primary/25 hover:shadow-[inset_0_0_0_2px_rgba(59,130,246,0.4),0_0_15px_rgba(59,130,246,0.3)]',
+                              isSelected && 'active:bg-primary/30',
+                              !isSelected && 'hover:bg-muted/50',
+                              !isSelected && 'active:bg-muted/70'
+                            )}
+                            onClick={(e) =>
+                              handleWalletRowClick(wallet.wallet_address, e)
+                            }
+                          >
+                            <td className='py-1.5 pr-4'>
+                              <div className='flex flex-col gap-0.5'>
+                                <div className='flex items-center gap-1.5 overflow-hidden'>
+                                  <a
+                                    href={buildSolscanUrl(
+                                      wallet.wallet_address,
+                                      solscanSettings
+                                    )}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    className='text-primary truncate font-sans text-xs hover:underline'
+                                  >
+                                    {wallet.wallet_address}
+                                  </a>
+                                  {wallet.is_new && (
+                                    <span className='flex-shrink-0 rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase'>
+                                      NEW
+                                    </span>
+                                  )}
+                                  <a
+                                    href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    title='Search on Twitter/X'
+                                    className='flex-shrink-0'
+                                  >
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-6 w-6 p-0'
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Twitter className='h-3 w-3' />
+                                    </Button>
+                                  </a>
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-6 w-6 flex-shrink-0 p-0'
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(
+                                        wallet.wallet_address
+                                      );
+                                      toast.success(
+                                        'Address copied to clipboard'
+                                      );
+                                    }}
+                                  >
+                                    <Copy className='h-3 w-3' />
+                                  </Button>
+                                </div>
+                                <WalletTagLabels
+                                  walletAddress={wallet.wallet_address}
+                                />
+                              </div>
+                            </td>
+                            <td className='px-4 py-1.5 font-mono text-xs'>
+                              <div className='flex items-center gap-1.5'>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-5 w-5 flex-shrink-0 p-0'
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRefreshBalances([
+                                      wallet.wallet_address
+                                    ]);
+                                  }}
+                                  title={`Refresh balance - 1 API credit`}
+                                >
+                                  <RefreshCw className='h-3 w-3' />
+                                </Button>
+                                <div className='flex min-w-0 flex-col gap-0.5'>
+                                  <div className='flex items-center gap-1'>
+                                    {(() => {
+                                      const trend = getWalletTrend(wallet);
+                                      const current = wallet.wallet_balance_usd;
+                                      const formatted =
+                                        current !== null &&
+                                        current !== undefined
+                                          ? `$${Math.round(current).toLocaleString()}`
+                                          : 'N/A';
+                                      if (trend === 'up') {
+                                        return (
+                                          <span className='flex items-center gap-1 text-green-600'>
+                                            <span>▲</span>
+                                            <span>{formatted}</span>
+                                          </span>
+                                        );
+                                      }
+                                      if (trend === 'down') {
+                                        return (
+                                          <span className='flex items-center gap-1 text-red-600'>
+                                            <span>▼</span>
+                                            <span>{formatted}</span>
+                                          </span>
+                                        );
+                                      }
+                                      return <span>{formatted}</span>;
+                                    })()}
+                                  </div>
+                                  <div className='text-muted-foreground truncate text-[11px]'>
+                                    {formatWalletTimestamp(
+                                      wallet.wallet_balance_updated_at as
+                                        | string
+                                        | null
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className='px-4 py-1.5'>
+                              <div className='flex items-center gap-1.5'>
+                                <WalletTags
+                                  walletAddress={wallet.wallet_address}
+                                  iconOnly
+                                />
+                                <AdditionalTagsPopover
+                                  walletAddress={wallet.wallet_address}
+                                  compact
+                                />
+                                {/* Top Holder Tag */}
+                                {topHolderCounts.has(wallet.wallet_address) &&
+                                  topHolderCounts.get(wallet.wallet_address)! >
+                                    0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedWalletForTopHolders(
+                                          wallet.wallet_address
+                                        );
+                                        setIsWalletTopHoldersModalOpen(true);
+                                      }}
+                                      className='relative rounded bg-purple-500/90 px-2 py-0.5 text-[10px] font-bold text-white uppercase transition-colors hover:bg-purple-600'
+                                    >
+                                      TOP HOLDER
+                                      {/* Notification Badge */}
+                                      <span className='border-background absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border bg-red-500 text-[9px] font-bold text-white'>
+                                        {topHolderCounts.get(
+                                          wallet.wallet_address
+                                        )}
+                                      </span>
+                                    </button>
+                                  )}
+                              </div>
+                            </td>
+                            <td className='px-4 py-1.5 text-center'>
+                              <span className='bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-bold'>
+                                {wallet.token_count}
+                              </span>
+                            </td>
+                            <td className='py-1.5 pl-4'>
+                              <div className='flex flex-wrap gap-1.5 overflow-hidden'>
+                                {wallet.token_names.map((name, idx) => {
+                                  // Show NEW badge for the latest scanned token (regardless of multi-token threshold)
+                                  const latestTokenId = data.tokens[0]?.id;
+                                  const isNewToken =
+                                    wallet.token_ids[idx] === latestTokenId;
+                                  const gemStatus = wallet.gem_statuses?.[idx];
+
+                                  return (
+                                    <a
+                                      key={idx}
+                                      href={`https://gmgn.ai/sol/token/${wallet.token_addresses[idx]}?min=0.1&isInputValue=true`}
+                                      target='_blank'
+                                      rel='noopener noreferrer'
+                                      className='bg-muted hover:bg-muted/80 flex items-center gap-1 rounded px-1.5 py-0.5 text-xs'
+                                    >
+                                      {name}
+                                      {gemStatus === 'gem' && (
+                                        <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
+                                          GEM
+                                        </span>
+                                      )}
+                                      {gemStatus === 'dud' && (
+                                        <span className='rounded bg-red-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
+                                          DUD
+                                        </span>
+                                      )}
+                                      {isNewToken && (
+                                        <span className='rounded bg-green-500 px-1 py-0.5 text-[9px] font-bold text-white uppercase'>
+                                          NEW
+                                        </span>
+                                      )}
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {walletPaddingBottom > 0 && (
+                        <tr aria-hidden='true'>
+                          <td
+                            colSpan={5}
+                            className='p-0'
+                            style={{ height: walletPaddingBottom }}
+                          />
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Collapse/Expand Controls */}
+                <div className='mt-1 border-t pt-1'>
+                  {/* Wallet count info */}
+                  <div className='mb-1 flex items-center justify-center'>
+                    <div className='text-muted-foreground text-[11px]'>
+                      {isWalletPanelExpanded ? (
+                        <>Showing all {multiWallets.wallets.length} wallets</>
+                      ) : (
+                        <>
+                          Showing {walletsToDisplay.length} of{' '}
+                          {multiWallets.wallets.length} wallets
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Selection Controls */}
+                  {selectedWallets.size > 0 && (
+                    <div className='bg-primary/10 border-primary/20 mb-1 flex items-center justify-center gap-2 rounded-md border p-1'>
+                      <span className='text-primary text-[11px] font-medium'>
+                        {selectedWallets.size} wallet
+                        {selectedWallets.size !== 1 ? 's' : ''} selected
+                      </span>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => setSelectedWallets(new Set())}
+                        className='h-5 px-1.5 text-[11px]'
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
                   )}
-                </Button>
-              </div>
-            </div>
-            </>
+
+                  {/* Centered pagination and expand/collapse */}
+                  <div className='flex items-center justify-center gap-2'>
+                    {/* Pagination controls (only when collapsed) */}
+                    {!isWalletPanelExpanded && totalWalletPages > 1 && (
+                      <div className='flex items-center gap-1'>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() =>
+                            setWalletPage((p) => Math.max(0, p - 1))
+                          }
+                          disabled={walletPage === 0}
+                          className='h-5 px-1'
+                        >
+                          <ChevronLeft className='h-3 w-3' />
+                        </Button>
+                        <span className='text-muted-foreground px-1 text-[11px]'>
+                          Page {walletPage + 1} / {totalWalletPages}
+                        </span>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() =>
+                            setWalletPage((p) =>
+                              Math.min(totalWalletPages - 1, p + 1)
+                            )
+                          }
+                          disabled={walletPage >= totalWalletPages - 1}
+                          className='h-5 px-1'
+                        >
+                          <ChevronRight className='h-3 w-3' />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Expand/Collapse button */}
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setIsWalletPanelExpanded((prev) => !prev)}
+                      className='h-5 gap-1 px-1.5 text-[11px]'
+                    >
+                      {isWalletPanelExpanded ? (
+                        <>
+                          <ChevronUp className='h-3 w-3' />
+                          Collapse
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className='h-3 w-3' />
+                          Expand All
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
 
             {/* SWAB Tab Content */}
-            {activeTab === 'swab' && (
-              <SwabTab isActive={true} />
-            )}
+            {activeTab === 'swab' && <SwabTab isActive={true} />}
           </div>
         )}
 
