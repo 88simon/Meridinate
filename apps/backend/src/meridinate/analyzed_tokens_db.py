@@ -27,9 +27,6 @@ from typing import Any, Dict, List, Optional
 # Centralized paths (keep DB and artifacts under apps/backend/data)
 from meridinate import settings
 
-# Import credit tracker lazily to avoid circular imports
-_credit_tracker_initialized = False
-
 DATABASE_FILE = settings.DATABASE_FILE
 ANALYSIS_RESULTS_DIR = settings.ANALYSIS_RESULTS_DIR
 AXIOM_EXPORTS_DIR = settings.AXIOM_EXPORTS_DIR
@@ -894,15 +891,7 @@ def init_database():
 
         print(f"[Database] OK Schema verified: {len(columns)} columns present")
         print("[Database] Schema initialized successfully")
-
-        # Initialize credit tracker (creates credit_transactions table)
-        global _credit_tracker_initialized
-        if not _credit_tracker_initialized:
-            from meridinate.credit_tracker import get_credit_tracker
-
-            get_credit_tracker()  # Initialize the singleton
-            _credit_tracker_initialized = True
-            print("[Database] Credit tracker initialized")
+        # Note: Credit tracker initializes lazily on first use to avoid database lock
 
 
 def save_analyzed_token(
