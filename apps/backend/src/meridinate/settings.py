@@ -151,3 +151,71 @@ print(
     f"transactionLimit={CURRENT_API_SETTINGS['transactionLimit']}, "
     f"maxCredits={CURRENT_API_SETTINGS['maxCreditsPerAnalysis']}"
 )
+
+# ============================================================================
+# Ingest Settings Management (Tiered Token Discovery Pipeline)
+# ============================================================================
+
+INGEST_SETTINGS_FILE = os.path.join(BACKEND_ROOT, "ingest_settings.json")
+
+DEFAULT_INGEST_SETTINGS = {
+    # Threshold filters for promotion
+    "mc_min": 10000,  # Minimum market cap in USD
+    "volume_min": 5000,  # Minimum 24h volume in USD
+    "liquidity_min": 5000,  # Minimum liquidity in USD
+    "age_max_hours": 48,  # Maximum token age in hours
+    # Batch and budget limits
+    "tier0_max_tokens_per_run": 50,  # Max tokens to ingest per Tier-0 run
+    "tier1_batch_size": 10,  # Max tokens to enrich per Tier-1 run
+    "tier1_credit_budget_per_run": 100,  # Max Helius credits per Tier-1 run
+    # Feature flags
+    "ingest_enabled": False,  # Enable Tier-0 ingestion
+    "enrich_enabled": False,  # Enable Tier-1 enrichment
+    "auto_promote_enabled": False,  # Auto-promote enriched tokens to full analysis
+    "hot_refresh_enabled": False,  # Enable hot token MC/volume refresh
+    # Auto-promote settings
+    "auto_promote_max_per_run": 5,  # Max tokens to auto-promote per run
+    # Hot refresh settings
+    "hot_refresh_age_hours": 48,  # Max age for hot tokens to refresh
+    "hot_refresh_max_tokens": 100,  # Max tokens to refresh per run
+    # Run tracking
+    "last_tier0_run_at": None,
+    "last_tier1_run_at": None,
+    "last_tier1_credits_used": 0,
+    "last_hot_refresh_at": None,
+}
+
+
+def load_ingest_settings() -> Dict:
+    """Load ingest settings from file, fallback to defaults"""
+    if os.path.exists(INGEST_SETTINGS_FILE):
+        try:
+            with open(INGEST_SETTINGS_FILE, "r") as f:
+                data = json.load(f)
+                # Merge with defaults (file values override defaults)
+                return {**DEFAULT_INGEST_SETTINGS, **data}
+        except Exception as e:
+            print(f"[Config] Error reading ingest_settings.json: {e}")
+            return DEFAULT_INGEST_SETTINGS.copy()
+    return DEFAULT_INGEST_SETTINGS.copy()
+
+
+def save_ingest_settings(settings: Dict) -> bool:
+    """Save ingest settings to file"""
+    try:
+        with open(INGEST_SETTINGS_FILE, "w") as f:
+            json.dump(settings, f, indent=2)
+        print(f"[Config] Ingest settings saved")
+        return True
+    except Exception as exc:
+        print(f"[Config] Failed to persist ingest settings: {exc}")
+        return False
+
+
+# Load ingest settings on module import
+CURRENT_INGEST_SETTINGS = load_ingest_settings()
+print(
+    f"[Config] Ingest Settings: ingest_enabled={CURRENT_INGEST_SETTINGS['ingest_enabled']}, "
+    f"enrich_enabled={CURRENT_INGEST_SETTINGS['enrich_enabled']}, "
+    f"mc_min=${CURRENT_INGEST_SETTINGS['mc_min']}"
+)

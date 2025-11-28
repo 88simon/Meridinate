@@ -62,6 +62,49 @@ export interface TopHoldersResponse {
 export type ApiSettings = AnalysisSettings;
 
 // ============================================================================
+// Token Details Cache (for instant modal opening)
+// ============================================================================
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const TOKEN_DETAILS_CACHE_TTL = 30000; // 30 seconds - enough for hover prefetch
+const tokenDetailsCache = new Map<number, CacheEntry<TokenDetail>>();
+
+/**
+ * Get cached token details if available and not stale
+ */
+export function getCachedTokenDetails(id: number): TokenDetail | null {
+  const entry = tokenDetailsCache.get(id);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > TOKEN_DETAILS_CACHE_TTL) {
+    tokenDetailsCache.delete(id);
+    return null;
+  }
+  return entry.data;
+}
+
+/**
+ * Set token details in cache
+ */
+function setCachedTokenDetails(id: number, data: TokenDetail): void {
+  tokenDetailsCache.set(id, { data, timestamp: Date.now() });
+}
+
+/**
+ * Clear token details cache entry
+ */
+export function clearTokenDetailsCache(id?: number): void {
+  if (id !== undefined) {
+    tokenDetailsCache.delete(id);
+  } else {
+    tokenDetailsCache.clear();
+  }
+}
+
+// ============================================================================
 // API Functions
 // ============================================================================
 
@@ -81,9 +124,18 @@ export async function getTokens(): Promise<TokensResponse> {
 }
 
 /**
- * Fetch details for a specific token
+ * Fetch details for a specific token (uses cache if available)
  */
-export async function getTokenById(id: number): Promise<TokenDetail> {
+export async function getTokenById(
+  id: number,
+  options?: { skipCache?: boolean }
+): Promise<TokenDetail> {
+  // Check cache first (unless explicitly skipped)
+  if (!options?.skipCache) {
+    const cached = getCachedTokenDetails(id);
+    if (cached) return cached;
+  }
+
   const res = await fetch(`${API_BASE_URL}/api/tokens/${id}`, {
     cache: 'no-store'
   });
@@ -92,7 +144,9 @@ export async function getTokenById(id: number): Promise<TokenDetail> {
     throw new Error('Failed to fetch token details');
   }
 
-  return res.json();
+  const data: TokenDetail = await res.json();
+  setCachedTokenDetails(id, data);
+  return data;
 }
 
 /**
@@ -1021,6 +1075,240 @@ export async function reconcileAllPositions(params?: {
 
   if (!res.ok) {
     throw new Error('Failed to reconcile positions');
+  }
+
+  return res.json();
+}
+
+// ============================================================================
+// Ingest Pipeline API
+// ============================================================================
+
+export interface IngestSettings {
+  mc_min: number;
+  volume_min: number;
+  liquidity_min: number;
+  age_max_hours: number;
+  tier0_max_tokens_per_run: number;
+  tier1_batch_size: number;
+  tier1_credit_budget_per_run: number;
+  ingest_enabled: boolean;
+  enrich_enabled: boolean;
+  auto_promote_enabled: boolean;
+  last_tier0_run_at: string | null;
+  last_tier1_run_at: string | null;
+  last_tier1_credits_used: number;
+}
+
+export interface IngestQueueEntry {
+  token_address: string;
+  token_name: string | null;
+  token_symbol: string | null;
+  first_seen_at: string | null;
+  source: string;
+  tier: 'ingested' | 'enriched' | 'analyzed' | 'discarded';
+  status: 'pending' | 'completed' | 'failed';
+  ingested_at: string | null;
+  enriched_at: string | null;
+  analyzed_at: string | null;
+  discarded_at: string | null;
+  last_mc_usd: number | null;
+  last_volume_usd: number | null;
+  last_liquidity: number | null;
+  age_hours: number | null;
+  ingest_notes: string | null;
+  last_error: string | null;
+}
+
+export interface IngestQueueResponse {
+  total: number;
+  by_tier: Record<string, number>;
+  by_status: Record<string, number>;
+  entries: IngestQueueEntry[];
+}
+
+export interface IngestQueueStats {
+  total: number;
+  by_tier: Record<string, number>;
+  by_status: Record<string, number>;
+  last_tier0_run_at: string | null;
+  last_tier1_run_at: string | null;
+  last_tier1_credits_used: number;
+}
+
+export interface IngestRunResult {
+  tokens_fetched?: number;
+  tokens_new?: number;
+  tokens_updated?: number;
+  tokens_skipped?: number;
+  tokens_processed?: number;
+  tokens_enriched?: number;
+  tokens_failed?: number;
+  tokens_promoted?: number;
+  credits_used?: number;
+  errors: string[];
+  started_at: string;
+  completed_at: string | null;
+}
+
+/**
+ * Get ingest pipeline settings
+ */
+export async function getIngestSettings(): Promise<IngestSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/settings`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch ingest settings');
+  }
+
+  return res.json();
+}
+
+/**
+ * Update ingest pipeline settings
+ */
+export async function updateIngestSettings(
+  settings: Partial<IngestSettings>
+): Promise<{ status: string; settings: IngestSettings }> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to update ingest settings');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get ingest queue entries
+ */
+export async function getIngestQueue(params?: {
+  tier?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<IngestQueueResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.tier) searchParams.set('tier', params.tier);
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+  const url = searchParams.toString()
+    ? `${API_BASE_URL}/api/ingest/queue?${searchParams}`
+    : `${API_BASE_URL}/api/ingest/queue`;
+
+  const res = await fetch(url, { cache: 'no-store' });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch ingest queue');
+  }
+
+  return res.json();
+}
+
+/**
+ * Get ingest queue statistics
+ */
+export async function getIngestQueueStats(): Promise<IngestQueueStats> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/queue/stats`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch ingest queue stats');
+  }
+
+  return res.json();
+}
+
+/**
+ * Trigger Tier-0 ingestion (DexScreener, free)
+ */
+export async function runTier0Ingestion(params?: {
+  max_tokens?: number;
+  mc_min?: number;
+  volume_min?: number;
+  liquidity_min?: number;
+  age_max_hours?: number;
+}): Promise<{ status: string; result: IngestRunResult }> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/run-tier0`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: params ? JSON.stringify(params) : '{}'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to run Tier-0 ingestion');
+  }
+
+  return res.json();
+}
+
+/**
+ * Trigger Tier-1 enrichment (Helius, budgeted)
+ */
+export async function runTier1Enrichment(params?: {
+  batch_size?: number;
+  credit_budget?: number;
+  mc_min?: number;
+  volume_min?: number;
+  liquidity_min?: number;
+  age_max_hours?: number;
+}): Promise<{ status: string; result: IngestRunResult }> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/run-tier1`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: params ? JSON.stringify(params) : '{}'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to run Tier-1 enrichment');
+  }
+
+  return res.json();
+}
+
+/**
+ * Promote tokens from enriched tier to full analysis
+ */
+export async function promoteTokens(
+  tokenAddresses: string[]
+): Promise<{ status: string; result: IngestRunResult }> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/promote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token_addresses: tokenAddresses })
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to promote tokens');
+  }
+
+  return res.json();
+}
+
+/**
+ * Discard tokens from the ingest queue
+ */
+export async function discardTokens(
+  tokenAddresses: string[],
+  reason: string = 'manual'
+): Promise<{ status: string; discarded: number }> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/discard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token_addresses: tokenAddresses, reason })
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to discard tokens');
   }
 
   return res.json();

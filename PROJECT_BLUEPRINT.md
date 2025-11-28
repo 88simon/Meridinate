@@ -82,6 +82,8 @@ C:\Meridinate\
 - ✅ **Top Holders Feature** - Configurable limit (5-20, default 10) via settings UI in Actions column header, automatically fetched during analysis, cached in database, instant modal display with Twitter/Copy icons, manual refresh updates data and credits, uses dedicated or fallback API key, dynamic modal title reflects selected limit, aligned with Helius API cap, sticky refresh button remains visible when scrolling through holder list
 - ✅ **Wallet Top Holders Feature** - Clickable "TOP HOLDER" tag with notification badge in Multi-Token Early Wallets table, tabbed modal showing all tokens where wallet is a top holder, Chrome-style tabs with rank badges, wallet highlighted in holder list, cached lookups for performance
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
+- ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
+- ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated tiered token discovery: Tier-0 (DexScreener, free), Tier-1 (Helius enrichment, budgeted), promotion to full analysis. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
 
 ---
 
@@ -97,12 +99,13 @@ C:\Meridinate\                                    # PROJECT ROOT
 │   ├── backend/                                  # FASTAPI BACKEND (Python 3.11)
 │   │   ├── src/                                  # Source code
 │   │   │   └── meridinate/                       # Python package (IMPORTANT: package name is "meridinate")
-│   │   │       ├── routers/                      # API endpoint handlers (8 routers)
+│   │   │       ├── routers/                      # API endpoint handlers (9 routers)
 │   │   │       │   ├── analysis.py               # Token analysis endpoints (includes Redis queue)
 │   │   │       │   ├── tokens.py                 # Token data retrieval
 │   │   │       │   ├── wallets.py                # Wallet-related endpoints
 │   │   │       │   ├── watchlist.py              # Watchlist management
 │   │   │       │   ├── tags.py                   # Wallet tagging system
+│   │   │       │   ├── ingest.py                 # Token ingestion pipeline endpoints
 │   │   │       │   ├── metrics.py                # System metrics (Prometheus)
 │   │   │       │   ├── webhooks.py               # Webhook handlers
 │   │   │       │   └── settings_debug.py         # Debug settings
@@ -476,6 +479,32 @@ When Simon says...  →  Technical term & Implementation
   - Returns only counts, not full holder lists, for badge display (3,000 holder records reduced to 50 numbers)
   - Client-side refetch callbacks replace router.refresh() for instant updates without full page reload
   - Optimistic UI updates with local state before server sync
+
+#### **"Token Ingestion Pipeline" (Nov 2025)**
+- **What it is:** Automated tiered token discovery system that ingests tokens from DexScreener, enriches with Helius data, and promotes to full analysis.
+- **Architecture:** Three tiers with feature flags and credit budgets:
+  - **Tier-0 (free):** Hourly DexScreener fetch of recently migrated tokens, stores MC/volume/liquidity snapshots in `token_ingest_queue` table.
+  - **Tier-1 (budgeted):** Every 4 hours, enriches tokens passing thresholds (MC, volume, liquidity, age) with Helius metadata/holders, respects credit budget.
+  - **Promotion:** Manual or auto-promote enriched tokens to full analysis (early bidder detection, MTEW positions, SWAB webhooks).
+- **Location (Backend):**
+  - `routers/ingest.py` - 8 REST endpoints for settings, queue, triggers
+  - `tasks/ingest_tasks.py` - Tier-0/Tier-1/promotion logic
+  - `services/dexscreener_service.py` - DexScreener API client
+  - `scheduler.py` - Feature-flagged scheduler jobs
+- **Location (Frontend):** `app/dashboard/ingestion/page.tsx` - Queue management UI with stats, filters, manual triggers
+- **Database:** `token_ingest_queue` table (address, name, symbol, tier, status, MC/volume snapshots, timestamps)
+- **Settings:** `ingest_settings.json` - thresholds, batch sizes, credit budgets, feature flags (`ingest_enabled`, `enrich_enabled`, `auto_promote_enabled`, `hot_refresh_enabled`)
+- **API Endpoints:**
+  - `GET/POST /api/ingest/settings` - View/update settings
+  - `GET /api/ingest/queue` - List queue with filters
+  - `GET /api/ingest/queue/stats` - Queue statistics
+  - `POST /api/ingest/run-tier0` - Trigger Tier-0 ingestion
+  - `POST /api/ingest/run-tier1` - Trigger Tier-1 enrichment
+  - `POST /api/ingest/promote` - Promote tokens to full analysis
+  - `POST /api/ingest/discard` - Mark tokens discarded
+  - `POST /api/ingest/refresh-hot` - Refresh MC/volume for recent tokens
+  - `POST /api/ingest/auto-promote` - Trigger auto-promotion
+- **Key Behavior:** Promotion runs full `TokenAnalyzer.analyze_token()`, saves to `analyzed_tokens` with `ingest_source`/`ingest_tier` metadata, records MTEW positions, registers SWAB webhooks.
 
 #### **"SWAB - Smart Wallet Archive Builder" (Nov 2025)**
 - **What it is:** Tracks MTEW wallets across tokens, detecting buys/sells and computing PnL.
@@ -1000,6 +1029,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** November 27, 2025 (Webhook-first SWAB sell detection for accurate PnL)
+**Document Version:** 2.1
+**Last Updated:** November 28, 2025 (Token Ingestion Pipeline with tiered discovery and auto-promotion)
 **Next Review:** After production deployment

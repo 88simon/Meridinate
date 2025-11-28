@@ -33,6 +33,7 @@ Meridinate is a comprehensive Solana token analysis platform that combines:
 
 **Key Features:**
 - Early bidder detection for new Solana tokens
+- Automated token ingestion pipeline (DexScreener discovery, Helius enrichment, auto-promotion)
 - Wallet watchlist and tagging system
 - Token classification system with GEM/DUD tagging
 - Advanced filtering and smart search for Multi-Token Early Wallets with fuzzy matching

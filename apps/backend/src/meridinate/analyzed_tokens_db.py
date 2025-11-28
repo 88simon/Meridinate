@@ -608,6 +608,46 @@ def init_database():
         """
         )
 
+        # Token Ingest Queue table - for tiered ingestion pipeline
+        # Tracks tokens through: ingested -> enriched -> analyzed -> discarded
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_ingest_queue (
+                token_address TEXT PRIMARY KEY,
+                token_name TEXT,
+                token_symbol TEXT,
+                first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source TEXT DEFAULT 'dexscreener',
+                tier TEXT DEFAULT 'ingested' CHECK (tier IN ('ingested', 'enriched', 'analyzed', 'discarded')),
+                status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
+                ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                enriched_at TIMESTAMP,
+                analyzed_at TIMESTAMP,
+                discarded_at TIMESTAMP,
+                last_mc_usd REAL,
+                last_volume_usd REAL,
+                last_liquidity REAL,
+                age_hours REAL,
+                ingest_notes TEXT,
+                last_error TEXT
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ingest_queue_tier_status
+            ON token_ingest_queue(tier, status)
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ingest_queue_first_seen
+            ON token_ingest_queue(first_seen_at DESC)
+        """
+        )
+
         # Run migrations to add new columns to existing tables
         # Check if total_usd column exists in early_buyer_wallets, if not add it
         cursor.execute("PRAGMA table_info(early_buyer_wallets)")
@@ -688,6 +728,15 @@ def init_database():
         if "top_holders_updated_at" not in at_columns:
             print("[Database] Migrating: Adding top_holders_updated_at column...")
             cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN top_holders_updated_at TIMESTAMP")
+
+        # Ingestion pipeline columns (for tiered token discovery)
+        if "ingest_source" not in at_columns:
+            print("[Database] Migrating: Adding ingest_source column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN ingest_source TEXT")
+
+        if "ingest_tier" not in at_columns:
+            print("[Database] Migrating: Adding ingest_tier column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN ingest_tier TEXT")
 
         # Fix ISO-format timestamps (convert to SQLite format)
         # Old format: 2025-01-15T12:34:56.123456
@@ -906,6 +955,8 @@ def save_analyzed_token(
     max_wallets: int = 10,
     market_cap_usd: Optional[float] = None,
     top_holders: Optional[List[Dict]] = None,
+    ingest_source: Optional[str] = None,
+    ingest_tier: Optional[str] = None,
 ) -> int:
     """
     Save analyzed token and its early buyers.
@@ -922,6 +973,8 @@ def save_analyzed_token(
         max_wallets: Maximum number of wallets to save
         market_cap_usd: Market capitalization in USD (optional)
         top_holders: List of top token holders data (optional)
+        ingest_source: Source of ingestion (e.g., 'dexscreener', 'manual')
+        ingest_tier: Tier when promoted (e.g., 'enriched', 'ingested')
 
     Returns:
         token_id: Database ID of the saved token
@@ -939,8 +992,8 @@ def save_analyzed_token(
                 token_address, token_name, token_symbol, acronym,
                 first_buy_timestamp, wallets_found, axiom_json, credits_used, last_analysis_credits,
                 market_cap_usd, market_cap_usd_current, market_cap_ath, market_cap_ath_timestamp, market_cap_updated_at,
-                top_holders_json, top_holders_updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+                top_holders_json, top_holders_updated_at, ingest_source, ingest_tier
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, ?)
             ON CONFLICT(token_address) DO UPDATE SET
                 token_name = excluded.token_name,
                 token_symbol = excluded.token_symbol,
@@ -953,7 +1006,9 @@ def save_analyzed_token(
                 last_analysis_credits = excluded.last_analysis_credits,
                 market_cap_usd = excluded.market_cap_usd,
                 top_holders_json = excluded.top_holders_json,
-                top_holders_updated_at = CASE WHEN excluded.top_holders_json IS NOT NULL THEN CURRENT_TIMESTAMP ELSE analyzed_tokens.top_holders_updated_at END
+                top_holders_updated_at = CASE WHEN excluded.top_holders_json IS NOT NULL THEN CURRENT_TIMESTAMP ELSE analyzed_tokens.top_holders_updated_at END,
+                ingest_source = COALESCE(excluded.ingest_source, analyzed_tokens.ingest_source),
+                ingest_tier = COALESCE(excluded.ingest_tier, analyzed_tokens.ingest_tier)
         """,
             (
                 token_address,
@@ -969,6 +1024,8 @@ def save_analyzed_token(
                 market_cap_usd,  # Initialize current to same as analysis value
                 market_cap_usd,  # Initialize ATH to same as analysis value
                 top_holders_json_str,
+                ingest_source,
+                ingest_tier,
             ),
         )
 
@@ -3669,6 +3726,398 @@ def purge_swab_data() -> Dict[str, int]:
         "positions_deleted": positions_deleted,
         "metrics_deleted": metrics_deleted,
     }
+
+
+# ============================================================================
+# Ingest Queue Functions (Tiered Token Discovery Pipeline)
+# ============================================================================
+
+
+def get_existing_token_addresses() -> set:
+    """
+    Get all token addresses that are already analyzed or in the ingest queue.
+
+    Used for deduplication during Tier-0 ingestion.
+
+    Returns:
+        Set of token addresses
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get addresses from analyzed_tokens
+        cursor.execute("SELECT token_address FROM analyzed_tokens")
+        analyzed = {row["token_address"] for row in cursor.fetchall()}
+
+        # Get addresses from ingest queue
+        cursor.execute("SELECT token_address FROM token_ingest_queue")
+        queued = {row["token_address"] for row in cursor.fetchall()}
+
+        return analyzed | queued
+
+
+def insert_ingest_queue_entry(
+    token_address: str,
+    token_name: Optional[str] = None,
+    token_symbol: Optional[str] = None,
+    source: str = "dexscreener",
+    last_mc_usd: Optional[float] = None,
+    last_volume_usd: Optional[float] = None,
+    last_liquidity: Optional[float] = None,
+    age_hours: Optional[float] = None,
+    ingest_notes: Optional[str] = None,
+) -> bool:
+    """
+    Insert a new token into the ingest queue.
+
+    Args:
+        token_address: Solana token mint address
+        token_name: Token name
+        token_symbol: Token symbol
+        source: Discovery source (default: dexscreener)
+        last_mc_usd: Market cap snapshot
+        last_volume_usd: Volume snapshot
+        last_liquidity: Liquidity snapshot
+        age_hours: Token age in hours
+        ingest_notes: Optional notes
+
+    Returns:
+        True if inserted, False if already exists
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO token_ingest_queue (
+                    token_address, token_name, token_symbol, source,
+                    tier, status, ingested_at,
+                    last_mc_usd, last_volume_usd, last_liquidity, age_hours,
+                    ingest_notes
+                ) VALUES (?, ?, ?, ?, 'ingested', 'pending', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+            """,
+                (
+                    token_address,
+                    token_name,
+                    token_symbol,
+                    source,
+                    last_mc_usd,
+                    last_volume_usd,
+                    last_liquidity,
+                    age_hours,
+                    ingest_notes,
+                ),
+            )
+            return True
+        except Exception as e:
+            # Primary key violation = already exists
+            if "UNIQUE constraint" in str(e) or "PRIMARY KEY" in str(e):
+                return False
+            raise
+
+
+def update_ingest_queue_snapshot(
+    token_address: str,
+    last_mc_usd: Optional[float] = None,
+    last_volume_usd: Optional[float] = None,
+    last_liquidity: Optional[float] = None,
+    age_hours: Optional[float] = None,
+) -> bool:
+    """
+    Update the snapshot data for a token in the ingest queue.
+
+    Args:
+        token_address: Solana token mint address
+        last_mc_usd: Market cap snapshot
+        last_volume_usd: Volume snapshot
+        last_liquidity: Liquidity snapshot
+        age_hours: Token age in hours
+
+    Returns:
+        True if updated, False if not found
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE token_ingest_queue
+            SET last_mc_usd = COALESCE(?, last_mc_usd),
+                last_volume_usd = COALESCE(?, last_volume_usd),
+                last_liquidity = COALESCE(?, last_liquidity),
+                age_hours = COALESCE(?, age_hours)
+            WHERE token_address = ?
+        """,
+            (last_mc_usd, last_volume_usd, last_liquidity, age_hours, token_address),
+        )
+        return cursor.rowcount > 0
+
+
+def get_ingest_queue_candidates_for_enrichment(
+    mc_min: float = 0,
+    volume_min: float = 0,
+    liquidity_min: float = 0,
+    age_max_hours: float = 48,
+    limit: int = 10,
+) -> List[Dict]:
+    """
+    Get tokens from ingest queue that are ready for Tier-1 enrichment.
+
+    Filters for tokens with tier='ingested' that pass threshold checks.
+
+    Args:
+        mc_min: Minimum market cap in USD
+        volume_min: Minimum 24h volume in USD
+        liquidity_min: Minimum liquidity in USD
+        age_max_hours: Maximum age in hours
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of token dictionaries ready for enrichment
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                token_address, token_name, token_symbol,
+                first_seen_at, source, tier, status,
+                ingested_at, enriched_at, analyzed_at, discarded_at,
+                last_mc_usd, last_volume_usd, last_liquidity, age_hours,
+                ingest_notes, last_error
+            FROM token_ingest_queue
+            WHERE tier = 'ingested'
+            AND status = 'pending'
+            AND COALESCE(last_mc_usd, 0) >= ?
+            AND COALESCE(last_volume_usd, 0) >= ?
+            AND COALESCE(last_liquidity, 0) >= ?
+            AND (age_hours IS NULL OR age_hours <= ?)
+            ORDER BY first_seen_at DESC
+            LIMIT ?
+        """,
+            (mc_min, volume_min, liquidity_min, age_max_hours, limit),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_ingest_queue_tier(
+    token_address: str,
+    new_tier: str,
+    error: Optional[str] = None,
+) -> bool:
+    """
+    Update the tier of a token in the ingest queue.
+
+    Args:
+        token_address: Solana token mint address
+        new_tier: New tier value (ingested, enriched, analyzed, discarded)
+        error: Optional error message
+
+    Returns:
+        True if updated, False if not found
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Determine which timestamp to set
+        timestamp_field = {
+            "ingested": "ingested_at",
+            "enriched": "enriched_at",
+            "analyzed": "analyzed_at",
+            "discarded": "discarded_at",
+        }.get(new_tier)
+
+        if timestamp_field:
+            cursor.execute(
+                f"""
+                UPDATE token_ingest_queue
+                SET tier = ?,
+                    status = CASE WHEN ? IS NOT NULL THEN 'failed' ELSE 'completed' END,
+                    {timestamp_field} = CURRENT_TIMESTAMP,
+                    last_error = ?
+                WHERE token_address = ?
+            """,
+                (new_tier, error, error, token_address),
+            )
+        else:
+            cursor.execute(
+                """
+                UPDATE token_ingest_queue
+                SET tier = ?,
+                    status = CASE WHEN ? IS NOT NULL THEN 'failed' ELSE 'completed' END,
+                    last_error = ?
+                WHERE token_address = ?
+            """,
+                (new_tier, error, error, token_address),
+            )
+        return cursor.rowcount > 0
+
+
+def discard_ingest_queue_tokens(token_addresses: List[str], reason: str = "manual") -> int:
+    """
+    Mark tokens in the ingest queue as discarded.
+
+    Args:
+        token_addresses: List of token addresses to discard
+        reason: Reason for discarding
+
+    Returns:
+        Number of tokens discarded
+    """
+    if not token_addresses:
+        return 0
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(token_addresses))
+        cursor.execute(
+            f"""
+            UPDATE token_ingest_queue
+            SET tier = 'discarded',
+                status = 'completed',
+                discarded_at = CURRENT_TIMESTAMP,
+                ingest_notes = COALESCE(ingest_notes || '; ', '') || ?
+            WHERE token_address IN ({placeholders})
+        """,
+            [f"Discarded: {reason}"] + token_addresses,
+        )
+        return cursor.rowcount
+
+
+def get_ingest_queue_entry(token_address: str) -> Optional[Dict]:
+    """
+    Get a single entry from the ingest queue.
+
+    Args:
+        token_address: Solana token mint address
+
+    Returns:
+        Token dictionary, or None if not found
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                token_address, token_name, token_symbol,
+                first_seen_at, source, tier, status,
+                ingested_at, enriched_at, analyzed_at, discarded_at,
+                last_mc_usd, last_volume_usd, last_liquidity, age_hours,
+                ingest_notes, last_error
+            FROM token_ingest_queue
+            WHERE token_address = ?
+        """,
+            (token_address,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_enriched_tokens_for_promotion(limit: int = 10) -> List[Dict]:
+    """
+    Get enriched tokens ready for promotion to full analysis.
+
+    Args:
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of enriched token dictionaries
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                token_address, token_name, token_symbol,
+                first_seen_at, source, tier, status,
+                ingested_at, enriched_at, analyzed_at, discarded_at,
+                last_mc_usd, last_volume_usd, last_liquidity, age_hours,
+                ingest_notes, last_error
+            FROM token_ingest_queue
+            WHERE tier = 'enriched'
+            AND status = 'completed'
+            ORDER BY enriched_at DESC
+            LIMIT ?
+        """,
+            (limit,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_hot_ingest_tokens(max_age_hours: float = 48, limit: int = 100) -> List[Dict]:
+    """
+    Get recently ingested/enriched tokens for MC/volume refresh.
+
+    "Hot" tokens are those recently added to the queue (within max_age_hours)
+    and not yet analyzed or discarded.
+
+    Args:
+        max_age_hours: Maximum hours since first_seen_at
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of token dictionaries with address and current snapshot values
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                token_address, token_name, token_symbol,
+                tier, status,
+                last_mc_usd, last_volume_usd, last_liquidity, age_hours
+            FROM token_ingest_queue
+            WHERE tier IN ('ingested', 'enriched')
+            AND status != 'failed'
+            AND datetime(first_seen_at) >= datetime('now', ? || ' hours')
+            ORDER BY first_seen_at DESC
+            LIMIT ?
+        """,
+            (f"-{max_age_hours}", limit),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def bulk_update_ingest_snapshots(updates: List[Dict]) -> int:
+    """
+    Bulk update snapshot data for multiple tokens in the ingest queue.
+
+    Args:
+        updates: List of dicts with token_address and snapshot values
+                 (last_mc_usd, last_volume_usd, last_liquidity, age_hours)
+
+    Returns:
+        Number of tokens updated
+    """
+    if not updates:
+        return 0
+
+    updated_count = 0
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        for update in updates:
+            address = update.get("token_address")
+            if not address:
+                continue
+            cursor.execute(
+                """
+                UPDATE token_ingest_queue
+                SET last_mc_usd = COALESCE(?, last_mc_usd),
+                    last_volume_usd = COALESCE(?, last_volume_usd),
+                    last_liquidity = COALESCE(?, last_liquidity),
+                    age_hours = COALESCE(?, age_hours)
+                WHERE token_address = ?
+            """,
+                (
+                    update.get("last_mc_usd"),
+                    update.get("last_volume_usd"),
+                    update.get("last_liquidity"),
+                    update.get("age_hours"),
+                    address,
+                ),
+            )
+            if cursor.rowcount > 0:
+                updated_count += 1
+    return updated_count
 
 
 # Initialize database on module import

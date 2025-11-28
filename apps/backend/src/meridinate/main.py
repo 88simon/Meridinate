@@ -13,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 
 # Import routers
-from meridinate.routers import analysis, metrics, settings_debug, stats, swab, tags, tokens, wallets, watchlist, webhooks
+from meridinate.routers import analysis, ingest, metrics, settings_debug, stats, swab, tags, tokens, wallets, watchlist, webhooks
 from meridinate.utils.models import AnalysisCompleteNotification, AnalysisStartNotification
 
 # Import WebSocket manager and notification endpoints
@@ -69,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(tags.router, tags=["Tags"])
     app.include_router(webhooks.router, tags=["Webhooks"])
     app.include_router(swab.router, tags=["SWAB"])
+    app.include_router(ingest.router, tags=["Ingest"])
 
     # WebSocket endpoint
     @app.websocket("/ws")
@@ -142,6 +143,11 @@ def create_app() -> FastAPI:
         from meridinate.scheduler import start_scheduler
         start_scheduler()
         print("[OK] SWAB scheduler initialized")
+
+        # Log ingest pipeline status
+        from meridinate.settings import CURRENT_INGEST_SETTINGS
+        ingest_status = "enabled" if CURRENT_INGEST_SETTINGS.get("ingest_enabled") else "disabled"
+        print(f"[OK] Ingest pipeline initialized ({ingest_status})")
 
         print("=" * 80)
         print("Performance Features:")

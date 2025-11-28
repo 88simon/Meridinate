@@ -444,3 +444,104 @@ class TopHoldersResponse(BaseModel):
     api_credits_used: int  # API credits consumed
 
     model_config = {"extra": "ignore"}  # Allow extra fields
+
+
+# ============================================================================
+# Ingest Pipeline Models
+# ============================================================================
+
+
+class IngestSettings(BaseModel):
+    """Settings for the tiered token ingestion pipeline"""
+
+    # Threshold filters
+    mc_min: float = Field(default=10000, ge=0, description="Minimum market cap in USD")
+    volume_min: float = Field(default=5000, ge=0, description="Minimum 24h volume in USD")
+    liquidity_min: float = Field(default=5000, ge=0, description="Minimum liquidity in USD")
+    age_max_hours: float = Field(default=48, ge=1, description="Maximum token age in hours")
+
+    # Batch and budget limits
+    tier0_max_tokens_per_run: int = Field(default=50, ge=1, le=500, description="Max tokens per Tier-0 run")
+    tier1_batch_size: int = Field(default=10, ge=1, le=100, description="Max tokens per Tier-1 run")
+    tier1_credit_budget_per_run: int = Field(default=100, ge=1, le=1000, description="Max Helius credits per Tier-1 run")
+
+    # Feature flags
+    ingest_enabled: bool = Field(default=False, description="Enable Tier-0 ingestion")
+    enrich_enabled: bool = Field(default=False, description="Enable Tier-1 enrichment")
+    auto_promote_enabled: bool = Field(default=False, description="Auto-promote enriched tokens")
+    hot_refresh_enabled: bool = Field(default=False, description="Enable hot token MC/volume refresh")
+
+    # Auto-promote settings
+    auto_promote_max_per_run: int = Field(default=5, ge=1, le=50, description="Max tokens to auto-promote per run")
+
+    # Hot refresh settings
+    hot_refresh_age_hours: float = Field(default=48, ge=1, le=168, description="Max age for hot tokens (hours)")
+    hot_refresh_max_tokens: int = Field(default=100, ge=1, le=500, description="Max tokens to refresh per run")
+
+    # Run tracking (read-only)
+    last_tier0_run_at: Optional[str] = None
+    last_tier1_run_at: Optional[str] = None
+    last_tier1_credits_used: int = 0
+    last_hot_refresh_at: Optional[str] = None
+
+
+class UpdateIngestSettingsRequest(BaseModel):
+    """Request model for updating ingest settings"""
+
+    mc_min: Optional[float] = Field(None, ge=0)
+    volume_min: Optional[float] = Field(None, ge=0)
+    liquidity_min: Optional[float] = Field(None, ge=0)
+    age_max_hours: Optional[float] = Field(None, ge=1)
+    tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1, le=500)
+    tier1_batch_size: Optional[int] = Field(None, ge=1, le=100)
+    tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1, le=1000)
+    ingest_enabled: Optional[bool] = None
+    enrich_enabled: Optional[bool] = None
+    auto_promote_enabled: Optional[bool] = None
+    hot_refresh_enabled: Optional[bool] = None
+    auto_promote_max_per_run: Optional[int] = Field(None, ge=1, le=50)
+    hot_refresh_age_hours: Optional[float] = Field(None, ge=1, le=168)
+    hot_refresh_max_tokens: Optional[int] = Field(None, ge=1, le=500)
+
+
+class IngestQueueEntry(BaseModel):
+    """Single entry in the token ingest queue"""
+
+    token_address: str
+    token_name: Optional[str] = None
+    token_symbol: Optional[str] = None
+    first_seen_at: Optional[str] = None
+    source: str = "dexscreener"
+    tier: str = "ingested"  # ingested | enriched | analyzed | discarded
+    status: str = "pending"  # pending | completed | failed
+    ingested_at: Optional[str] = None
+    enriched_at: Optional[str] = None
+    analyzed_at: Optional[str] = None
+    discarded_at: Optional[str] = None
+    last_mc_usd: Optional[float] = None
+    last_volume_usd: Optional[float] = None
+    last_liquidity: Optional[float] = None
+    age_hours: Optional[float] = None
+    ingest_notes: Optional[str] = None
+    last_error: Optional[str] = None
+
+
+class IngestQueueResponse(BaseModel):
+    """Response for listing ingest queue entries"""
+
+    total: int
+    by_tier: Dict[str, int]  # Count per tier
+    by_status: Dict[str, int]  # Count per status
+    entries: List[IngestQueueEntry]
+
+
+class IngestQueueStats(BaseModel):
+    """Statistics about the ingest queue"""
+
+    total: int
+    by_tier: Dict[str, int]
+    by_status: Dict[str, int]
+    last_tier0_run_at: Optional[str] = None
+    last_tier1_run_at: Optional[str] = None
+    last_tier1_credits_used: int = 0
+    last_hot_refresh_at: Optional[str] = None
