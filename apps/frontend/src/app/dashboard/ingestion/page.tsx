@@ -238,89 +238,89 @@ export default function IngestionPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className='flex h-[50vh] items-center justify-center'>
+        <Loader2 className='text-muted-foreground h-8 w-8 animate-spin' />
       </div>
     );
   }
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto space-y-6 p-6">
+      <div className='container mx-auto space-y-6 p-6'>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className='flex items-center justify-between'>
           <div>
-            <h1 className="text-2xl font-bold">Token Ingestion Pipeline</h1>
-            <p className="text-muted-foreground">
+            <h1 className='text-2xl font-bold'>Token Ingestion Pipeline</h1>
+            <p className='text-muted-foreground'>
               Discover and enrich tokens from DexScreener before full analysis
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchData}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <Button variant='outline' size='sm' onClick={fetchData}>
+            <RefreshCw className='mr-2 h-4 w-4' />
             Refresh
           </Button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className='grid gap-4 md:grid-cols-5'>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className='pb-2'>
+              <CardTitle className='text-muted-foreground text-sm font-medium'>
                 Total Queue
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.total || 0}</div>
+              <div className='text-2xl font-bold'>{stats?.total || 0}</div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-blue-400">
+            <CardHeader className='pb-2'>
+              <CardTitle className='text-sm font-medium text-blue-400'>
                 Ingested
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className='text-2xl font-bold'>
                 {stats?.by_tier?.ingested || 0}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-green-400">
+            <CardHeader className='pb-2'>
+              <CardTitle className='text-sm font-medium text-green-400'>
                 Enriched
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className='text-2xl font-bold'>
                 {stats?.by_tier?.enriched || 0}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-purple-400">
+            <CardHeader className='pb-2'>
+              <CardTitle className='text-sm font-medium text-purple-400'>
                 Analyzed
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className='text-2xl font-bold'>
                 {stats?.by_tier?.analyzed || 0}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">
+            <CardHeader className='pb-2'>
+              <CardTitle className='text-sm font-medium text-gray-400'>
                 Discarded
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className='text-2xl font-bold'>
                 {stats?.by_tier?.discarded || 0}
               </div>
             </CardContent>
@@ -328,24 +328,24 @@ export default function IngestionPage() {
         </div>
 
         {/* Controls & Settings */}
-        <Tabs defaultValue="queue" className="space-y-4">
+        <Tabs defaultValue='queue' className='space-y-4'>
           <TabsList>
-            <TabsTrigger value="queue">Queue</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value='queue'>Queue</TabsTrigger>
+            <TabsTrigger value='settings'>Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="queue" className="space-y-4">
+          <TabsContent value='queue' className='space-y-4'>
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className='flex flex-wrap items-center gap-2'>
               <Button
                 onClick={handleRunTier0}
                 disabled={runningTier0}
-                variant="outline"
+                variant='outline'
               >
                 {runningTier0 ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 ) : (
-                  <Play className="mr-2 h-4 w-4" />
+                  <Play className='mr-2 h-4 w-4' />
                 )}
                 Run Tier-0 (DexScreener)
               </Button>
@@ -353,64 +353,70 @@ export default function IngestionPage() {
               <Button
                 onClick={handleRunTier1}
                 disabled={runningTier1}
-                variant="outline"
+                variant='outline'
               >
                 {runningTier1 ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 ) : (
-                  <Play className="mr-2 h-4 w-4" />
+                  <Play className='mr-2 h-4 w-4' />
                 )}
                 Run Tier-1 (Helius)
               </Button>
 
-              <div className="mx-2 h-6 w-px bg-border" />
+              <div className='bg-border mx-2 h-6 w-px' />
 
               <Button
                 onClick={handlePromote}
                 disabled={selectedEntries.size === 0}
-                variant="default"
-                size="sm"
+                variant='default'
+                size='sm'
               >
-                <ArrowUpCircle className="mr-2 h-4 w-4" />
+                <ArrowUpCircle className='mr-2 h-4 w-4' />
                 Promote ({selectedEntries.size})
               </Button>
 
               <Button
                 onClick={handleDiscard}
                 disabled={selectedEntries.size === 0}
-                variant="destructive"
-                size="sm"
+                variant='destructive'
+                size='sm'
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className='mr-2 h-4 w-4' />
                 Discard ({selectedEntries.size})
               </Button>
 
-              <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+              <div className='text-muted-foreground ml-auto flex items-center gap-2 text-sm'>
                 {stats?.last_tier0_run_at && (
-                  <span>Last Tier-0: {formatTimestamp(stats.last_tier0_run_at)}</span>
+                  <span>
+                    Last Tier-0: {formatTimestamp(stats.last_tier0_run_at)}
+                  </span>
                 )}
                 {stats?.last_tier1_run_at && (
                   <>
-                    <span className="mx-1">|</span>
-                    <span>Last Tier-1: {formatTimestamp(stats.last_tier1_run_at)}</span>
+                    <span className='mx-1'>|</span>
+                    <span>
+                      Last Tier-1: {formatTimestamp(stats.last_tier1_run_at)}
+                    </span>
                   </>
                 )}
               </div>
             </div>
 
             {/* Tier Filter */}
-            <div className="flex gap-2">
+            <div className='flex gap-2'>
               {['all', 'ingested', 'enriched', 'analyzed', 'discarded'].map(
                 (tier) => (
                   <Button
                     key={tier}
                     variant={selectedTier === tier ? 'default' : 'outline'}
-                    size="sm"
+                    size='sm'
                     onClick={() => handleTierChange(tier)}
                   >
-                    {tier === 'all' ? 'All' : tier.charAt(0).toUpperCase() + tier.slice(1)}
+                    {tier === 'all'
+                      ? 'All'
+                      : tier.charAt(0).toUpperCase() + tier.slice(1)}
                     {tier !== 'all' && stats?.by_tier?.[tier] !== undefined && (
-                      <Badge variant="secondary" className="ml-2">
+                      <Badge variant='secondary' className='ml-2'>
                         {stats.by_tier[tier]}
                       </Badge>
                     )}
@@ -424,7 +430,7 @@ export default function IngestionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
+                    <TableHead className='w-10'>
                       <Checkbox
                         checked={
                           entries.length > 0 &&
@@ -449,7 +455,7 @@ export default function IngestionPage() {
                     <TableRow>
                       <TableCell
                         colSpan={10}
-                        className="text-center text-muted-foreground"
+                        className='text-muted-foreground text-center'
                       >
                         No tokens in queue
                       </TableCell>
@@ -472,10 +478,10 @@ export default function IngestionPage() {
                             }
                           />
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className='font-medium'>
                           {entry.token_symbol || entry.token_name || '-'}
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
+                        <TableCell className='font-mono text-xs'>
                           <Tooltip>
                             <TooltipTrigger>
                               {entry.token_address.slice(0, 8)}...
@@ -493,24 +499,24 @@ export default function IngestionPage() {
                         <TableCell>{formatAge(entry.age_hours)}</TableCell>
                         <TableCell>
                           <Badge
-                            variant="outline"
+                            variant='outline'
                             className={tierColors[entry.tier]}
                           >
                             {entry.tier}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1">
+                          <div className='flex items-center gap-1'>
                             {entry.status === 'pending' && (
-                              <Clock className="h-3 w-3 text-yellow-400" />
+                              <Clock className='h-3 w-3 text-yellow-400' />
                             )}
                             {entry.status === 'completed' && (
-                              <CheckCircle2 className="h-3 w-3 text-green-400" />
+                              <CheckCircle2 className='h-3 w-3 text-green-400' />
                             )}
                             {entry.status === 'failed' && (
                               <Tooltip>
                                 <TooltipTrigger>
-                                  <XCircle className="h-3 w-3 text-red-400" />
+                                  <XCircle className='h-3 w-3 text-red-400' />
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   {entry.last_error || 'Unknown error'}
@@ -518,14 +524,14 @@ export default function IngestionPage() {
                               </Tooltip>
                             )}
                             <Badge
-                              variant="outline"
+                              variant='outline'
                               className={statusColors[entry.status]}
                             >
                               {entry.status}
                             </Badge>
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className='text-muted-foreground text-xs'>
                           {entry.first_seen_at
                             ? formatTimestamp(entry.first_seen_at)
                             : '-'}
@@ -538,22 +544,22 @@ export default function IngestionPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-6">
+          <TabsContent value='settings' className='space-y-6'>
             {settings && (
               <>
                 {/* Feature Flags */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
+                    <CardTitle className='flex items-center gap-2'>
+                      <Settings className='h-5 w-5' />
                       Feature Flags
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <CardContent className='space-y-4'>
+                    <div className='flex items-center justify-between'>
                       <div>
                         <Label>Tier-0 Ingestion (Scheduled)</Label>
-                        <p className="text-sm text-muted-foreground">
+                        <p className='text-muted-foreground text-sm'>
                           Auto-fetch tokens from DexScreener hourly
                         </p>
                       </div>
@@ -565,10 +571,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className='flex items-center justify-between'>
                       <div>
                         <Label>Tier-1 Enrichment (Scheduled)</Label>
-                        <p className="text-sm text-muted-foreground">
+                        <p className='text-muted-foreground text-sm'>
                           Auto-enrich with Helius every 4 hours
                         </p>
                       </div>
@@ -580,10 +586,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className='flex items-center justify-between'>
                       <div>
                         <Label>Auto-Promote</Label>
-                        <p className="text-sm text-muted-foreground">
+                        <p className='text-muted-foreground text-sm'>
                           Automatically promote enriched tokens to full analysis
                         </p>
                       </div>
@@ -602,11 +608,11 @@ export default function IngestionPage() {
                   <CardHeader>
                     <CardTitle>Promotion Thresholds</CardTitle>
                   </CardHeader>
-                  <CardContent className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
+                  <CardContent className='grid gap-4 md:grid-cols-2'>
+                    <div className='space-y-2'>
                       <Label>Min Market Cap ($)</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.mc_min}
                         onChange={(e) =>
                           handleSettingChange('mc_min', Number(e.target.value))
@@ -614,10 +620,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className='space-y-2'>
                       <Label>Min 24h Volume ($)</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.volume_min}
                         onChange={(e) =>
                           handleSettingChange(
@@ -628,10 +634,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className='space-y-2'>
                       <Label>Min Liquidity ($)</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.liquidity_min}
                         onChange={(e) =>
                           handleSettingChange(
@@ -642,10 +648,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className='space-y-2'>
                       <Label>Max Age (hours)</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.age_max_hours}
                         onChange={(e) =>
                           handleSettingChange(
@@ -663,11 +669,11 @@ export default function IngestionPage() {
                   <CardHeader>
                     <CardTitle>Batch & Budget Limits</CardTitle>
                   </CardHeader>
-                  <CardContent className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
+                  <CardContent className='grid gap-4 md:grid-cols-3'>
+                    <div className='space-y-2'>
                       <Label>Tier-0 Max Tokens/Run</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.tier0_max_tokens_per_run}
                         onChange={(e) =>
                           handleSettingChange(
@@ -678,10 +684,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className='space-y-2'>
                       <Label>Tier-1 Batch Size</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.tier1_batch_size}
                         onChange={(e) =>
                           handleSettingChange(
@@ -692,10 +698,10 @@ export default function IngestionPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className='space-y-2'>
                       <Label>Tier-1 Credit Budget/Run</Label>
                       <Input
-                        type="number"
+                        type='number'
                         value={settings.tier1_credit_budget_per_run}
                         onChange={(e) =>
                           handleSettingChange(
@@ -714,10 +720,10 @@ export default function IngestionPage() {
                     <CardHeader>
                       <CardTitle>Last Run Info</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
+                    <CardContent className='space-y-2 text-sm'>
                       {settings.last_tier0_run_at && (
                         <p>
-                          <span className="text-muted-foreground">
+                          <span className='text-muted-foreground'>
                             Last Tier-0:
                           </span>{' '}
                           {formatTimestamp(settings.last_tier0_run_at)}
@@ -725,7 +731,7 @@ export default function IngestionPage() {
                       )}
                       {settings.last_tier1_run_at && (
                         <p>
-                          <span className="text-muted-foreground">
+                          <span className='text-muted-foreground'>
                             Last Tier-1:
                           </span>{' '}
                           {formatTimestamp(settings.last_tier1_run_at)} (
