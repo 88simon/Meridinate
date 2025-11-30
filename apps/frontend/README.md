@@ -11,6 +11,7 @@ Modern Next.js dashboard for Meridinate – Solana token analysis and wallet mon
 ## Overview
 
 Production-ready React app:
+
 - Next.js 15 (App Router, Turbopack) + TypeScript 5.7
 - Tailwind CSS 4 + shadcn/ui
 - TanStack Table v8 for data grids
@@ -20,6 +21,7 @@ Production-ready React app:
 ## Features
 
 Highlights (not exhaustive):
+
 - Token dashboard with filtering, search, sorting, pagination.
 - Market cap tracking (per-token and bulk refresh) with timestamps.
 - Wallet balance tracking with trend indicators.

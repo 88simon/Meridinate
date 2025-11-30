@@ -825,7 +825,9 @@ export async function updateSwabSettings(settings: {
   if (!res.ok) {
     const errorText = await res.text();
     console.error('SWAB settings update failed:', res.status, errorText);
-    throw new Error(`Failed to update SWAB settings: ${res.status} - ${errorText}`);
+    throw new Error(
+      `Failed to update SWAB settings: ${res.status} - ${errorText}`
+    );
   }
 
   return res.json();

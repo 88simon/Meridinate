@@ -5,6 +5,8 @@ import {
   formatTimestamp,
   downloadAxiomJson,
   getTokenAnalysisHistory,
+  getTokenById,
+  getCachedTokenDetails,
   AnalysisHistory,
   refreshWalletBalances,
   getSolscanSettings,
@@ -13,6 +15,7 @@ import {
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Download,
   ExternalLink,
@@ -52,16 +55,118 @@ import { WalletTagLabels } from '@/components/wallet-tag-labels';
 import { WalletTagsProvider } from '@/contexts/WalletTagsContext';
 
 interface TokenDetailsModalProps {
-  token: TokenDetail | null;
+  tokenId: number | null;
   open: boolean;
   onClose: () => void;
 }
 
+// Loading skeleton for the modal content
+function TokenDetailsLoadingSkeleton() {
+  return (
+    <div className='space-y-4'>
+      {/* Header skeleton */}
+      <div className='flex items-center justify-between'>
+        <div className='space-y-2'>
+          <Skeleton className='h-8 w-48' />
+          <Skeleton className='h-4 w-64' />
+          <Skeleton className='h-4 w-32' />
+        </div>
+        <Skeleton className='h-9 w-28' />
+      </div>
+
+      {/* Info grid skeleton */}
+      <div className='mt-3 grid grid-cols-4 gap-3'>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className='rounded-lg border p-2'>
+            <Skeleton className='mb-2 h-3 w-20' />
+            <Skeleton className='h-5 w-full' />
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs skeleton */}
+      <div className='mt-3'>
+        <Skeleton className='mb-4 h-10 w-full' />
+        <div className='rounded-md border p-4'>
+          <div className='space-y-3'>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className='flex items-center gap-4'>
+                <Skeleton className='h-4 w-8' />
+                <Skeleton className='h-4 w-64' />
+                <Skeleton className='h-4 w-20' />
+                <Skeleton className='h-4 w-16' />
+                <Skeleton className='h-4 w-24' />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TokenDetailsModal({
-  token,
+  tokenId,
   open,
   onClose
 }: TokenDetailsModalProps) {
+  // Token data state - starts with cached data if available
+  const [token, setToken] = useState<TokenDetail | null>(() =>
+    tokenId ? getCachedTokenDetails(tokenId) : null
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Fetch token details when modal opens or tokenId changes
+  useEffect(() => {
+    if (!open || tokenId === null) {
+      return;
+    }
+
+    // Check for cached data first (instant display)
+    const cached = getCachedTokenDetails(tokenId);
+    if (cached) {
+      setToken(cached);
+      setLoadError(null);
+      // Still fetch fresh data in background to ensure we have the latest
+      getTokenById(tokenId, { skipCache: true })
+        .then(setToken)
+        .catch(() => {
+          // Silently fail - we already have cached data
+        });
+      return;
+    }
+
+    // No cache - fetch with loading state
+    setIsLoading(true);
+    setLoadError(null);
+    getTokenById(tokenId)
+      .then((data) => {
+        setToken(data);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        setLoadError(err.message || 'Failed to load token details');
+        setToken(null);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [open, tokenId]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!open) {
+      // Small delay to prevent flicker on reopen
+      const timer = setTimeout(() => {
+        setToken(null);
+        setLoadError(null);
+        setIsLoading(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   // Extract all wallet addresses for WalletTagsProvider
   const walletAddresses = useMemo(() => {
     if (!token) return [];
@@ -188,8 +293,6 @@ export function TokenDetailsModal({
     }
   }, [open, token]);
 
-  if (!token) return null;
-
   const copyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
     setCopied(true);
@@ -254,624 +357,676 @@ export function TokenDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <WalletTagsProvider walletAddresses={walletAddresses}>
-        <DialogContent className='max-h-[90vh] w-[95vw] max-w-[95vw] overflow-y-auto'>
-          <DialogHeader>
-            <div className='flex items-center justify-between'>
-              <div>
-                <DialogTitle className='text-2xl'>
-                  {token.token_name || 'Unknown Token'}
-                </DialogTitle>
-                <DialogDescription className='text-muted-foreground'>
-                  Full wallet analysis, tags, and history for this token.
-                </DialogDescription>
-                <p className='text-muted-foreground mt-1 text-sm'>
-                  {token.token_symbol || '-'} • Early Buyer Analysis
-                </p>
-              </div>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() => downloadAxiomJson(token)}
-              >
-                <Download className='mr-2 h-4 w-4' />
-                Axiom JSON
+      <DialogContent className='max-h-[90vh] w-[95vw] max-w-[95vw] overflow-y-auto'>
+        {/* Loading state */}
+        {isLoading && !token && (
+          <>
+            <DialogHeader>
+              <DialogTitle className='text-2xl'>Loading...</DialogTitle>
+              <DialogDescription className='text-muted-foreground'>
+                Fetching token details...
+              </DialogDescription>
+            </DialogHeader>
+            <TokenDetailsLoadingSkeleton />
+          </>
+        )}
+
+        {/* Error state */}
+        {loadError && !token && (
+          <>
+            <DialogHeader>
+              <DialogTitle className='text-destructive text-2xl'>
+                Error Loading Token
+              </DialogTitle>
+              <DialogDescription className='text-muted-foreground'>
+                {loadError}
+              </DialogDescription>
+            </DialogHeader>
+            <div className='flex justify-center py-8'>
+              <Button variant='outline' onClick={onClose}>
+                Close
               </Button>
             </div>
-          </DialogHeader>
+          </>
+        )}
 
-          {/* Token Info Grid */}
-          <div className='mt-3 grid grid-cols-4 gap-3'>
-            <div className='rounded-lg border p-2'>
-              <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
-                Token Address
-              </div>
-              <div className='flex items-center gap-1'>
-                <code className='text-[10px] break-all'>
-                  {token.token_address.slice(0, 16)}...
-                </code>
+        {/* Token data loaded */}
+        {token && (
+          <WalletTagsProvider walletAddresses={walletAddresses}>
+            <DialogHeader>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <DialogTitle className='text-2xl'>
+                    {token.token_name || 'Unknown Token'}
+                  </DialogTitle>
+                  <DialogDescription className='text-muted-foreground'>
+                    Full wallet analysis, tags, and history for this token.
+                  </DialogDescription>
+                  <p className='text-muted-foreground mt-1 text-sm'>
+                    {token.token_symbol || '-'} • Early Buyer Analysis
+                  </p>
+                </div>
                 <Button
-                  variant='ghost'
+                  variant='outline'
                   size='sm'
-                  onClick={() => copyAddress(token.token_address)}
-                  className='h-5 w-5 p-0'
+                  onClick={() => downloadAxiomJson(token)}
                 >
-                  {copied ? 'Copied!' : <Copy className='h-3 w-3' />}
+                  <Download className='mr-2 h-4 w-4' />
+                  Axiom JSON
                 </Button>
               </div>
-              <a
-                href={`https://gmgn.ai/sol/token/${token.token_address}?min=0.1&isInputValue=true`}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-primary mt-1 flex items-center text-[10px] hover:underline'
-              >
-                View on GMGN <ExternalLink className='ml-1 h-2.5 w-2.5' />
-              </a>
+            </DialogHeader>
+
+            {/* Token Info Grid */}
+            <div className='mt-3 grid grid-cols-4 gap-3'>
+              <div className='rounded-lg border p-2'>
+                <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
+                  Token Address
+                </div>
+                <div className='flex items-center gap-1'>
+                  <code className='text-[10px] break-all'>
+                    {token.token_address.slice(0, 16)}...
+                  </code>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => copyAddress(token.token_address)}
+                    className='h-5 w-5 p-0'
+                  >
+                    {copied ? 'Copied!' : <Copy className='h-3 w-3' />}
+                  </Button>
+                </div>
+                <a
+                  href={`https://gmgn.ai/sol/token/${token.token_address}?min=0.1&isInputValue=true`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='text-primary mt-1 flex items-center text-[10px] hover:underline'
+                >
+                  View on GMGN <ExternalLink className='ml-1 h-2.5 w-2.5' />
+                </a>
+              </div>
+
+              <div className='rounded-lg border p-2'>
+                <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
+                  Acronym
+                </div>
+                <Badge variant='secondary' className='font-mono text-sm'>
+                  {token.acronym}
+                </Badge>
+              </div>
+
+              <div className='rounded-lg border p-2'>
+                <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
+                  Wallets Found
+                </div>
+                <div className='text-lg font-bold'>{token.wallets_found}</div>
+              </div>
+
+              <div className='rounded-lg border p-2'>
+                <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
+                  Analyzed
+                </div>
+                <div className='text-xs'>
+                  {formatTimestamp(token.analysis_timestamp)}
+                </div>
+              </div>
             </div>
 
-            <div className='rounded-lg border p-2'>
-              <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
-                Acronym
-              </div>
-              <Badge variant='secondary' className='font-mono text-sm'>
-                {token.acronym}
-              </Badge>
-            </div>
+            {/* Tabs for Current Analysis and History */}
+            <Tabs defaultValue='current' className='mt-3'>
+              <TabsList className='grid w-full grid-cols-2'>
+                <TabsTrigger value='current'>Latest Analysis</TabsTrigger>
+                <TabsTrigger value='history'>
+                  <History className='mr-2 h-4 w-4' />
+                  History ({history?.total_runs || 0} runs)
+                </TabsTrigger>
+              </TabsList>
 
-            <div className='rounded-lg border p-2'>
-              <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
-                Wallets Found
-              </div>
-              <div className='text-lg font-bold'>{token.wallets_found}</div>
-            </div>
-
-            <div className='rounded-lg border p-2'>
-              <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
-                Analyzed
-              </div>
-              <div className='text-xs'>
-                {formatTimestamp(token.analysis_timestamp)}
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs for Current Analysis and History */}
-          <Tabs defaultValue='current' className='mt-3'>
-            <TabsList className='grid w-full grid-cols-2'>
-              <TabsTrigger value='current'>Latest Analysis</TabsTrigger>
-              <TabsTrigger value='history'>
-                <History className='mr-2 h-4 w-4' />
-                History ({history?.total_runs || 0} runs)
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Current Analysis Tab */}
-            <TabsContent value='current'>
-              <div
-                ref={currentWalletsContainerRef}
-                onScroll={handleCurrentWalletsScroll}
-                className='mt-4 max-h-[500px] overflow-auto rounded-md border'
-              >
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className='w-[60px]'>Rank</TableHead>
-                      <TableHead>Wallet Address</TableHead>
-                      <TableHead className='text-right'>
-                        <div className='flex items-center justify-end gap-2'>
-                          <span>Balance (USD)</span>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant='ghost'
-                                  size='sm'
-                                  className='h-5 w-5 p-0'
-                                >
-                                  <Info className='h-3 w-3' />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className='text-xs'>
-                                  Refreshing a single wallet balance costs 1 API
-                                  credit
-                                </p>
-                                <p className='text-xs'>
-                                  Refreshing all {token.wallets.length}{' '}
-                                  wallet(s) costs {token.wallets.length} API
-                                  credits
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            className='h-6 w-6 p-0'
-                            onClick={handleRefreshAllBalances}
-                            disabled={refreshingAll}
-                            title='Refresh all balances'
-                          >
-                            <RefreshCw
-                              className={`h-3 w-3 ${refreshingAll ? 'animate-spin' : ''}`}
-                            />
-                          </Button>
-                        </div>
-                      </TableHead>
-                      <TableHead className='text-right'>Tags</TableHead>
-                      <TableHead>First Buy Time</TableHead>
-                      <TableHead className='text-right'>Amount (USD)</TableHead>
-                      <TableHead className='text-center'>Txns</TableHead>
-                      <TableHead className='text-right'>Avg Buy</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {token.wallets.length === 0 ? (
+              {/* Current Analysis Tab */}
+              <TabsContent value='current'>
+                <div
+                  ref={currentWalletsContainerRef}
+                  onScroll={handleCurrentWalletsScroll}
+                  className='mt-4 max-h-[500px] overflow-auto rounded-md border'
+                >
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell
-                          colSpan={8}
-                          className='text-muted-foreground py-12 text-center'
-                        >
-                          No wallets found
-                        </TableCell>
+                        <TableHead className='w-[60px]'>Rank</TableHead>
+                        <TableHead>Wallet Address</TableHead>
+                        <TableHead className='text-right'>
+                          <div className='flex items-center justify-end gap-2'>
+                            <span>Balance (USD)</span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-5 w-5 p-0'
+                                  >
+                                    <Info className='h-3 w-3' />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className='text-xs'>
+                                    Refreshing a single wallet balance costs 1
+                                    API credit
+                                  </p>
+                                  <p className='text-xs'>
+                                    Refreshing all {token.wallets.length}{' '}
+                                    wallet(s) costs {token.wallets.length} API
+                                    credits
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              className='h-6 w-6 p-0'
+                              onClick={handleRefreshAllBalances}
+                              disabled={refreshingAll}
+                              title='Refresh all balances'
+                            >
+                              <RefreshCw
+                                className={`h-3 w-3 ${refreshingAll ? 'animate-spin' : ''}`}
+                              />
+                            </Button>
+                          </div>
+                        </TableHead>
+                        <TableHead className='text-right'>Tags</TableHead>
+                        <TableHead>First Buy Time</TableHead>
+                        <TableHead className='text-right'>
+                          Amount (USD)
+                        </TableHead>
+                        <TableHead className='text-center'>Txns</TableHead>
+                        <TableHead className='text-right'>Avg Buy</TableHead>
                       </TableRow>
-                    ) : (
-                      <>
-                        {currentPaddingTop > 0 && (
-                          <TableRow aria-hidden='true'>
-                            <TableCell
-                              colSpan={8}
-                              className='p-0'
-                              style={{ height: currentPaddingTop }}
-                            />
-                          </TableRow>
-                        )}
-                        {visibleCurrentWallets.map((wallet) => {
-                          const index = token.wallets.findIndex(
-                            (w) => w.id === wallet.id
-                          );
-                          return (
-                            <TableRow key={wallet.id}>
-                              <TableCell className='text-primary text-xs font-semibold'>
-                                #{index + 1}
-                              </TableCell>
-                              <TableCell className='font-mono text-xs'>
-                                <div className='flex flex-col gap-0.5'>
-                                  <div className='flex items-center gap-2'>
-                                    {wallet.wallet_address}
-                                    <a
-                                      href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
-                                      target='_blank'
-                                      rel='noopener noreferrer'
-                                      title='Search on Twitter/X'
-                                    >
+                    </TableHeader>
+                    <TableBody>
+                      {token.wallets.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={8}
+                            className='text-muted-foreground py-12 text-center'
+                          >
+                            No wallets found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <>
+                          {currentPaddingTop > 0 && (
+                            <TableRow aria-hidden='true'>
+                              <TableCell
+                                colSpan={8}
+                                className='p-0'
+                                style={{ height: currentPaddingTop }}
+                              />
+                            </TableRow>
+                          )}
+                          {visibleCurrentWallets.map((wallet) => {
+                            const index = token.wallets.findIndex(
+                              (w) => w.id === wallet.id
+                            );
+                            return (
+                              <TableRow key={wallet.id}>
+                                <TableCell className='text-primary text-xs font-semibold'>
+                                  #{index + 1}
+                                </TableCell>
+                                <TableCell className='font-mono text-xs'>
+                                  <div className='flex flex-col gap-0.5'>
+                                    <div className='flex items-center gap-2'>
+                                      {wallet.wallet_address}
+                                      <a
+                                        href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
+                                        target='_blank'
+                                        rel='noopener noreferrer'
+                                        title='Search on Twitter/X'
+                                      >
+                                        <Button
+                                          variant='ghost'
+                                          size='sm'
+                                          className='h-6 w-6 p-0'
+                                        >
+                                          <Twitter className='h-3 w-3' />
+                                        </Button>
+                                      </a>
                                       <Button
                                         variant='ghost'
                                         size='sm'
                                         className='h-6 w-6 p-0'
+                                        onClick={() =>
+                                          copyAddress(wallet.wallet_address)
+                                        }
                                       >
-                                        <Twitter className='h-3 w-3' />
+                                        <Copy className='h-3 w-3' />
+                                      </Button>
+                                    </div>
+                                    <WalletTagLabels
+                                      walletAddress={wallet.wallet_address}
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell className='text-right font-mono text-xs'>
+                                  <div className='flex flex-col items-end gap-1'>
+                                    <div className='flex items-center gap-1'>
+                                      {(() => {
+                                        const trend = getWalletTrend(wallet);
+                                        const current =
+                                          wallet.wallet_balance_usd;
+                                        const formatted =
+                                          current !== null &&
+                                          current !== undefined
+                                            ? `$${Math.round(current).toLocaleString()}`
+                                            : 'N/A';
+                                        if (trend === 'up') {
+                                          return (
+                                            <span className='flex items-center gap-1 text-green-600'>
+                                              <span>▲</span>
+                                              <span>{formatted}</span>
+                                            </span>
+                                          );
+                                        }
+                                        if (trend === 'down') {
+                                          return (
+                                            <span className='flex items-center gap-1 text-red-600'>
+                                              <span>▼</span>
+                                              <span>{formatted}</span>
+                                            </span>
+                                          );
+                                        }
+                                        return <span>{formatted}</span>;
+                                      })()}
+                                      <Button
+                                        variant='ghost'
+                                        size='sm'
+                                        className='h-6 w-6 p-0'
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRefreshBalance(
+                                            wallet.wallet_address
+                                          );
+                                        }}
+                                        disabled={
+                                          refreshingWallets.has(
+                                            wallet.wallet_address
+                                          ) || refreshingAll
+                                        }
+                                        title='Refresh balance - 1 API credit'
+                                      >
+                                        <RefreshCw
+                                          className={`h-3 w-3 ${refreshingWallets.has(wallet.wallet_address) ? 'animate-spin' : ''}`}
+                                        />
+                                      </Button>
+                                    </div>
+                                    <div className='text-muted-foreground text-[11px]'>
+                                      {formatWalletTimestamp(
+                                        wallet.wallet_balance_updated_at as
+                                          | string
+                                          | null
+                                      )}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className='text-right'>
+                                  <div className='flex justify-end gap-2'>
+                                    <WalletTags
+                                      walletAddress={wallet.wallet_address}
+                                    />
+                                    <AdditionalTagsPopover
+                                      walletId={wallet.id}
+                                      walletAddress={wallet.wallet_address}
+                                    />
+                                    <a
+                                      href={buildSolscanUrl(
+                                        wallet.wallet_address,
+                                        solscanSettings
+                                      )}
+                                      target='_blank'
+                                      rel='noopener noreferrer'
+                                    >
+                                      <Button variant='outline' size='sm'>
+                                        <ExternalLink className='h-4 w-4' />
                                       </Button>
                                     </a>
-                                    <Button
-                                      variant='ghost'
-                                      size='sm'
-                                      className='h-6 w-6 p-0'
-                                      onClick={() =>
-                                        copyAddress(wallet.wallet_address)
-                                      }
-                                    >
-                                      <Copy className='h-3 w-3' />
-                                    </Button>
                                   </div>
-                                  <WalletTagLabels
-                                    walletAddress={wallet.wallet_address}
-                                  />
-                                </div>
-                              </TableCell>
-                              <TableCell className='text-right font-mono text-xs'>
-                                <div className='flex flex-col items-end gap-1'>
-                                  <div className='flex items-center gap-1'>
-                                    {(() => {
-                                      const trend = getWalletTrend(wallet);
-                                      const current = wallet.wallet_balance_usd;
-                                      const formatted =
-                                        current !== null &&
-                                        current !== undefined
-                                          ? `$${Math.round(current).toLocaleString()}`
-                                          : 'N/A';
-                                      if (trend === 'up') {
-                                        return (
-                                          <span className='flex items-center gap-1 text-green-600'>
-                                            <span>▲</span>
-                                            <span>{formatted}</span>
-                                          </span>
-                                        );
-                                      }
-                                      if (trend === 'down') {
-                                        return (
-                                          <span className='flex items-center gap-1 text-red-600'>
-                                            <span>▼</span>
-                                            <span>{formatted}</span>
-                                          </span>
-                                        );
-                                      }
-                                      return <span>{formatted}</span>;
-                                    })()}
-                                    <Button
-                                      variant='ghost'
-                                      size='sm'
-                                      className='h-6 w-6 p-0'
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRefreshBalance(
-                                          wallet.wallet_address
-                                        );
-                                      }}
-                                      disabled={
-                                        refreshingWallets.has(
-                                          wallet.wallet_address
-                                        ) || refreshingAll
-                                      }
-                                      title='Refresh balance - 1 API credit'
-                                    >
-                                      <RefreshCw
-                                        className={`h-3 w-3 ${refreshingWallets.has(wallet.wallet_address) ? 'animate-spin' : ''}`}
-                                      />
-                                    </Button>
-                                  </div>
-                                  <div className='text-muted-foreground text-[11px]'>
-                                    {formatWalletTimestamp(
-                                      wallet.wallet_balance_updated_at as
-                                        | string
-                                        | null
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className='text-right'>
-                                <div className='flex justify-end gap-2'>
-                                  <WalletTags
-                                    walletAddress={wallet.wallet_address}
-                                  />
-                                  <AdditionalTagsPopover
-                                    walletId={wallet.id}
-                                    walletAddress={wallet.wallet_address}
-                                  />
-                                  <a
-                                    href={buildSolscanUrl(
-                                      wallet.wallet_address,
-                                      solscanSettings
-                                    )}
-                                    target='_blank'
-                                    rel='noopener noreferrer'
-                                  >
-                                    <Button variant='outline' size='sm'>
-                                      <ExternalLink className='h-4 w-4' />
-                                    </Button>
-                                  </a>
-                                </div>
-                              </TableCell>
-                              <TableCell className='text-xs'>
-                                {formatTimestamp(wallet.first_buy_timestamp)}
-                              </TableCell>
-                              <TableCell className='text-right text-xs'>
-                                {wallet.total_usd
-                                  ? `$${Math.round(wallet.total_usd)}`
-                                  : 'N/A'}
-                              </TableCell>
-                              <TableCell className='text-center text-xs'>
-                                {wallet.transaction_count || 1}
-                              </TableCell>
-                              <TableCell className='text-right text-xs'>
-                                {wallet.average_buy_usd
-                                  ? `$${Math.round(wallet.average_buy_usd)}`
-                                  : 'N/A'}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                        {currentPaddingBottom > 0 && (
-                          <TableRow aria-hidden='true'>
-                            <TableCell
-                              colSpan={8}
-                              className='p-0'
-                              style={{ height: currentPaddingBottom }}
-                            />
-                          </TableRow>
-                        )}
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            {/* History Tab */}
-            <TabsContent value='history'>
-              {loadingHistory ? (
-                <div className='text-muted-foreground py-12 text-center'>
-                  Loading analysis history...
-                </div>
-              ) : !history || history.runs.length === 0 ? (
-                <div className='text-muted-foreground py-12 text-center'>
-                  No analysis history available
-                </div>
-              ) : (
-                <div className='mt-4 space-y-6'>
-                  {history.runs.map((run, runIndex) => {
-                    // Calculate cumulative wallet offset based on previous runs
-                    const walletOffset = history.runs
-                      .slice(runIndex + 1)
-                      .reduce((sum, prevRun) => sum + prevRun.wallets_found, 0);
-                    const startWallet = walletOffset + 1;
-                    const endWallet = walletOffset + run.wallets_found;
-                    const analysisNumber = history.runs.length - runIndex;
-
-                    return (
-                      <div key={run.id} className='rounded-lg border p-2'>
-                        <div className='mb-2 flex items-center justify-between'>
-                          <div>
-                            <h4 className='text-xs font-semibold'>
-                              Analysis #{analysisNumber} (Wallets {startWallet}-
-                              {endWallet})
-                              {runIndex === 0 && (
-                                <Badge
-                                  variant='secondary'
-                                  className='ml-1 text-[10px]'
-                                >
-                                  Latest
-                                </Badge>
-                              )}
-                            </h4>
-                            <p className='text-muted-foreground text-[10px]'>
-                              {formatTimestamp(run.analysis_timestamp)}
-                            </p>
-                          </div>
-                          <div className='text-right text-xs'>
-                            <div className='font-semibold'>
-                              {run.wallets_found} wallets
-                            </div>
-                            <div className='text-muted-foreground text-[10px]'>
-                              {run.credits_used} credits
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className='rounded-md border'>
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className='w-[60px]'>Rank</TableHead>
-                                <TableHead>Wallet Address</TableHead>
-                                <TableHead className='text-right'>
-                                  <div className='flex items-center justify-end gap-2'>
-                                    <span>Balance (USD)</span>
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant='ghost'
-                                            size='sm'
-                                            className='h-4 w-4 p-0'
-                                          >
-                                            <Info className='h-2.5 w-2.5' />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p className='text-xs'>
-                                            Refreshing a single wallet balance
-                                            costs 1 API credit
-                                          </p>
-                                          <p className='text-xs'>
-                                            Refreshing all {run.wallets.length}{' '}
-                                            wallet(s) costs {run.wallets.length}{' '}
-                                            API credits
-                                          </p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    <Button
-                                      variant='ghost'
-                                      size='sm'
-                                      className='h-5 w-5 p-0'
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRefreshAllBalances();
-                                      }}
-                                      disabled={refreshingAll}
-                                      title='Refresh all balances'
-                                    >
-                                      <RefreshCw
-                                        className={`h-2.5 w-2.5 ${refreshingAll ? 'animate-spin' : ''}`}
-                                      />
-                                    </Button>
-                                  </div>
-                                </TableHead>
-                                <TableHead className='text-right'>
-                                  Tags
-                                </TableHead>
-                                <TableHead>First Buy Time</TableHead>
-                                <TableHead className='text-right'>
-                                  Amount (USD)
-                                </TableHead>
-                                <TableHead className='text-center'>
-                                  Txns
-                                </TableHead>
-                                <TableHead className='text-right'>
-                                  Avg Buy
-                                </TableHead>
+                                </TableCell>
+                                <TableCell className='text-xs'>
+                                  {formatTimestamp(wallet.first_buy_timestamp)}
+                                </TableCell>
+                                <TableCell className='text-right text-xs'>
+                                  {wallet.total_usd
+                                    ? `$${Math.round(wallet.total_usd)}`
+                                    : 'N/A'}
+                                </TableCell>
+                                <TableCell className='text-center text-xs'>
+                                  {wallet.transaction_count || 1}
+                                </TableCell>
+                                <TableCell className='text-right text-xs'>
+                                  {wallet.average_buy_usd
+                                    ? `$${Math.round(wallet.average_buy_usd)}`
+                                    : 'N/A'}
+                                </TableCell>
                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {run.wallets.length === 0 ? (
-                                <TableRow>
-                                  <TableCell
-                                    colSpan={8}
-                                    className='text-muted-foreground py-8 text-center text-sm'
+                            );
+                          })}
+                          {currentPaddingBottom > 0 && (
+                            <TableRow aria-hidden='true'>
+                              <TableCell
+                                colSpan={8}
+                                className='p-0'
+                                style={{ height: currentPaddingBottom }}
+                              />
+                            </TableRow>
+                          )}
+                        </>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+
+              {/* History Tab */}
+              <TabsContent value='history'>
+                {loadingHistory ? (
+                  <div className='text-muted-foreground py-12 text-center'>
+                    Loading analysis history...
+                  </div>
+                ) : !history || history.runs.length === 0 ? (
+                  <div className='text-muted-foreground py-12 text-center'>
+                    No analysis history available
+                  </div>
+                ) : (
+                  <div className='mt-4 space-y-6'>
+                    {history.runs.map((run, runIndex) => {
+                      // Calculate cumulative wallet offset based on previous runs
+                      const walletOffset = history.runs
+                        .slice(runIndex + 1)
+                        .reduce(
+                          (sum, prevRun) => sum + prevRun.wallets_found,
+                          0
+                        );
+                      const startWallet = walletOffset + 1;
+                      const endWallet = walletOffset + run.wallets_found;
+                      const analysisNumber = history.runs.length - runIndex;
+
+                      return (
+                        <div key={run.id} className='rounded-lg border p-2'>
+                          <div className='mb-2 flex items-center justify-between'>
+                            <div>
+                              <h4 className='text-xs font-semibold'>
+                                Analysis #{analysisNumber} (Wallets{' '}
+                                {startWallet}-{endWallet})
+                                {runIndex === 0 && (
+                                  <Badge
+                                    variant='secondary'
+                                    className='ml-1 text-[10px]'
                                   >
-                                    No wallets in this run
-                                  </TableCell>
+                                    Latest
+                                  </Badge>
+                                )}
+                              </h4>
+                              <p className='text-muted-foreground text-[10px]'>
+                                {formatTimestamp(run.analysis_timestamp)}
+                              </p>
+                            </div>
+                            <div className='text-right text-xs'>
+                              <div className='font-semibold'>
+                                {run.wallets_found} wallets
+                              </div>
+                              <div className='text-muted-foreground text-[10px]'>
+                                {run.credits_used} credits
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className='rounded-md border'>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className='w-[60px]'>
+                                    Rank
+                                  </TableHead>
+                                  <TableHead>Wallet Address</TableHead>
+                                  <TableHead className='text-right'>
+                                    <div className='flex items-center justify-end gap-2'>
+                                      <span>Balance (USD)</span>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant='ghost'
+                                              size='sm'
+                                              className='h-4 w-4 p-0'
+                                            >
+                                              <Info className='h-2.5 w-2.5' />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className='text-xs'>
+                                              Refreshing a single wallet balance
+                                              costs 1 API credit
+                                            </p>
+                                            <p className='text-xs'>
+                                              Refreshing all{' '}
+                                              {run.wallets.length} wallet(s)
+                                              costs {run.wallets.length} API
+                                              credits
+                                            </p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                      <Button
+                                        variant='ghost'
+                                        size='sm'
+                                        className='h-5 w-5 p-0'
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRefreshAllBalances();
+                                        }}
+                                        disabled={refreshingAll}
+                                        title='Refresh all balances'
+                                      >
+                                        <RefreshCw
+                                          className={`h-2.5 w-2.5 ${refreshingAll ? 'animate-spin' : ''}`}
+                                        />
+                                      </Button>
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className='text-right'>
+                                    Tags
+                                  </TableHead>
+                                  <TableHead>First Buy Time</TableHead>
+                                  <TableHead className='text-right'>
+                                    Amount (USD)
+                                  </TableHead>
+                                  <TableHead className='text-center'>
+                                    Txns
+                                  </TableHead>
+                                  <TableHead className='text-right'>
+                                    Avg Buy
+                                  </TableHead>
                                 </TableRow>
-                              ) : (
-                                run.wallets.map((wallet, index) => (
-                                  <TableRow key={wallet.id}>
-                                    <TableCell className='text-primary text-[11px] font-semibold'>
-                                      #{walletOffset + index + 1}
+                              </TableHeader>
+                              <TableBody>
+                                {run.wallets.length === 0 ? (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={8}
+                                      className='text-muted-foreground py-8 text-center text-sm'
+                                    >
+                                      No wallets in this run
                                     </TableCell>
-                                    <TableCell className='font-mono text-[11px]'>
-                                      <div className='flex flex-col gap-0.5'>
-                                        <div className='flex items-center gap-1'>
-                                          {wallet.wallet_address}
-                                          <a
-                                            href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
-                                            target='_blank'
-                                            rel='noopener noreferrer'
-                                            title='Search on Twitter/X'
-                                          >
+                                  </TableRow>
+                                ) : (
+                                  run.wallets.map((wallet, index) => (
+                                    <TableRow key={wallet.id}>
+                                      <TableCell className='text-primary text-[11px] font-semibold'>
+                                        #{walletOffset + index + 1}
+                                      </TableCell>
+                                      <TableCell className='font-mono text-[11px]'>
+                                        <div className='flex flex-col gap-0.5'>
+                                          <div className='flex items-center gap-1'>
+                                            {wallet.wallet_address}
+                                            <a
+                                              href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
+                                              target='_blank'
+                                              rel='noopener noreferrer'
+                                              title='Search on Twitter/X'
+                                            >
+                                              <Button
+                                                variant='ghost'
+                                                size='sm'
+                                                className='h-5 w-5 p-0'
+                                              >
+                                                <Twitter className='h-2.5 w-2.5' />
+                                              </Button>
+                                            </a>
                                             <Button
                                               variant='ghost'
                                               size='sm'
                                               className='h-5 w-5 p-0'
+                                              onClick={() =>
+                                                copyAddress(
+                                                  wallet.wallet_address
+                                                )
+                                              }
                                             >
-                                              <Twitter className='h-2.5 w-2.5' />
+                                              <Copy className='h-2.5 w-2.5' />
                                             </Button>
-                                          </a>
+                                          </div>
+                                          <WalletTagLabels
+                                            walletAddress={
+                                              wallet.wallet_address
+                                            }
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className='text-right font-mono text-[11px]'>
+                                        <div className='flex flex-col items-end gap-1'>
+                                          <div className='flex items-center gap-1'>
+                                            {(() => {
+                                              const trend =
+                                                getWalletTrend(wallet);
+                                              const current =
+                                                wallet.wallet_balance_usd;
+                                              const formatted =
+                                                current !== null &&
+                                                current !== undefined
+                                                  ? `$${Math.round(current).toLocaleString()}`
+                                                  : 'N/A';
+                                              if (trend === 'up') {
+                                                return (
+                                                  <span className='flex items-center gap-1 text-green-600'>
+                                                    <span>▲</span>
+                                                    <span>{formatted}</span>
+                                                  </span>
+                                                );
+                                              }
+                                              if (trend === 'down') {
+                                                return (
+                                                  <span className='flex items-center gap-1 text-red-600'>
+                                                    <span>▼</span>
+                                                    <span>{formatted}</span>
+                                                  </span>
+                                                );
+                                              }
+                                              return <span>{formatted}</span>;
+                                            })()}
+                                          </div>
+                                          <div className='text-muted-foreground text-[10px]'>
+                                            {formatWalletTimestamp(
+                                              wallet.wallet_balance_updated_at as
+                                                | string
+                                                | null
+                                            )}
+                                          </div>
                                           <Button
                                             variant='ghost'
                                             size='sm'
                                             className='h-5 w-5 p-0'
-                                            onClick={() =>
-                                              copyAddress(wallet.wallet_address)
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleRefreshBalance(
+                                                wallet.wallet_address
+                                              );
+                                            }}
+                                            disabled={
+                                              refreshingWallets.has(
+                                                wallet.wallet_address
+                                              ) || refreshingAll
                                             }
+                                            title='Refresh balance - 1 API credit'
                                           >
-                                            <Copy className='h-2.5 w-2.5' />
+                                            <RefreshCw
+                                              className={`h-2.5 w-2.5 ${refreshingWallets.has(wallet.wallet_address) ? 'animate-spin' : ''}`}
+                                            />
                                           </Button>
                                         </div>
-                                        <WalletTagLabels
-                                          walletAddress={wallet.wallet_address}
-                                        />
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className='text-right font-mono text-[11px]'>
-                                      <div className='flex flex-col items-end gap-1'>
-                                        <div className='flex items-center gap-1'>
-                                          {(() => {
-                                            const trend =
-                                              getWalletTrend(wallet);
-                                            const current =
-                                              wallet.wallet_balance_usd;
-                                            const formatted =
-                                              current !== null &&
-                                              current !== undefined
-                                                ? `$${Math.round(current).toLocaleString()}`
-                                                : 'N/A';
-                                            if (trend === 'up') {
-                                              return (
-                                                <span className='flex items-center gap-1 text-green-600'>
-                                                  <span>▲</span>
-                                                  <span>{formatted}</span>
-                                                </span>
-                                              );
-                                            }
-                                            if (trend === 'down') {
-                                              return (
-                                                <span className='flex items-center gap-1 text-red-600'>
-                                                  <span>▼</span>
-                                                  <span>{formatted}</span>
-                                                </span>
-                                              );
-                                            }
-                                            return <span>{formatted}</span>;
-                                          })()}
-                                        </div>
-                                        <div className='text-muted-foreground text-[10px]'>
-                                          {formatWalletTimestamp(
-                                            wallet.wallet_balance_updated_at as
-                                              | string
-                                              | null
-                                          )}
-                                        </div>
-                                        <Button
-                                          variant='ghost'
-                                          size='sm'
-                                          className='h-5 w-5 p-0'
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleRefreshBalance(
+                                      </TableCell>
+                                      <TableCell className='text-right'>
+                                        <div className='flex justify-end gap-1'>
+                                          <WalletTags
+                                            walletAddress={
                                               wallet.wallet_address
-                                            );
-                                          }}
-                                          disabled={
-                                            refreshingWallets.has(
-                                              wallet.wallet_address
-                                            ) || refreshingAll
-                                          }
-                                          title='Refresh balance - 1 API credit'
-                                        >
-                                          <RefreshCw
-                                            className={`h-2.5 w-2.5 ${refreshingWallets.has(wallet.wallet_address) ? 'animate-spin' : ''}`}
+                                            }
                                           />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className='text-right'>
-                                      <div className='flex justify-end gap-1'>
-                                        <WalletTags
-                                          walletAddress={wallet.wallet_address}
-                                        />
-                                        <AdditionalTagsPopover
-                                          walletId={wallet.id}
-                                          walletAddress={wallet.wallet_address}
-                                          compact
-                                        />
-                                        <a
-                                          href={buildSolscanUrl(
-                                            wallet.wallet_address,
-                                            solscanSettings
-                                          )}
-                                          target='_blank'
-                                          rel='noopener noreferrer'
-                                        >
-                                          <Button variant='outline' size='sm'>
-                                            <ExternalLink className='h-3 w-3' />
-                                          </Button>
-                                        </a>
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className='text-[11px]'>
-                                      {formatTimestamp(
-                                        wallet.first_buy_timestamp
-                                      )}
-                                    </TableCell>
-                                    <TableCell className='text-right text-[11px]'>
-                                      {wallet.total_usd
-                                        ? `$${Math.round(wallet.total_usd)}`
-                                        : 'N/A'}
-                                    </TableCell>
-                                    <TableCell className='text-center text-[11px]'>
-                                      {wallet.transaction_count || 1}
-                                    </TableCell>
-                                    <TableCell className='text-right text-[11px]'>
-                                      {wallet.average_buy_usd
-                                        ? `$${Math.round(wallet.average_buy_usd)}`
-                                        : 'N/A'}
-                                    </TableCell>
-                                  </TableRow>
-                                ))
-                              )}
-                            </TableBody>
-                          </Table>
+                                          <AdditionalTagsPopover
+                                            walletId={wallet.id}
+                                            walletAddress={
+                                              wallet.wallet_address
+                                            }
+                                            compact
+                                          />
+                                          <a
+                                            href={buildSolscanUrl(
+                                              wallet.wallet_address,
+                                              solscanSettings
+                                            )}
+                                            target='_blank'
+                                            rel='noopener noreferrer'
+                                          >
+                                            <Button variant='outline' size='sm'>
+                                              <ExternalLink className='h-3 w-3' />
+                                            </Button>
+                                          </a>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className='text-[11px]'>
+                                        {formatTimestamp(
+                                          wallet.first_buy_timestamp
+                                        )}
+                                      </TableCell>
+                                      <TableCell className='text-right text-[11px]'>
+                                        {wallet.total_usd
+                                          ? `$${Math.round(wallet.total_usd)}`
+                                          : 'N/A'}
+                                      </TableCell>
+                                      <TableCell className='text-center text-[11px]'>
+                                        {wallet.transaction_count || 1}
+                                      </TableCell>
+                                      <TableCell className='text-right text-[11px]'>
+                                        {wallet.average_buy_usd
+                                          ? `$${Math.round(wallet.average_buy_usd)}`
+                                          : 'N/A'}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </WalletTagsProvider>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </WalletTagsProvider>
+        )}
+      </DialogContent>
     </Dialog>
   );
 }

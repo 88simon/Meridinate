@@ -11,7 +11,6 @@ import {
 import type { Row } from '@tanstack/react-table';
 import {
   Token,
-  TokenDetail,
   formatTimestamp,
   downloadAxiomJson,
   getTokenById,
@@ -76,15 +75,6 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useCodex } from '@/contexts/codex-context';
 import { cn } from '@/lib/utils';
-
-// Lazy-load the token details modal to reduce initial JS bundle size
-const TokenDetailsModal = dynamic(
-  () =>
-    import('./token-details-modal').then((mod) => ({
-      default: mod.TokenDetailsModal
-    })),
-  { ssr: false }
-);
 
 // Lazy-load the top holders modal to reduce initial JS bundle size
 const TopHoldersModal = dynamic(
@@ -904,18 +894,18 @@ interface TokensTableProps {
   onDelete?: (tokenId: number) => void;
   onGemStatusUpdate?: () => Promise<void>;
   onTokenDataRefresh?: () => void;
+  onViewDetails?: (tokenId: number) => void;
 }
 
 export function TokensTable({
   tokens,
   onDelete,
   onGemStatusUpdate,
-  onTokenDataRefresh
+  onTokenDataRefresh,
+  onViewDetails
 }: TokensTableProps) {
   const router = useRouter();
   const { isCodexOpen } = useCodex();
-  const [selectedToken, setSelectedToken] = useState<TokenDetail | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
   const [isCompactMode, setIsCompactMode] = useState(isCodexOpen);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<number>>(
@@ -1004,15 +994,13 @@ export function TokensTable({
     return undefined;
   }, []);
 
-  const handleViewDetails = async (id: number) => {
-    try {
-      const tokenDetails = await getTokenById(id);
-      setSelectedToken(tokenDetails);
-      setIsModalOpen(true);
-    } catch (error) {
-      alert('Failed to load token details. Please try again.');
-    }
-  };
+  // Delegate to parent - modal state is lifted to prevent table re-renders
+  const handleViewDetails = useCallback(
+    (id: number) => {
+      onViewDetails?.(id);
+    },
+    [onViewDetails]
+  );
 
   const handleDelete = async (id: number) => {
     // Optimistically update UI immediately
@@ -1650,13 +1638,6 @@ export function TokensTable({
           </Button>
         </div>
       </div>
-
-      {/* Token Details Modal */}
-      <TokenDetailsModal
-        token={selectedToken}
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
 
       {/* Top Holders Modal */}
       {selectedTokenForHolders && (

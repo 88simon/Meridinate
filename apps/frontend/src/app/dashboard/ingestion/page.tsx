@@ -381,7 +381,9 @@ export default function IngestionPage() {
                   <TooltipTrigger>
                     <Info className='h-3 w-3 text-gray-400/60' />
                   </TooltipTrigger>
-                  <TooltipContent>{tierConfig.discarded.tooltip}</TooltipContent>
+                  <TooltipContent>
+                    {tierConfig.discarded.tooltip}
+                  </TooltipContent>
                 </Tooltip>
               </CardTitle>
             </CardHeader>
@@ -477,7 +479,9 @@ export default function IngestionPage() {
                     <Tooltip key={tier}>
                       <TooltipTrigger asChild>
                         <Button
-                          variant={selectedTier === tier ? 'default' : 'outline'}
+                          variant={
+                            selectedTier === tier ? 'default' : 'outline'
+                          }
                           size='sm'
                           onClick={() => handleTierChange(tier)}
                         >
@@ -863,7 +867,9 @@ export default function IngestionPage() {
       {/* Sticky Bottom Status Bar */}
       <StatusBar
         tokensScanned={stats?.by_tier?.analyzed ?? 0}
-        latestAnalysis={statusBarData.latestAnalysis?.analysis_timestamp || null}
+        latestAnalysis={
+          statusBarData.latestAnalysis?.analysis_timestamp || null
+        }
         latestTokenName={statusBarData.latestAnalysis?.token_name || null}
         latestWalletsFound={statusBarData.latestAnalysis?.wallets_found ?? null}
         latestApiCredits={statusBarData.latestAnalysis?.credits_used ?? null}

@@ -26,9 +26,7 @@ interface StatusBarProps {
 
 // Format operation names to be more readable
 function formatOperation(operation: string): string {
-  return operation
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return operation.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Format timestamp to short time
@@ -81,11 +79,13 @@ export function StatusBar({
           {/* Total API Credits Today with Recent Credits Popover */}
           <Popover>
             <PopoverTrigger asChild>
-              <button className='flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent'>
+              <button className='hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-colors'>
                 <span className='text-muted-foreground text-xs font-medium'>
                   API Credits Today:
                 </span>
-                <span className='text-sm font-bold'>{totalApiCreditsToday}</span>
+                <span className='text-sm font-bold'>
+                  {totalApiCreditsToday}
+                </span>
                 {recentCredits.length > 0 && (
                   <ChevronUp className='text-muted-foreground h-3 w-3' />
                 )}
@@ -157,7 +157,9 @@ export function StatusBar({
             <div className='flex flex-col'>
               {latestAnalysis && latestTokenName ? (
                 <>
-                  <span className='text-xs font-semibold'>{latestTokenName}</span>
+                  <span className='text-xs font-semibold'>
+                    {latestTokenName}
+                  </span>
                   <div className='text-muted-foreground flex gap-2 text-[10px]'>
                     <span>
                       {new Date(
