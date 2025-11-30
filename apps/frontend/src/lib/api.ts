@@ -10,6 +10,43 @@ import { components } from './generated/api-types';
 export const API_BASE_URL = 'http://localhost:5003';
 
 // ============================================================================
+// Fetch with Timeout Utility
+// ============================================================================
+
+/**
+ * Fetch with timeout support.
+ * Prevents requests from hanging indefinitely during long-running backend operations.
+ *
+ * @param url - The URL to fetch
+ * @param options - Fetch options
+ * @param timeoutMs - Timeout in milliseconds (default: 5000ms)
+ * @returns Promise that resolves to Response or rejects on timeout
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 5000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ============================================================================
 // Type Exports (from generated schemas)
 // ============================================================================
 

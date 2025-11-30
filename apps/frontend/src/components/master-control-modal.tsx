@@ -55,8 +55,12 @@ import {
   reconcileAllPositions,
   SwabSettings,
   SwabStats,
-  API_BASE_URL
+  API_BASE_URL,
+  fetchWithTimeout
 } from '@/lib/api';
+
+// Settings modal timeout - shorter than default to fail fast during ingestion
+const SETTINGS_FETCH_TIMEOUT = 3000;
 
 interface ApiSettings {
   transactionLimit: number;
@@ -218,12 +222,33 @@ function ScanningTab({
   const [solscanSettings, setSolscanSettings] =
     useState<SolscanSettings | null>(null);
   const [loadingSolscan, setLoadingSolscan] = useState(true);
+  const [solscanError, setSolscanError] = useState<string | null>(null);
+
+  const loadSolscanSettings = async () => {
+    setLoadingSolscan(true);
+    setSolscanError(null);
+    try {
+      const res = await fetchWithTimeout(
+        `${API_BASE_URL}/api/solscan/settings`,
+        { cache: 'no-store' },
+        SETTINGS_FETCH_TIMEOUT
+      );
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      setSolscanSettings(data);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.includes('timeout')
+          ? 'Backend busy. Retry shortly.'
+          : 'Failed to load';
+      setSolscanError(message);
+    } finally {
+      setLoadingSolscan(false);
+    }
+  };
 
   useEffect(() => {
-    getSolscanSettings()
-      .then(setSolscanSettings)
-      .catch(() => {})
-      .finally(() => setLoadingSolscan(false));
+    loadSolscanSettings();
   }, []);
 
   const updateSolscan = async (updates: Partial<SolscanSettings>) => {
@@ -372,6 +397,20 @@ function ScanningTab({
           <div className='flex items-center justify-center py-4'>
             <Loader2 className='h-4 w-4 animate-spin' />
           </div>
+        ) : solscanError ? (
+          <div className='flex items-center justify-center gap-2 py-4'>
+            <span className='text-muted-foreground text-xs'>
+              {solscanError}
+            </span>
+            <Button
+              variant='ghost'
+              size='sm'
+              className='h-6 px-2'
+              onClick={loadSolscanSettings}
+            >
+              <RefreshCw className='h-3 w-3' />
+            </Button>
+          </div>
         ) : solscanSettings ? (
           <div className='grid grid-cols-2 gap-4'>
             <div className='space-y-1'>
@@ -443,12 +482,33 @@ function ScanningTab({
 function IngestionTab() {
   const [settings, setSettings] = useState<IngestSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSettings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchWithTimeout(
+        `${API_BASE_URL}/api/ingest/settings`,
+        { cache: 'no-store' },
+        SETTINGS_FETCH_TIMEOUT
+      );
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      setSettings(data);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.includes('timeout')
+          ? 'Backend busy (ingestion running). Try again shortly.'
+          : 'Failed to load settings';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    getIngestSettings()
-      .then(setSettings)
-      .catch(() => toast.error('Failed to load ingest settings'))
-      .finally(() => setLoading(false));
+    loadSettings();
   }, []);
 
   const updateSetting = async (updates: Partial<IngestSettings>) => {
@@ -471,11 +531,18 @@ function IngestionTab() {
     );
   }
 
-  if (!settings) {
+  if (error || !settings) {
     return (
-      <p className='text-muted-foreground text-xs'>
-        Failed to load ingest settings
-      </p>
+      <div className='flex flex-col items-center justify-center gap-3 py-8'>
+        <AlertTriangle className='h-8 w-8 text-yellow-500' />
+        <p className='text-muted-foreground text-sm'>
+          {error || 'Failed to load ingest settings'}
+        </p>
+        <Button variant='outline' size='sm' onClick={loadSettings}>
+          <RefreshCw className='mr-2 h-3 w-3' />
+          Retry
+        </Button>
+      </div>
     );
   }
 
@@ -646,6 +713,7 @@ function SwabTab() {
     next_check_at: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [runningCheck, setRunningCheck] = useState(false);
   const [runningPnl, setRunningPnl] = useState(false);
   const [runningReconcile, setRunningReconcile] = useState(false);
@@ -654,17 +722,45 @@ function SwabTab() {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
+      // Fetch with timeouts to prevent hanging during ingestion
+      const [settingsRes, statsRes, schedulerRes] = await Promise.all([
+        fetchWithTimeout(
+          `${API_BASE_URL}/api/swab/settings`,
+          { cache: 'no-store' },
+          SETTINGS_FETCH_TIMEOUT
+        ),
+        fetchWithTimeout(
+          `${API_BASE_URL}/api/swab/stats`,
+          { cache: 'no-store' },
+          SETTINGS_FETCH_TIMEOUT
+        ),
+        fetchWithTimeout(
+          `${API_BASE_URL}/api/swab/scheduler-status`,
+          { cache: 'no-store' },
+          SETTINGS_FETCH_TIMEOUT
+        )
+      ]);
+
+      if (!settingsRes.ok || !statsRes.ok || !schedulerRes.ok) {
+        throw new Error('Failed to fetch');
+      }
+
       const [s, st, sc] = await Promise.all([
-        getSwabSettings(),
-        getSwabStats(),
-        getSwabSchedulerStatus()
+        settingsRes.json(),
+        statsRes.json(),
+        schedulerRes.json()
       ]);
       setSettings(s);
       setStats(st);
       setSchedulerStatus(sc);
-    } catch {
-      toast.error('Failed to load SWAB data');
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.includes('timeout')
+          ? 'Backend busy (ingestion running). Try again shortly.'
+          : 'Failed to load SWAB data';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -742,6 +838,19 @@ function SwabTab() {
     return (
       <div className='flex items-center justify-center py-8'>
         <Loader2 className='h-5 w-5 animate-spin' />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='flex flex-col items-center justify-center gap-3 py-8'>
+        <AlertTriangle className='h-8 w-8 text-yellow-500' />
+        <p className='text-muted-foreground text-sm'>{error}</p>
+        <Button variant='outline' size='sm' onClick={loadData}>
+          <RefreshCw className='mr-2 h-3 w-3' />
+          Retry
+        </Button>
       </div>
     );
   }
@@ -947,19 +1056,31 @@ function SwabTab() {
 function WebhooksTab() {
   const [webhooks, setWebhooks] = useState<WebhookInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchWebhooks = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/webhooks/list`);
+      const res = await fetchWithTimeout(
+        `${API_BASE_URL}/webhooks/list`,
+        { cache: 'no-store' },
+        SETTINGS_FETCH_TIMEOUT
+      );
       if (res.ok) {
         const data = await res.json();
         setWebhooks(data.webhooks || []);
+      } else {
+        throw new Error('Failed to fetch');
       }
-    } catch {
-      toast.error('Failed to load webhooks');
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.includes('timeout')
+          ? 'Backend busy (ingestion running). Try again shortly.'
+          : 'Failed to load webhooks';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -1052,6 +1173,15 @@ function WebhooksTab() {
         <div className='flex items-center justify-center py-8'>
           <Loader2 className='h-5 w-5 animate-spin' />
         </div>
+      ) : error ? (
+        <div className='flex flex-col items-center justify-center gap-3 py-8'>
+          <AlertTriangle className='h-8 w-8 text-yellow-500' />
+          <p className='text-muted-foreground text-sm'>{error}</p>
+          <Button variant='outline' size='sm' onClick={fetchWebhooks}>
+            <RefreshCw className='mr-2 h-3 w-3' />
+            Retry
+          </Button>
+        </div>
       ) : webhooks.length === 0 ? (
         <div className='bg-muted/50 rounded-lg border border-dashed p-6 text-center'>
           <Webhook className='text-muted-foreground mx-auto mb-2 h-8 w-8' />
@@ -1119,16 +1249,49 @@ function SystemTab() {
   const [bannerPrefs, setBannerPrefs] =
     useState<BannerPrefs>(defaultBannerPrefs);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    setBannerPrefs(loadBannerPrefs());
+    try {
+      const [ingestRes, swabRes] = await Promise.all([
+        fetchWithTimeout(
+          `${API_BASE_URL}/api/ingest/settings`,
+          { cache: 'no-store' },
+          SETTINGS_FETCH_TIMEOUT
+        ),
+        fetchWithTimeout(
+          `${API_BASE_URL}/api/swab/settings`,
+          { cache: 'no-store' },
+          SETTINGS_FETCH_TIMEOUT
+        )
+      ]);
+
+      if (!ingestRes.ok || !swabRes.ok) {
+        throw new Error('Failed to fetch');
+      }
+
+      const [ingest, swab] = await Promise.all([
+        ingestRes.json(),
+        swabRes.json()
+      ]);
+      setIngestSettings(ingest);
+      setSwabSettings(swab);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.includes('timeout')
+          ? 'Backend busy (ingestion running). Try again shortly.'
+          : 'Failed to load settings';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setBannerPrefs(loadBannerPrefs());
-    Promise.all([getIngestSettings(), getSwabSettings()])
-      .then(([ingest, swab]) => {
-        setIngestSettings(ingest);
-        setSwabSettings(swab);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    loadData();
   }, []);
 
   const toggleIngestFlag = async (
@@ -1170,6 +1333,19 @@ function SystemTab() {
     return (
       <div className='flex items-center justify-center py-8'>
         <Loader2 className='h-5 w-5 animate-spin' />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='flex flex-col items-center justify-center gap-3 py-8'>
+        <AlertTriangle className='h-8 w-8 text-yellow-500' />
+        <p className='text-muted-foreground text-sm'>{error}</p>
+        <Button variant='outline' size='sm' onClick={loadData}>
+          <RefreshCw className='mr-2 h-3 w-3' />
+          Retry
+        </Button>
       </div>
     );
   }
