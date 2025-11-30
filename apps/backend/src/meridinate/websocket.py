@@ -137,3 +137,27 @@ async def notify_analysis_complete(
     }
     await mgr.broadcast(message)
     logger.info(f"[Notify] Analysis complete: {token_name} ({wallets_found} wallets)")
+
+
+async def notify_credits_updated(operation: str, credits: int, total_today: int):
+    """
+    Send credits updated notification to all connected clients.
+
+    Used by the status bar to update live credit usage display.
+
+    Args:
+        operation: The operation that consumed credits
+        credits: Number of credits consumed
+        total_today: Total credits used today after this operation
+    """
+    mgr = get_connection_manager()
+    message = {
+        "event": "credits_updated",
+        "data": {
+            "operation": operation,
+            "credits": credits,
+            "total_today": total_today,
+        },
+    }
+    await mgr.broadcast(message)
+    logger.debug(f"[Notify] Credits updated: {operation} ({credits} credits, total: {total_today})")

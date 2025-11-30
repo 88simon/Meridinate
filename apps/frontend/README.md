@@ -6,198 +6,29 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 
-Modern Next.js web dashboard for Meridinate - Solana token analysis and wallet monitoring platform.
+Modern Next.js dashboard for Meridinate – Solana token analysis and wallet monitoring.
 
 ## Overview
 
-Production-ready React application built with modern web technologies:
-
-- **Framework:** [Next.js 15](https://nextjs.org/15) with App Router and Turbopack
-- **Language:** [TypeScript 5.7](https://www.typescriptlang.org) with strict type checking
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com)
-- **Components:** [shadcn/ui](https://ui.shadcn.com) - accessible, customizable components
-- **Data Tables:** [TanStack Table v8](https://tanstack.com/table/latest) with advanced filtering
-- **State Management:** React hooks + Context API
-- **Real-time:** WebSocket integration for live updates
-- **Linting:** [ESLint](https://eslint.org) with TypeScript rules
-- **Formatting:** [Prettier](https://prettier.io)
+Production-ready React app:
+- Next.js 15 (App Router, Turbopack) + TypeScript 5.7
+- Tailwind CSS 4 + shadcn/ui
+- TanStack Table v8 for data grids
+- React hooks/Context, WebSockets for live updates
+- ESLint + Prettier
 
 ## Features
 
-### Token Analysis Dashboard
-
-- **Comprehensive Token View** - List all analyzed tokens with detailed metrics
-- **Historical Analysis** - View past analysis runs with wallet breakdowns
-- **Trash Management** - Soft-delete tokens with restore/permanent delete options
-- **Advanced Filtering** - Filter by name, symbol, date, market cap, wallet count
-- **Sorting & Pagination** - Sort by any column, adjustable page sizes
-
-### Market Cap Tracking
-
-- **Dual Market Cap Display** - Original (at analysis time) + current (refreshed) values
-- **Individual Refresh** - Per-row refresh icons for single token updates
-- **Bulk Refresh** - Update all visible or selected tokens at once
-- **Instant UI Updates** - Optimistic updates without page reload
-- **Change Indicators** - Color-coded arrows (green ▲ increase, red ▼ decrease)
-- **Timestamps** - Shows when market cap was last refreshed
-- **Dual-source Strategy** - DexScreener (free) with Helius fallback
-
-### Wallet Balance Tracking
-
-- **Real-time SOL Balances** - Accurate USD values with live SOL pricing
-- **Column Header Refresh** - Bulk balance updates for all visible wallets
-- **Per-row Refresh** - Individual wallet balance updates
-- **API Credit Tooltips** - Shows cost of each operation
-- **Instant UI Updates** - No page reload required
-- **CoinGecko Integration** - Real-time SOL/USD pricing (5-min cache)
-
-### Multi-Token Early Wallets
-
-- **NEW Badge Indicators** - Visual markers for recently added wallets and tokens
-  - Green "NEW" badge on wallet addresses that just crossed the 2-token threshold
-  - Green "NEW" badge inside token name boxes for tokens that caused multi-token status
-  - Badges persist until next analysis completes
-  - Backend tracking via multi_token_wallet_metadata table
-- **Unified Filter System** - Comprehensive filtering with multiple categories
-  - Wallet Tags - Filter by Bot, Whale, Insider, Gunslinger, Gambler
-  - Token Status - Has GEMs, Has DUDs, Has untagged, All GEMs, All DUDs
-  - Balance Range - Min/Max USD with quick presets (>$1k, >$10k, >$100k)
-  - Token Count Range - Min/Max tokens with quick presets (2+, 5+, 10+)
-  - Top Holder Status - Is top holder checkbox
-  - OR logic within categories, AND logic across categories
-  - Active filter chips with individual remove buttons
-  - Badge counter shows number of active filters
-  - Persists to localStorage and URL for shareable filtered views
-- **Smart Search** - Advanced search with prefix support and fuzzy matching
-  - Prefix-based precision: token:Ant, tag:bot, wallet:5e8S, gem/dud
-  - General search (no prefix) searches all fields simultaneously
-  - Fuzzy matching with 70% similarity threshold for typo tolerance
-  - Multiple terms supported (e.g., gem token:Ant)
-  - Info icon with popover documentation guide
-  - Clear button (X) when text is present
-  - Persists to localStorage and URL parameters
-- **Sortable Columns** - Click any column header to sort data
-  - Wallet Address - Sort by NEW status first, then alphabetically
-  - Balance (USD) - Sort by wallet balance amount (ascending/descending)
-  - Tokens - Sort by token count (number of tokens wallet appears in)
-  - Token Names - Sort by whether wallet has a NEW token
-  - Infinite toggle between ascending/descending
-  - Sorting persists across collapsed/expanded modes
-  - Works seamlessly with virtualized rendering
-- **Compressed Layout** - Optimized for vertical space efficiency
-  - 40-50% vertical space savings per row
-  - Fixed column widths prevent drift (320px address, 220px balance, 140px tags, 80px tokens, auto token names)
-  - Refresh balance button positioned left of balance values for horizontal layout
-  - Reduced padding, margins, and text sizes throughout
-  - Table minimum width: 1000px with horizontal scroll
-- **Expanded Mode Virtualization** - Smooth scrolling with 100+ wallets
-- **Balance Tracking** - Real-time SOL balance updates with trend indicators
-
-### Tags & Codex
-
-- **Wallet Tagging** - Custom tags + nationality tags (US, CN, KR, JP, EU, UK, SG, IN, RU, BR, CA, AU)
-- **Additional Tags** - Bot, Whale, Insider, Gunslinger, Gambler (quick-access popover)
-- **Codex Panel** - Wallet directory with token counts (excludes deleted tokens)
-- **Tag Filtering** - Filter tokens by wallet tags
-- **KOL Marking** - Flag Key Opinion Leaders for special tracking
-
-### Token Classification
-
-- **GEM/DUD Tagging** - Fire-and-forget classification system for tokens
-- **Quick Toggle Buttons** - Click to mark tokens as "gem" or "dud", click again to clear
-- **Instant UI Updates** - Optimistic rendering with no version conflicts
-- **Multi-location Display**:
-  - GEM/DUD badges next to token names in token table
-  - Classification buttons in market cap column for quick access
-  - Badges shown inline with token names in Multi-Token Early Wallets section
-- **Tag Architecture** - Uses same simple pattern as wallet tags (no optimistic locking)
-- **Automatic Sync** - Changes reflected in both Token Table and Multi-Token Early Wallets section
-
-### Top 10 Token Holders
-
-- **Instant Modal Display** - Opens immediately with cached data (no loading)
-- **Automatic Fetching** - Runs during token analysis and stores in database
-- **Wallet Details** - Shows token balance in USD and total wallet balance
-- **Interactive Elements**:
-  - Clickable wallet addresses with Solscan filters applied
-  - Twitter search icon for each wallet
-  - Copy to clipboard button
-- **Manual Refresh** - Bottom-center button to update data (11-21 API credits)
-- **Last Updated Timestamp** - Shows relative time (e.g., "2h 15m ago")
-- **On-Curve Filtering** - Only displays real wallet addresses (excludes PDAs)
-
-### External Token Explorer
-
-- **GMGN.ai Integration** - Direct links from token addresses and names to GMGN.ai
-- **Pre-filtered Views** - URLs include `?min=0.1&isInputValue=true` for consistent filtering
-- **Multiple Entry Points:**
-  - Token table address column (clickable token addresses)
-  - Multi-Token Early Wallets section (clickable token names)
-  - Token detail modal "View on GMGN" link
-  - Token detail page "View on GMGN" link
-
-### Status Bar
-
-- **Real-time Metrics** - Bottom sticky bar with key performance indicators
-- **Tokens Scanned** - Total count with filtered view indicator
-- **API Credits Tracking** - Total API credits used today
-- **Latest Analysis Details:**
-  - Token name of most recent analysis
-  - Timestamp of analysis completion
-  - Number of wallets found
-  - API credits consumed
-- **Responsive Design** - Adapts to mobile/desktop viewports
-
-### Real-time WebSocket Notifications
-
-- **Analysis Completion** - Live notifications when token analysis finishes
-- **Toast Notifications** - User-friendly alerts with token details
-- **Smart Connection Management:**
-  - Single WebSocket connection per tab (singleton pattern)
-  - Auto-cleanup after 30s of tab inactivity
-  - Smart reconnection only when tab is visible
-  - Linear backoff (3s, 6s, 9s, 12s, 15s intervals, max 30s)
-  - Max 5 retry attempts with user notification
-  - Page Visibility API integration
-  - Prevents browser resource exhaustion
-
-### Solscan Settings Management
-
-- **Centralized Control Panel** - Configure Solscan URL parameters from sidebar settings
-- **Activity Type Dropdown** - Transfer, Mint, Burn, Create Account, Close Account, Set Authority, Split Stake, Merge Stake, Withdraw Stake, Vote Withdraw
-- **Minimum Value Filter** - Arrow controls and drag-to-adjust (0-1000 USD)
-- **Token Address Filter** - SOL or any SPL token address (defaults to SOL)
-- **Exclude Amount Zero** - Toggle to hide zero-amount transactions
-- **Remove Spam** - Toggle to hide spam transactions
-- **Page Size Selection** - 10, 20, 30, 40, 60, 100 results per page
-- **Auto-save** - Settings persist after 300ms of changes
-- **Dynamic URL Generation** - Centralized `buildSolscanUrl()` keeps Solscan’s required parameter order (`token_address` before `value`, second `value=undefined`)
-- **Shared Settings File** - Stored in `apps/backend/action_wheel_settings.ini`, auto-synced with the AutoHotkey action wheel (reload script after web UI changes)
-- **Backward Compatible** - Automatically migrates old `ACTIVITY_SOL_TRANSFER` settings
-
-### UI & Branding
-
-- Reusable `MeridinateLogo` SVG supports light/dark themes and any size via `className`
-- Header keeps the logo + “Blockchain Intelligence Desk” tagline visible even when the sidebar collapses
-- Sidebar toggle lives inside the menu with concise Overview (Dashboard/Tokens/Trash) and Tools (Codex/Settings) groupings
-
-### API Settings
-
-- **Wallet Count Configuration** - No artificial limits
-  - Minimum value: 5 wallets
-  - No maximum cap (previously limited to 50)
-  - Arrow buttons for quick adjustments
-  - Manual input for precise control
-- **API Credit Tracking** - Calculations scale with wallet count
-- **Flexible Analysis** - Support for large-scale token analysis
-
-### Performance Optimizations
-
-- **CSS Transitions** - All UI animations now rely on native transitions (Framer Motion packages stay only for future experiments)
-- **Memoization** - Heavy table cells memoized to prevent unnecessary re-renders
-- **Deferred State Updates** - Selection updates batched for smooth UX
-- **Optimistic Updates** - Instant UI feedback for user actions
-- **Code Splitting** - Route-based code splitting with Next.js
+Highlights (not exhaustive):
+- Token dashboard with filtering, search, sorting, pagination.
+- Market cap tracking (per-token and bulk refresh) with timestamps.
+- Wallet balance tracking with trend indicators.
+- Multi-Token Early Wallets: filters, smart search, sortable columns, compact layout, virtualization.
+- Tagging (wallet tags, additional tags), GEM/DUD classification.
+- Top holders modal + multi-token top-holder badge.
+- SWAB tab for PnL/positions with webhook/reconciliation pipeline.
+- Status bar with live credit tracking, recent events popover, polling + focus revalidation.
+- Solscan settings synced with shared INI for AHK action wheel.
 - **Batch API Endpoints** - Top holder badge counts use single batch request instead of N individual calls (98% bandwidth reduction)
 - **Client-Side Refetch** - Replace router.refresh() with callbacks for instant updates without full page reload
 
@@ -271,6 +102,7 @@ apps/frontend/
 │   │   └── utils.ts            # Shared utilities
 │   ├── hooks/                  # Custom React hooks
 │   │   ├── useAnalysisNotifications.ts  # WebSocket hook
+│   │   ├── useStatusBarData.ts # Status bar polling + focus revalidation
 │   │   └── ...                 # Other hooks
 │   ├── types/                  # TypeScript types
 │   ├── contexts/               # React contexts

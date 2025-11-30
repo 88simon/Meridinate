@@ -708,6 +708,66 @@ export async function getCreditStatsRange(
   return res.json();
 }
 
+/**
+ * Credit transaction for recent credits list
+ */
+export interface CreditTransaction {
+  id: number;
+  operation: string;
+  credits: number;
+  timestamp: string | null;
+  token_id: number | null;
+  wallet_address: string | null;
+  context: Record<string, unknown> | null;
+}
+
+/**
+ * Get recent credit transactions
+ */
+export async function getCreditTransactions(
+  limit: number = 5
+): Promise<{ transactions: CreditTransaction[]; total: number }> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/stats/credits/transactions?limit=${limit}`,
+    {
+      cache: 'no-store'
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch credit transactions');
+  }
+
+  return res.json();
+}
+
+/**
+ * Latest token response type
+ */
+export interface LatestToken {
+  token_id: number | null;
+  token_name: string | null;
+  token_symbol: string | null;
+  analysis_timestamp: string | null;
+  wallets_found: number | null;
+  credits_used: number | null;
+}
+
+/**
+ * Get the most recently analyzed token
+ */
+export async function getLatestToken(): Promise<LatestToken> {
+  const res = await fetch(`${API_BASE_URL}/api/tokens/latest`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch latest token');
+  }
+
+  return res.json();
+}
+
 // ============================================================================
 // SWAB (Smart Wallet Archive Builder) API Functions
 // ============================================================================
@@ -763,7 +823,9 @@ export async function updateSwabSettings(settings: {
   });
 
   if (!res.ok) {
-    throw new Error('Failed to update SWAB settings');
+    const errorText = await res.text();
+    console.error('SWAB settings update failed:', res.status, errorText);
+    throw new Error(`Failed to update SWAB settings: ${res.status} - ${errorText}`);
   }
 
   return res.json();
@@ -1095,9 +1157,14 @@ export interface IngestSettings {
   ingest_enabled: boolean;
   enrich_enabled: boolean;
   auto_promote_enabled: boolean;
+  hot_refresh_enabled: boolean;
+  auto_promote_max_per_run: number;
+  hot_refresh_age_hours: number;
+  hot_refresh_max_tokens: number;
   last_tier0_run_at: string | null;
   last_tier1_run_at: string | null;
   last_tier1_credits_used: number;
+  last_hot_refresh_at: string | null;
 }
 
 export interface IngestQueueEntry {

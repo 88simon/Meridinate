@@ -84,6 +84,8 @@ C:\Meridinate\
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
 - ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
 - ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated tiered token discovery: Tier-0 (DexScreener, free), Tier-1 (Helius enrichment, budgeted), promotion to full analysis. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
+- ✅ **Master Control Modal (Nov 2025)** - Replaced generic "Settings" with 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Unified control center accessible from sidebar.
+- ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent credit events (operation, credits, timestamp), new `/api/tokens/latest` endpoint for efficient latest-analysis lookup. Status bar now displayed on both Tokens and Ingestion pages.
 
 ---
 
@@ -180,7 +182,8 @@ C:\Meridinate\                                    # PROJECT ROOT
 │       │   │   │   └── api-types.ts              # Auto-generated TypeScript types from OpenAPI
 │       │   │   └── debug.ts                      # Debug utilities
 │       │   ├── hooks/                            # React custom hooks
-│       │   │   └── useAnalysisNotifications.ts   # WebSocket notifications hook
+│       │   │   ├── useAnalysisNotifications.ts   # WebSocket notifications hook
+│       │   │   └── useStatusBarData.ts           # Status bar data with polling + focus revalidation
 │       │   ├── contexts/                         # React Context providers
 │       │   │   └── WalletTagsContext.tsx         # Wallet tags state management
 │       │   ├── types/                            # TypeScript type definitions
@@ -246,10 +249,12 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` | Token detail page | Shows per-wallet balance trend/timestamp, links to GMGN.ai |
 | `apps/frontend/src/app/dashboard/tokens/top-holders-modal.tsx` | Top holders modal | Shows top N holders for a single token with dynamic title |
 | `apps/frontend/src/app/dashboard/tokens/wallet-top-holders-modal.tsx` | Wallet top holders modal | Tabbed modal showing all tokens where a wallet is a top holder |
-| `apps/frontend/src/components/status-bar.tsx` | Bottom status bar | Displays tokens scanned, API credits, latest analysis with detailed metrics |
+| `apps/frontend/src/components/status-bar.tsx` | Bottom status bar | Live credit tracking with popover for recent events, polls + focus revalidation |
+| `apps/frontend/src/hooks/useStatusBarData.ts` | Status bar data hook | Fetches credit stats, transactions, latest token with polling and focus revalidation |
 | `apps/frontend/src/components/meridinate-logo.tsx` | MeridinateLogo component | Reusable SVG logo with light/dark variants |
 | `apps/frontend/src/components/layout/header.tsx` | Main header | Contains logo, branding, navigation, user controls |
-| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with toggle, navigation items, Codex/Settings |
+| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with toggle, navigation items, Codex/Master Control |
+| `apps/frontend/src/components/master-control-modal.tsx` | Master Control modal | 5-tab settings hub: Scanning, Ingestion, SWAB, Webhooks, System |
 | `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend), uses venv Python explicitly |
 | `scripts/start-backend.bat` | Backend launcher | Starts backend only, uses venv Python explicitly (line 60) |
 | `scripts/start-debug.bat` | Diagnostic tool | Troubleshooting startup issues |
@@ -1029,6 +1034,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.1
-**Last Updated:** November 28, 2025 (Token Ingestion Pipeline with tiered discovery and auto-promotion)
+**Document Version:** 2.2
+**Last Updated:** November 28, 2025 (Master Control modal with 5-tab settings hub)
 **Next Review:** After production deployment

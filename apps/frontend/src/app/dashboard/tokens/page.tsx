@@ -19,10 +19,9 @@ import {
   getSolscanSettings,
   buildSolscanUrl,
   SolscanSettings,
-  API_BASE_URL,
-  getCreditStatsToday,
-  CreditUsageStats
+  API_BASE_URL
 } from '@/lib/api';
+import { useStatusBarData } from '@/hooks/useStatusBarData';
 import { shouldLog } from '@/lib/debug';
 import { TokensTable } from './tokens-table';
 import { Button } from '@/components/ui/button';
@@ -150,11 +149,29 @@ const WalletTopHoldersModal = dynamic(
   { ssr: false }
 );
 
+// Lazy load the token details modal (lifted from TokensTable to prevent table re-renders)
+const TokenDetailsModal = dynamic(
+  () =>
+    import('./token-details-modal').then((mod) => ({
+      default: mod.TokenDetailsModal
+    })),
+  { ssr: false }
+);
+
 // Lazy load SWAB tab component
 const SwabTab = dynamic(
   () =>
     import('@/components/swab').then((mod) => ({
       default: mod.SwabTab
+    })),
+  { ssr: false }
+);
+
+// Lazy load ingest banner
+const IngestBanner = dynamic(
+  () =>
+    import('@/components/ingest-banner').then((mod) => ({
+      default: mod.IngestBanner
     })),
   { ssr: false }
 );
@@ -859,8 +876,17 @@ export default function TokensPage() {
   // Active tab for MTEW/SWAB tabbed interface
   const [activeTab, setActiveTab] = useState<'mtew' | 'swab'>('mtew');
 
-  // Credit stats state for live tracking
-  const [creditStats, setCreditStats] = useState<CreditUsageStats | null>(null);
+  // Status bar data with live credit tracking (poll + focus revalidation)
+  const statusBarData = useStatusBarData({
+    tokensScanned: data?.tokens?.length ?? 0,
+    pollInterval: 30000
+  });
+
+  // Token details modal state (lifted from TokensTable to prevent table re-renders)
+  const [tokenDetailsModalId, setTokenDetailsModalId] = useState<number | null>(
+    null
+  );
+  const [isTokenDetailsModalOpen, setIsTokenDetailsModalOpen] = useState(false);
 
   // Track latest refetch request to prevent race conditions
   const latestRefetchId = useRef(0);
@@ -925,6 +951,18 @@ export default function TokensPage() {
       });
     }
   };
+
+  // Handler for viewing token details - opens modal without re-rendering table
+  const handleViewTokenDetails = useCallback((tokenId: number) => {
+    setTokenDetailsModalId(tokenId);
+    setIsTokenDetailsModalOpen(true);
+  }, []);
+
+  // Handler for closing token details modal
+  const handleCloseTokenDetailsModal = useCallback(() => {
+    setIsTokenDetailsModalOpen(false);
+    setTokenDetailsModalId(null);
+  }, []);
 
   // Scroll to top function for Multi-Token Early Wallets section
   const scrollToTop = useCallback(() => {
@@ -1002,25 +1040,7 @@ export default function TokensPage() {
     };
   }, [fetchData]);
 
-  // Fetch credit stats on mount and periodically refresh (every 30s)
-  useEffect(() => {
-    const fetchCreditStats = async () => {
-      try {
-        const stats = await getCreditStatsToday();
-        setCreditStats(stats);
-      } catch {
-        // Silently fail - status bar will fall back to token-based calculation
-      }
-    };
-
-    // Initial fetch
-    fetchCreditStats();
-
-    // Refresh every 30 seconds
-    const creditInterval = setInterval(fetchCreditStats, 30000);
-
-    return () => clearInterval(creditInterval);
-  }, []);
+  // Credit stats now handled by useStatusBarData hook
 
   // Poll for active analysis jobs and auto-refresh when they complete
   // Tab visibility-aware: pause polling when tab is hidden
@@ -2050,6 +2070,9 @@ export default function TokensPage() {
           </Button>
         </div>
 
+        {/* Ingest Banner - shows enriched tokens count */}
+        <IngestBanner />
+
         {/* Date Range Filter - Moved to top bar */}
         <div className='flex items-center gap-2'>
           {(dateRange.from || dateRange.to) && (
@@ -2990,39 +3013,47 @@ export default function TokensPage() {
           onDelete={handleTokenDelete}
           onGemStatusUpdate={refetchMultiWallets}
           onTokenDataRefresh={fetchData}
+          onViewDetails={handleViewTokenDetails}
+        />
+
+        {/* Token Details Modal (lifted here to prevent table re-renders on open) */}
+        <TokenDetailsModal
+          tokenId={tokenDetailsModalId}
+          open={isTokenDetailsModalOpen}
+          onClose={handleCloseTokenDetailsModal}
         />
       </div>
 
       {/* Sticky Bottom Status Bar */}
       <StatusBar
         tokensScanned={data.tokens.length}
-        latestAnalysis={data.tokens[0]?.analysis_timestamp || null}
-        latestTokenName={data.tokens[0]?.token_name || null}
-        latestWalletsFound={data.tokens[0]?.wallets_found || null}
-        latestApiCredits={
-          data.tokens[0]?.last_analysis_credits ||
-          data.tokens[0]?.credits_used ||
+        latestAnalysis={
+          statusBarData.latestAnalysis?.analysis_timestamp ||
+          data.tokens[0]?.analysis_timestamp ||
           null
         }
-        totalApiCreditsToday={
-          creditStats?.total_credits ??
-          data.tokens
-            .filter((token) => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const analysisDate = new Date(
-                token.analysis_timestamp.replace(' ', 'T') + 'Z'
-              );
-              return analysisDate >= today;
-            })
-            .reduce(
-              (sum, token) =>
-                sum + (token.last_analysis_credits || token.credits_used || 0),
-              0
-            )
+        latestTokenName={
+          statusBarData.latestAnalysis?.token_name ||
+          data.tokens[0]?.token_name ||
+          null
         }
+        latestWalletsFound={
+          statusBarData.latestAnalysis?.wallets_found ??
+          data.tokens[0]?.wallets_found ??
+          null
+        }
+        latestApiCredits={
+          statusBarData.latestAnalysis?.credits_used ??
+          data.tokens[0]?.last_analysis_credits ??
+          data.tokens[0]?.credits_used ??
+          null
+        }
+        totalApiCreditsToday={statusBarData.creditsUsedToday}
         isFiltered={!!(dateRange.from || dateRange.to)}
         filteredCount={filteredTokens.length}
+        recentCredits={statusBarData.recentCredits}
+        onRefresh={statusBarData.refresh}
+        lastUpdated={statusBarData.lastUpdated}
       />
 
       {/* Wallet Top Holders Modal */}

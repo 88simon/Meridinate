@@ -15,6 +15,8 @@ import {
   IngestQueueStats,
   formatTimestamp
 } from '@/lib/api';
+import { StatusBar } from '@/components/status-bar';
+import { useStatusBarData } from '@/hooks/useStatusBarData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,11 +46,11 @@ import {
   Settings,
   Trash2,
   ArrowUpCircle,
-  AlertCircle,
   CheckCircle2,
   Clock,
   Loader2,
-  XCircle
+  XCircle,
+  Info
 } from 'lucide-react';
 
 // Format USD values
@@ -67,13 +69,47 @@ function formatAge(hours: number | null): string {
   return `${(hours / 24).toFixed(1)}d`;
 }
 
-// Tier badge colors
-const tierColors: Record<string, string> = {
-  ingested: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  enriched: 'bg-green-500/20 text-green-400 border-green-500/30',
-  analyzed: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  discarded: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+// Tier display configuration with labels, colors, and tooltips
+const tierConfig: Record<
+  string,
+  { label: string; color: string; tooltip: string; statusNote: string }
+> = {
+  ingested: {
+    label: 'Discovered',
+    color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    tooltip: 'DexScreener snapshot only; no Helius calls yet.',
+    statusNote: 'Not yet in dashboard'
+  },
+  enriched: {
+    label: 'Pre-Analyzed',
+    color: 'bg-green-500/20 text-green-400 border-green-500/30',
+    tooltip:
+      'Light Helius enrichment (holders/metadata); not in main dashboard yet.',
+    statusNote: 'Needs promotion'
+  },
+  analyzed: {
+    label: 'Analyzed (Live)',
+    color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    tooltip:
+      'Full Meridinate analysis complete; visible in Tokens dashboard and SWAB.',
+    statusNote: 'Live in dashboard'
+  },
+  discarded: {
+    label: 'Discarded',
+    color: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    tooltip: 'Manually discarded; will not be promoted.',
+    statusNote: 'Excluded'
+  }
 };
+
+// Helper to get tier display info
+const getTierDisplay = (tier: string) =>
+  tierConfig[tier] || {
+    label: tier,
+    color: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    tooltip: '',
+    statusNote: ''
+  };
 
 // Status badge colors
 const statusColors: Record<string, string> = {
@@ -94,6 +130,12 @@ export default function IngestionPage() {
   const [runningTier0, setRunningTier0] = useState(false);
   const [runningTier1, setRunningTier1] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Status bar data with live credit tracking
+  const statusBarData = useStatusBarData({
+    tokensScanned: stats?.by_tier?.analyzed ?? 0,
+    pollInterval: 30000
+  });
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -276,8 +318,14 @@ export default function IngestionPage() {
 
           <Card>
             <CardHeader className='pb-2'>
-              <CardTitle className='text-sm font-medium text-blue-400'>
-                Ingested
+              <CardTitle className='flex items-center gap-1 text-sm font-medium text-blue-400'>
+                {tierConfig.ingested.label}
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className='h-3 w-3 text-blue-400/60' />
+                  </TooltipTrigger>
+                  <TooltipContent>{tierConfig.ingested.tooltip}</TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -289,8 +337,14 @@ export default function IngestionPage() {
 
           <Card>
             <CardHeader className='pb-2'>
-              <CardTitle className='text-sm font-medium text-green-400'>
-                Enriched
+              <CardTitle className='flex items-center gap-1 text-sm font-medium text-green-400'>
+                {tierConfig.enriched.label}
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className='h-3 w-3 text-green-400/60' />
+                  </TooltipTrigger>
+                  <TooltipContent>{tierConfig.enriched.tooltip}</TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -302,8 +356,14 @@ export default function IngestionPage() {
 
           <Card>
             <CardHeader className='pb-2'>
-              <CardTitle className='text-sm font-medium text-purple-400'>
-                Analyzed
+              <CardTitle className='flex items-center gap-1 text-sm font-medium text-purple-400'>
+                {tierConfig.analyzed.label}
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className='h-3 w-3 text-purple-400/60' />
+                  </TooltipTrigger>
+                  <TooltipContent>{tierConfig.analyzed.tooltip}</TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -315,8 +375,14 @@ export default function IngestionPage() {
 
           <Card>
             <CardHeader className='pb-2'>
-              <CardTitle className='text-sm font-medium text-gray-400'>
-                Discarded
+              <CardTitle className='flex items-center gap-1 text-sm font-medium text-gray-400'>
+                {tierConfig.discarded.label}
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className='h-3 w-3 text-gray-400/60' />
+                  </TooltipTrigger>
+                  <TooltipContent>{tierConfig.discarded.tooltip}</TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -405,23 +471,31 @@ export default function IngestionPage() {
             {/* Tier Filter */}
             <div className='flex gap-2'>
               {['all', 'ingested', 'enriched', 'analyzed', 'discarded'].map(
-                (tier) => (
-                  <Button
-                    key={tier}
-                    variant={selectedTier === tier ? 'default' : 'outline'}
-                    size='sm'
-                    onClick={() => handleTierChange(tier)}
-                  >
-                    {tier === 'all'
-                      ? 'All'
-                      : tier.charAt(0).toUpperCase() + tier.slice(1)}
-                    {tier !== 'all' && stats?.by_tier?.[tier] !== undefined && (
-                      <Badge variant='secondary' className='ml-2'>
-                        {stats.by_tier[tier]}
-                      </Badge>
-                    )}
-                  </Button>
-                )
+                (tier) => {
+                  const config = getTierDisplay(tier);
+                  return (
+                    <Tooltip key={tier}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTier === tier ? 'default' : 'outline'}
+                          size='sm'
+                          onClick={() => handleTierChange(tier)}
+                        >
+                          {tier === 'all' ? 'All' : config.label}
+                          {tier !== 'all' &&
+                            stats?.by_tier?.[tier] !== undefined && (
+                              <Badge variant='secondary' className='ml-2'>
+                                {stats.by_tier[tier]}
+                              </Badge>
+                            )}
+                        </Button>
+                      </TooltipTrigger>
+                      {tier !== 'all' && config.tooltip && (
+                        <TooltipContent>{config.tooltip}</TooltipContent>
+                      )}
+                    </Tooltip>
+                  );
+                }
               )}
             </div>
 
@@ -445,7 +519,8 @@ export default function IngestionPage() {
                     <TableHead>Volume</TableHead>
                     <TableHead>Liquidity</TableHead>
                     <TableHead>Age</TableHead>
-                    <TableHead>Tier</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <TableHead>Dashboard</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>First Seen</TableHead>
                   </TableRow>
@@ -454,90 +529,128 @@ export default function IngestionPage() {
                   {entries.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={10}
+                        colSpan={11}
                         className='text-muted-foreground text-center'
                       >
                         No tokens in queue
                       </TableCell>
                     </TableRow>
                   ) : (
-                    entries.map((entry) => (
-                      <TableRow
-                        key={entry.token_address}
-                        className={
-                          selectedEntries.has(entry.token_address)
-                            ? 'bg-muted/50'
-                            : ''
-                        }
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedEntries.has(entry.token_address)}
-                            onCheckedChange={() =>
-                              toggleEntry(entry.token_address)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className='font-medium'>
-                          {entry.token_symbol || entry.token_name || '-'}
-                        </TableCell>
-                        <TableCell className='font-mono text-xs'>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {entry.token_address.slice(0, 8)}...
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {entry.token_address}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>{formatUsd(entry.last_mc_usd)}</TableCell>
-                        <TableCell>
-                          {formatUsd(entry.last_volume_usd)}
-                        </TableCell>
-                        <TableCell>{formatUsd(entry.last_liquidity)}</TableCell>
-                        <TableCell>{formatAge(entry.age_hours)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant='outline'
-                            className={tierColors[entry.tier]}
-                          >
-                            {entry.tier}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className='flex items-center gap-1'>
-                            {entry.status === 'pending' && (
-                              <Clock className='h-3 w-3 text-yellow-400' />
-                            )}
-                            {entry.status === 'completed' && (
-                              <CheckCircle2 className='h-3 w-3 text-green-400' />
-                            )}
-                            {entry.status === 'failed' && (
+                    entries.map((entry) => {
+                      const tierDisplay = getTierDisplay(entry.tier);
+                      const isLive = entry.tier === 'analyzed';
+                      return (
+                        <TableRow
+                          key={entry.token_address}
+                          className={
+                            selectedEntries.has(entry.token_address)
+                              ? 'bg-muted/50'
+                              : ''
+                          }
+                        >
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedEntries.has(entry.token_address)}
+                              onCheckedChange={() =>
+                                toggleEntry(entry.token_address)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className='font-medium'>
+                            {entry.token_symbol || entry.token_name || '-'}
+                          </TableCell>
+                          <TableCell className='font-mono text-xs'>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                {entry.token_address.slice(0, 8)}...
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {entry.token_address}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell>{formatUsd(entry.last_mc_usd)}</TableCell>
+                          <TableCell>
+                            {formatUsd(entry.last_volume_usd)}
+                          </TableCell>
+                          <TableCell>
+                            {formatUsd(entry.last_liquidity)}
+                          </TableCell>
+                          <TableCell>{formatAge(entry.age_hours)}</TableCell>
+                          <TableCell>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Badge
+                                  variant='outline'
+                                  className={tierDisplay.color}
+                                >
+                                  {tierDisplay.label}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {tierDisplay.tooltip}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell>
+                            {isLive ? (
+                              <span className='flex items-center gap-1 text-xs text-purple-400'>
+                                <CheckCircle2 className='h-3 w-3' />
+                                Live
+                              </span>
+                            ) : entry.tier === 'discarded' ? (
+                              <span className='text-muted-foreground text-xs'>
+                                Excluded
+                              </span>
+                            ) : (
                               <Tooltip>
                                 <TooltipTrigger>
-                                  <XCircle className='h-3 w-3 text-red-400' />
+                                  <span className='text-xs text-yellow-400'>
+                                    {tierDisplay.statusNote}
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  {entry.last_error || 'Unknown error'}
+                                  {entry.tier === 'enriched'
+                                    ? 'Promote to run full analysis and add to Tokens dashboard'
+                                    : 'Run Tier-1 enrichment to prepare for promotion'}
                                 </TooltipContent>
                               </Tooltip>
                             )}
-                            <Badge
-                              variant='outline'
-                              className={statusColors[entry.status]}
-                            >
-                              {entry.status}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className='text-muted-foreground text-xs'>
-                          {entry.first_seen_at
-                            ? formatTimestamp(entry.first_seen_at)
-                            : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+                          <TableCell>
+                            <div className='flex items-center gap-1'>
+                              {entry.status === 'pending' && (
+                                <Clock className='h-3 w-3 text-yellow-400' />
+                              )}
+                              {entry.status === 'completed' && (
+                                <CheckCircle2 className='h-3 w-3 text-green-400' />
+                              )}
+                              {entry.status === 'failed' && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <XCircle className='h-3 w-3 text-red-400' />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {entry.last_error || 'Unknown error'}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              <Badge
+                                variant='outline'
+                                className={statusColors[entry.status]}
+                              >
+                                {entry.status}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className='text-muted-foreground text-xs'>
+                            {entry.first_seen_at
+                              ? formatTimestamp(entry.first_seen_at)
+                              : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -746,6 +859,19 @@ export default function IngestionPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Sticky Bottom Status Bar */}
+      <StatusBar
+        tokensScanned={stats?.by_tier?.analyzed ?? 0}
+        latestAnalysis={statusBarData.latestAnalysis?.analysis_timestamp || null}
+        latestTokenName={statusBarData.latestAnalysis?.token_name || null}
+        latestWalletsFound={statusBarData.latestAnalysis?.wallets_found ?? null}
+        latestApiCredits={statusBarData.latestAnalysis?.credits_used ?? null}
+        totalApiCreditsToday={statusBarData.creditsUsedToday}
+        recentCredits={statusBarData.recentCredits}
+        onRefresh={statusBarData.refresh}
+        lastUpdated={statusBarData.lastUpdated}
+      />
     </TooltipProvider>
   );
 }

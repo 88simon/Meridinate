@@ -6,10 +6,11 @@ Provides REST endpoints for token history, details, trash management, and export
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import aiosqlite
 from fastapi import APIRouter, HTTPException, Request, Response
+from pydantic import BaseModel
 
 from meridinate.middleware.rate_limit import MARKET_CAP_RATE_LIMIT, READ_RATE_LIMIT, conditional_rate_limit
 from meridinate.observability import log_error, log_info
@@ -35,6 +36,61 @@ from meridinate.credit_tracker import credit_tracker, CreditOperation
 
 router = APIRouter()
 cache = ResponseCache(name="tokens_history")
+
+
+class LatestTokenResponse(BaseModel):
+    """Response model for the latest analyzed token."""
+
+    token_id: Optional[int] = None
+    token_name: Optional[str] = None
+    token_symbol: Optional[str] = None
+    analysis_timestamp: Optional[str] = None
+    wallets_found: Optional[int] = None
+    credits_used: Optional[int] = None
+
+
+@router.get("/api/tokens/latest", response_model=LatestTokenResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_latest_token(request: Request):
+    """
+    Get the most recently analyzed token.
+
+    Returns lightweight data for status bar display:
+    - token_id, token_name, token_symbol
+    - analysis_timestamp
+    - wallets_found, credits_used
+    """
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+        query = """
+            SELECT
+                t.id as token_id,
+                t.token_name,
+                t.token_symbol,
+                t.analysis_timestamp,
+                COUNT(DISTINCT ebw.wallet_address) as wallets_found,
+                COALESCE(t.last_analysis_credits, t.credits_used) as credits_used
+            FROM analyzed_tokens t
+            LEFT JOIN early_buyer_wallets ebw ON ebw.token_id = t.id
+            WHERE t.deleted_at IS NULL OR t.deleted_at = ''
+            GROUP BY t.id
+            ORDER BY t.analysis_timestamp DESC
+            LIMIT 1
+        """
+        cursor = await conn.execute(query)
+        row = await cursor.fetchone()
+
+        if not row:
+            return LatestTokenResponse()
+
+        return LatestTokenResponse(
+            token_id=row["token_id"],
+            token_name=row["token_name"],
+            token_symbol=row["token_symbol"],
+            analysis_timestamp=row["analysis_timestamp"],
+            wallets_found=row["wallets_found"],
+            credits_used=row["credits_used"],
+        )
 
 
 @router.get("/api/tokens/history", response_model=TokensResponse)
