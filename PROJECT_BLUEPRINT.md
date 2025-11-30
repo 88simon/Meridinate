@@ -84,7 +84,7 @@ C:\Meridinate\
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
 - ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
 - ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated tiered token discovery: Tier-0 (DexScreener, free), Tier-1 (Helius enrichment, budgeted), promotion to full analysis. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
-- ✅ **Settings Modal (Nov 2025)** - 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar.
+- ✅ **Settings Modal (Nov 2025)** - 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar. Includes 3-second fetch timeouts with retry buttons to prevent indefinite loading when backend is busy with ingestion operations.
 - ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent operations. Status bar displayed on both Scanned Tokens and Ingestion pages.
 - ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Tier-0/Tier-1, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
 - ✅ **Sidebar Navigation Reorder (Nov 2025)** - New order: Ingestion, Scanned Tokens, Codex, Trash, Settings. Renamed "Analyzed Tokens" to "Scanned Tokens" and "Master Control" to "Settings" throughout UI.
@@ -1044,6 +1044,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.3
-**Last Updated:** November 29, 2025 (Persisted operation log, sidebar reorder, terminology updates)
+**Document Version:** 2.4
+**Last Updated:** November 30, 2025 (Settings modal timeout/retry during ingestion)
 **Next Review:** After production deployment

@@ -8,6 +8,28 @@
 
 ## Recent Bug Fixes & Technical Notes
 
+### Settings Modal Timeout/Retry During Ingestion (Nov 30, 2025)
+
+**Bug:** Opening the Settings modal while ingestion operations (Tier-0/Tier-1/Promote) were running left it stuck on loading indefinitely.
+
+**Root Cause:** All Settings modal tabs made API calls that hung while the backend was busy with long-running database operations.
+
+**Solution:**
+1. Added `fetchWithTimeout()` utility to `api.ts` using AbortController for 3-second timeouts
+2. Updated all 5 Settings tabs to use timeouts and handle errors gracefully
+3. Added error states with "Backend busy (ingestion running). Try again shortly." message
+4. Added Retry buttons for each tab section
+
+**Files Modified:**
+- `apps/frontend/src/lib/api.ts` - Added `fetchWithTimeout()` utility
+- `apps/frontend/src/components/master-control-modal.tsx` - Timeout handling for all tabs
+
+**API URL Fixes (same commit):**
+- `/api/solscan/settings` corrected to `/api/solscan-settings`
+- `/api/swab/scheduler-status` corrected to `/api/swab/scheduler/status`
+
+---
+
 ### Sidebar Reorder and Terminology Updates (Nov 29, 2025)
 
 **Feature:** Reorganized sidebar navigation and updated terminology for consistency.
@@ -1352,5 +1374,5 @@ https://solscan.io/account/{ADDRESS}?
 
 ---
 
-**Last Updated:** November 28, 2025
-**Document Version:** 1.1
+**Last Updated:** November 30, 2025
+**Document Version:** 1.2
