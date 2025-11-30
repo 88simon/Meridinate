@@ -6,7 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@/components/ui/popover';
-import { CreditTransaction } from '@/lib/api';
+import { AggregatedOperation } from '@/lib/api';
 import { ChevronUp, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -19,14 +19,9 @@ interface StatusBarProps {
   totalApiCreditsToday?: number;
   isFiltered?: boolean;
   filteredCount?: number;
-  recentCredits?: CreditTransaction[];
+  recentOperations?: AggregatedOperation[];
   onRefresh?: () => void;
   lastUpdated?: Date | null;
-}
-
-// Format operation names to be more readable
-function formatOperation(operation: string): string {
-  return operation.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Format timestamp to short time
@@ -40,6 +35,11 @@ function formatTime(timestamp: string | null): string {
   }
 }
 
+// Format credits with comma separators
+function formatCredits(credits: number): string {
+  return credits.toLocaleString();
+}
+
 export function StatusBar({
   tokensScanned,
   latestAnalysis,
@@ -49,7 +49,7 @@ export function StatusBar({
   totalApiCreditsToday = 0,
   isFiltered = false,
   filteredCount = 0,
-  recentCredits = [],
+  recentOperations = [],
   onRefresh,
   lastUpdated
 }: StatusBarProps) {
@@ -76,7 +76,7 @@ export function StatusBar({
             </span>
           </div>
 
-          {/* Total API Credits Today with Recent Credits Popover */}
+          {/* Total API Credits Today with Recent Operations Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <button className='hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-colors'>
@@ -84,52 +84,55 @@ export function StatusBar({
                   API Credits Today:
                 </span>
                 <span className='text-sm font-bold'>
-                  {totalApiCreditsToday}
+                  {formatCredits(totalApiCreditsToday)}
                 </span>
-                {recentCredits.length > 0 && (
+                {recentOperations.length > 0 && (
                   <ChevronUp className='text-muted-foreground h-3 w-3' />
                 )}
               </button>
             </PopoverTrigger>
             <PopoverContent
-              className='w-72 p-0'
+              className='w-80 p-0'
               side='top'
               align='start'
               sideOffset={8}
             >
               <div className='border-b px-3 py-2'>
-                <h4 className='text-sm font-semibold'>Recent Credit Usage</h4>
+                <h4 className='text-sm font-semibold'>Recent Operations</h4>
                 {lastUpdated && (
                   <p className='text-muted-foreground text-xs'>
                     Updated {formatTime(lastUpdated.toISOString())}
                   </p>
                 )}
               </div>
-              <div className='max-h-48 overflow-y-auto'>
-                {recentCredits.length > 0 ? (
+              <div className='max-h-56 overflow-y-auto'>
+                {recentOperations.length > 0 ? (
                   <ul className='divide-y'>
-                    {recentCredits.map((tx) => (
+                    {recentOperations.map((op, idx) => (
                       <li
-                        key={tx.id}
-                        className='flex items-center justify-between px-3 py-2 text-xs'
+                        key={`${op.timestamp}-${idx}`}
+                        className='flex items-center justify-between px-3 py-2.5 text-xs'
                       >
-                        <div className='flex flex-col'>
-                          <span className='font-medium'>
-                            {formatOperation(tx.operation)}
-                          </span>
+                        <div className='flex flex-col gap-0.5'>
+                          <span className='font-medium'>{op.label}</span>
                           <span className='text-muted-foreground'>
-                            {formatTime(tx.timestamp)}
+                            {formatTime(op.timestamp)}
+                            {op.transaction_count > 1 && (
+                              <span className='ml-1'>
+                                ({op.transaction_count} calls)
+                              </span>
+                            )}
                           </span>
                         </div>
-                        <span className='font-mono font-semibold'>
-                          {tx.credits} cr
+                        <span className='font-mono text-sm font-semibold'>
+                          {formatCredits(op.credits)}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className='text-muted-foreground px-3 py-4 text-center text-xs'>
-                    No credit usage today
+                    No operations today
                   </p>
                 )}
               </div>

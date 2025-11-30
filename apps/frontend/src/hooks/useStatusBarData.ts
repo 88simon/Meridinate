@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getCreditStatsToday,
-  getCreditTransactions,
+  getAggregatedOperations,
   getLatestToken,
   CreditUsageStats,
-  CreditTransaction,
+  AggregatedOperation,
   LatestToken
 } from '@/lib/api';
 
@@ -14,7 +14,7 @@ export interface StatusBarData {
   tokensScanned: number;
   creditsUsedToday: number;
   latestAnalysis: LatestToken | null;
-  recentCredits: CreditTransaction[];
+  recentOperations: AggregatedOperation[];
   isLoading: boolean;
   lastUpdated: Date | null;
 }
@@ -34,10 +34,9 @@ const DEFAULT_POLL_INTERVAL = 30000; // 30 seconds
  * Hook for fetching and maintaining live status bar data.
  *
  * Features:
- * - Fetches credit stats, recent transactions, and latest token
+ * - Fetches credit stats, aggregated operations, and latest token
  * - Polls at configurable interval (default 30s)
  * - Revalidates on focus/visibility change
- * - Listens to analysis_complete WebSocket events to trigger refresh
  */
 export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
   const {
@@ -47,7 +46,9 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
   } = options;
 
   const [creditStats, setCreditStats] = useState<CreditUsageStats | null>(null);
-  const [recentCredits, setRecentCredits] = useState<CreditTransaction[]>([]);
+  const [recentOperations, setRecentOperations] = useState<
+    AggregatedOperation[]
+  >([]);
   const [latestToken, setLatestToken] = useState<LatestToken | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -58,15 +59,15 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
   // Fetch all status bar data
   const fetchData = useCallback(async () => {
     try {
-      const [stats, transactions, latest] = await Promise.all([
+      const [stats, operations, latest] = await Promise.all([
         getCreditStatsToday(),
-        getCreditTransactions(5),
+        getAggregatedOperations(5),
         getLatestToken()
       ]);
 
       if (isMounted.current) {
         setCreditStats(stats);
-        setRecentCredits(transactions.transactions);
+        setRecentOperations(operations.operations);
         setLatestToken(latest);
         setLastUpdated(new Date());
         setIsLoading(false);
@@ -141,7 +142,7 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
     tokensScanned,
     creditsUsedToday: creditStats?.total_credits ?? 0,
     latestAnalysis: latestToken,
-    recentCredits,
+    recentOperations,
     isLoading,
     lastUpdated,
     refresh,

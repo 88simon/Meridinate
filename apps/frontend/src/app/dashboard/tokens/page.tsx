@@ -3051,7 +3051,7 @@ export default function TokensPage() {
         totalApiCreditsToday={statusBarData.creditsUsedToday}
         isFiltered={!!(dateRange.from || dateRange.to)}
         filteredCount={filteredTokens.length}
-        recentCredits={statusBarData.recentCredits}
+        recentOperations={statusBarData.recentOperations}
         onRefresh={statusBarData.refresh}
         lastUpdated={statusBarData.lastUpdated}
       />

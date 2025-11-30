@@ -742,6 +742,37 @@ export async function getCreditTransactions(
 }
 
 /**
+ * Aggregated operation for status bar display
+ */
+export interface AggregatedOperation {
+  operation: string;
+  label: string;
+  credits: number;
+  timestamp: string;
+  transaction_count: number;
+}
+
+/**
+ * Get aggregated credit operations (grouped by time window)
+ */
+export async function getAggregatedOperations(
+  limit: number = 5
+): Promise<{ operations: AggregatedOperation[] }> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/stats/credits/operations?limit=${limit}`,
+    {
+      cache: 'no-store'
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch aggregated operations');
+  }
+
+  return res.json();
+}
+
+/**
  * Latest token response type
  */
 export interface LatestToken {

@@ -52,6 +52,22 @@ class OperationCostsResponse(BaseModel):
     costs: Dict[str, int]
 
 
+class AggregatedOperationResponse(BaseModel):
+    """Response model for an aggregated operation group."""
+
+    operation: str
+    label: str
+    credits: int
+    timestamp: str
+    transaction_count: int
+
+
+class AggregatedOperationsListResponse(BaseModel):
+    """Response model for aggregated operations list."""
+
+    operations: List[AggregatedOperationResponse]
+
+
 @router.get("/api/stats/credits/today", response_model=CreditUsageStatsResponse)
 @conditional_rate_limit(READ_RATE_LIMIT)
 async def get_credits_today(request: Request):
@@ -155,6 +171,154 @@ async def get_credit_transactions(
         ],
         total=len(transactions),
     )
+
+
+@router.get("/api/stats/credits/operations", response_model=AggregatedOperationsListResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_aggregated_operations(
+    request: Request,
+    limit: int = Query(default=5, ge=1, le=20, description="Maximum number of operation groups"),
+    window_seconds: int = Query(default=3, ge=1, le=60, description="Time window for grouping (seconds)"),
+):
+    """
+    Get recent credit operations aggregated by time window.
+
+    Groups individual API calls into high-level operations (e.g., batch operations
+    that run multiple calls within a short time window are shown as a single entry).
+
+    Args:
+        limit: Maximum number of operation groups to return
+        window_seconds: Time window for grouping transactions (default: 3 seconds)
+
+    Returns:
+        List of aggregated operation groups with labels and total credits.
+    """
+    # Operation label mapping for display
+    OPERATION_LABELS = {
+        "wallet_balance": "Wallet Balance",
+        "token_metadata": "Token Metadata",
+        "account_owner": "Account Owner",
+        "token_largest_accounts": "Top Holders",
+        "get_transaction": "Transaction Fetch",
+        "signatures_for_address": "Signature Lookup",
+        "token_accounts": "Token Accounts",
+        "transactions_for_address": "Transaction History",
+        "token_analysis": "Token Analysis",
+        "top_holders_fetch": "Top Holders Fetch",
+        "market_cap_refresh": "Market Cap Refresh",
+        "wallet_refresh": "Wallet Refresh",
+        "position_check": "Position Check",
+    }
+
+    # High-level operation inference based on operation mix
+    def infer_operation_label(ops: Dict[str, int]) -> str:
+        """Infer a high-level operation name from the mix of low-level operations."""
+        op_names = set(ops.keys())
+
+        # Token analysis typically involves many different operations
+        if "token_analysis" in op_names:
+            return "Token Analysis"
+
+        # Market cap refresh
+        if "market_cap_refresh" in op_names:
+            return "Market Cap Refresh"
+
+        # Top holders fetch
+        if "top_holders_fetch" in op_names or "token_largest_accounts" in op_names:
+            return "Top Holders Fetch"
+
+        # Position check
+        if "position_check" in op_names:
+            return "Position Check"
+
+        # Wallet refresh (batch balance checks)
+        if op_names == {"wallet_balance"} or (
+            "wallet_balance" in op_names and "account_owner" in op_names and len(op_names) <= 2
+        ):
+            total = sum(ops.values())
+            if total > 10:
+                return "Batch Wallet Refresh"
+            return "Wallet Balance Check"
+
+        # Helius enrichment (mix of wallet_balance, account_owner, token_metadata)
+        if {"wallet_balance", "account_owner"}.issubset(op_names):
+            return "Helius Enrichment"
+
+        # Default: use the most common operation
+        if ops:
+            primary_op = max(ops.keys(), key=lambda k: ops[k])
+            return OPERATION_LABELS.get(primary_op, primary_op.replace("_", " ").title())
+
+        return "Unknown Operation"
+
+    # Fetch more transactions than needed to ensure we can aggregate
+    transactions = get_credit_tracker().get_recent_transactions(limit=limit * 50)
+
+    if not transactions:
+        return AggregatedOperationsListResponse(operations=[])
+
+    # Group transactions by time window
+    groups = []
+    current_group = None
+    window = timedelta(seconds=window_seconds)
+
+    for tx in transactions:
+        if tx.timestamp is None:
+            continue
+
+        if current_group is None:
+            current_group = {
+                "start_time": tx.timestamp,
+                "end_time": tx.timestamp,
+                "operations": {tx.operation: tx.credits},
+                "total_credits": tx.credits,
+                "transaction_count": 1,
+            }
+        elif tx.timestamp >= current_group["end_time"] - window:
+            # Add to current group
+            current_group["end_time"] = tx.timestamp
+            current_group["operations"][tx.operation] = (
+                current_group["operations"].get(tx.operation, 0) + tx.credits
+            )
+            current_group["total_credits"] += tx.credits
+            current_group["transaction_count"] += 1
+        else:
+            # Start a new group
+            groups.append(current_group)
+            current_group = {
+                "start_time": tx.timestamp,
+                "end_time": tx.timestamp,
+                "operations": {tx.operation: tx.credits},
+                "total_credits": tx.credits,
+                "transaction_count": 1,
+            }
+
+        if len(groups) >= limit:
+            break
+
+    # Don't forget the last group
+    if current_group and len(groups) < limit:
+        groups.append(current_group)
+
+    # Convert groups to response format
+    aggregated = []
+    for group in groups[:limit]:
+        label = infer_operation_label(group["operations"])
+
+        # Determine primary operation for the response
+        primary_op = max(group["operations"].keys(), key=lambda k: group["operations"][k])
+
+        aggregated.append(
+            AggregatedOperationResponse(
+                operation=primary_op,
+                label=label,
+                credits=group["total_credits"],
+                timestamp=group["start_time"].isoformat(),
+                transaction_count=group["transaction_count"],
+            )
+        )
+
+    return AggregatedOperationsListResponse(operations=aggregated)
 
 
 @router.get("/api/stats/credits/token/{token_id}")

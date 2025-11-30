@@ -874,7 +874,7 @@ export default function IngestionPage() {
         latestWalletsFound={statusBarData.latestAnalysis?.wallets_found ?? null}
         latestApiCredits={statusBarData.latestAnalysis?.credits_used ?? null}
         totalApiCreditsToday={statusBarData.creditsUsedToday}
-        recentCredits={statusBarData.recentCredits}
+        recentOperations={statusBarData.recentOperations}
         onRefresh={statusBarData.refresh}
         lastUpdated={statusBarData.lastUpdated}
       />
