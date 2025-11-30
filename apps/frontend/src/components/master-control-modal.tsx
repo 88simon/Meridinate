@@ -229,7 +229,7 @@ function ScanningTab({
     setSolscanError(null);
     try {
       const res = await fetchWithTimeout(
-        `${API_BASE_URL}/api/solscan/settings`,
+        `${API_BASE_URL}/api/solscan-settings`,
         { cache: 'no-store' },
         SETTINGS_FETCH_TIMEOUT
       );
@@ -737,7 +737,7 @@ function SwabTab() {
           SETTINGS_FETCH_TIMEOUT
         ),
         fetchWithTimeout(
-          `${API_BASE_URL}/api/swab/scheduler-status`,
+          `${API_BASE_URL}/api/swab/scheduler/status`,
           { cache: 'no-store' },
           SETTINGS_FETCH_TIMEOUT
         )
