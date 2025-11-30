@@ -25,10 +25,18 @@ interface StatusBarProps {
 }
 
 // Format timestamp to readable date/time (e.g., "Nov 29, 02:01 AM")
+// Backend stores timestamps in UTC - ensure proper parsing
 function formatDateTime(timestamp: string | null): string {
   if (!timestamp) return '';
   try {
-    const date = new Date(timestamp);
+    // If timestamp doesn't have timezone info, treat as UTC by appending 'Z'
+    const utcTimestamp =
+      timestamp.includes('Z') ||
+      timestamp.includes('+') ||
+      timestamp.includes('-', 10)
+        ? timestamp
+        : timestamp.replace(' ', 'T') + 'Z';
+    const date = new Date(utcTimestamp);
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',

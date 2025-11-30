@@ -31,13 +31,13 @@ import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navItems } from '@/constants/data';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useUser } from '@clerk/nextjs';
-import { SettingsModal } from '@/components/settings-modal';
+import { MasterControlModal } from '@/components/master-control-modal';
 import { useApiSettings } from '@/contexts/ApiSettingsContext';
 import {
   IconChevronRight,
   IconChevronsDown,
   IconTags,
-  IconSettings
+  IconAdjustments
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -75,51 +75,49 @@ export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
           <SidebarGroup>
             <SidebarGroupLabel>Overview</SidebarGroupLabel>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {/* Render nav items with Codex inserted between Scanned Tokens and Trash */}
+              {navItems.map((item, index) => {
                 const Icon = item.icon ? Icons[item.icon] : Icons.logo;
                 const hasSubItems = item?.items && item?.items?.length > 0;
 
-                if (hasSubItems) {
-                  return (
-                    <Collapsible
-                      key={item.title}
-                      asChild
-                      defaultOpen={item.isActive}
-                      className='group/collapsible'
-                    >
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            tooltip={item.title}
-                            isActive={pathname === item.url}
-                          >
-                            {item.icon && <Icon />}
-                            <span>{item.title}</span>
-                            <IconChevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {item.items?.map((subItem) => (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  isActive={pathname === subItem.url}
-                                >
-                                  <Link href={subItem.url}>
-                                    <span>{subItem.title}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
-                    </Collapsible>
-                  );
-                }
-
-                return (
+                // Render the nav item
+                const navItem = hasSubItems ? (
+                  <Collapsible
+                    key={item.title}
+                    asChild
+                    defaultOpen={item.isActive}
+                    className='group/collapsible'
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          isActive={pathname === item.url}
+                        >
+                          {item.icon && <Icon />}
+                          <span>{item.title}</span>
+                          <IconChevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.items?.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={pathname === subItem.url}
+                              >
+                                <Link href={subItem.url}>
+                                  <span>{subItem.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                ) : (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
@@ -133,31 +131,42 @@ export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
+
+                // Insert Codex after Scanned Tokens (index 1)
+                if (index === 1) {
+                  return (
+                    <React.Fragment key={item.title}>
+                      {navItem}
+                      <SidebarMenuItem key='codex'>
+                        <SidebarMenuButton
+                          onClick={onCodexToggle}
+                          tooltip='Codex'
+                        >
+                          <IconTags />
+                          <span>Codex</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </React.Fragment>
+                  );
+                }
+
+                return navItem;
               })}
-            </SidebarMenu>
-          </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel>Tools</SidebarGroupLabel>
-            <SidebarMenu>
+
+              {/* Settings at the end */}
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={onCodexToggle} tooltip='Codex'>
-                  <IconTags />
-                  <span>Codex</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SettingsModal
+                <MasterControlModal
                   open={showSettings}
                   onOpenChange={setShowSettings}
                   apiSettings={apiSettings}
                   setApiSettings={setApiSettings}
                   defaultApiSettings={defaultApiSettings}
                 >
-                  <SidebarMenuButton tooltip='API Settings'>
-                    <IconSettings />
+                  <SidebarMenuButton tooltip='Settings'>
+                    <IconAdjustments />
                     <span>Settings</span>
                   </SidebarMenuButton>
-                </SettingsModal>
+                </MasterControlModal>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroup>

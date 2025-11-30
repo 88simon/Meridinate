@@ -30,7 +30,8 @@ import {
   Twitter,
   Copy,
   RotateCcw,
-  Wrench
+  Wrench,
+  Loader2
 } from 'lucide-react';
 import { SwabSettingsPanel } from './swab-settings-panel';
 import { SwabFilterPanel } from './swab-filter-panel';
@@ -62,6 +63,9 @@ export function SwabTab({ isActive }: SwabTabProps) {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkLoading, setCheckLoading] = useState(false);
+  const [checkingAddresses, setCheckingAddresses] = useState<Set<string>>(
+    new Set()
+  );
   const [pnlUpdateLoading, setPnlUpdateLoading] = useState(false);
   const [batchUntrackLoading, setBatchUntrackLoading] = useState(false);
   const [purgeLoading, setPurgeLoading] = useState(false);
@@ -193,6 +197,21 @@ export function SwabTab({ isActive }: SwabTabProps) {
 
   const handleTriggerCheck = async () => {
     setCheckLoading(true);
+
+    // Populate checkingAddresses with all wallet addresses from current positions
+    if (positions?.positions) {
+      const addresses = new Set(
+        positions.positions.map((p) => p.wallet_address)
+      );
+      setCheckingAddresses(addresses);
+    }
+
+    // Show background-safe toast immediately
+    toast.info(
+      'Position check is running in the background. You can leave this page safely.',
+      { duration: 5000 }
+    );
+
     try {
       const result = await triggerSwabCheck();
       toast.success(
@@ -203,6 +222,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
       toast.error('Failed to trigger position check');
     } finally {
       setCheckLoading(false);
+      setCheckingAddresses(new Set());
     }
   };
 
@@ -658,6 +678,9 @@ export function SwabTab({ isActive }: SwabTabProps) {
                         {posIndex === 0 ? (
                           <div className='flex flex-col gap-0.5'>
                             <div className='flex items-center gap-1'>
+                              {checkingAddresses.has(pos.wallet_address) && (
+                                <Loader2 className='h-3 w-3 animate-spin text-blue-500' />
+                              )}
                               <span className='font-mono font-medium'>
                                 {pos.wallet_address.slice(0, 6)}...
                                 {pos.wallet_address.slice(-4)}

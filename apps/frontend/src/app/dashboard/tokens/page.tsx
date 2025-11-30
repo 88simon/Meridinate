@@ -2020,11 +2020,9 @@ export default function TokensPage() {
       <div className='flex h-full flex-col space-y-4 pb-16'>
         <div className='flex items-center justify-between'>
           <div>
-            <h1 className='text-xl font-bold tracking-tight'>
-              Analyzed Tokens
-            </h1>
+            <h1 className='text-xl font-bold tracking-tight'>Scanned Tokens</h1>
             <p className='text-muted-foreground text-sm'>
-              View and manage your analyzed Solana tokens
+              View and manage your scanned Solana tokens
             </p>
           </div>
           <Button

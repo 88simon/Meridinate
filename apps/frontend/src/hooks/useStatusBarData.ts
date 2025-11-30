@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getCreditStatsToday,
-  getAggregatedOperations,
+  getOperationLog,
   getLatestToken,
   CreditUsageStats,
   AggregatedOperation,
-  LatestToken
+  LatestToken,
+  OperationLogEntry
 } from '@/lib/api';
 
 export interface StatusBarData {
@@ -56,18 +57,30 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
   const isMounted = useRef(true);
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Convert persisted OperationLogEntry to AggregatedOperation format
+  const toAggregatedOperation = (
+    entry: OperationLogEntry
+  ): AggregatedOperation => ({
+    operation: entry.operation,
+    label: entry.label,
+    credits: entry.credits,
+    timestamp: entry.timestamp,
+    transaction_count: entry.call_count
+  });
+
   // Fetch all status bar data
   const fetchData = useCallback(async () => {
     try {
-      const [stats, operations, latest] = await Promise.all([
+      const [stats, operationLog, latest] = await Promise.all([
         getCreditStatsToday(),
-        getAggregatedOperations(15),
+        getOperationLog(30), // Fetch last 30 persisted operations
         getLatestToken()
       ]);
 
       if (isMounted.current) {
         setCreditStats(stats);
-        setRecentOperations(operations.operations);
+        // Convert OperationLogEntry[] to AggregatedOperation[] for compatibility
+        setRecentOperations(operationLog.operations.map(toAggregatedOperation));
         setLatestToken(latest);
         setLastUpdated(new Date());
         setIsLoading(false);

@@ -754,6 +754,7 @@ export interface AggregatedOperation {
 
 /**
  * Get aggregated credit operations (grouped by time window)
+ * @deprecated Use getOperationLog for persisted operations
  */
 export async function getAggregatedOperations(
   limit: number = 5
@@ -767,6 +768,39 @@ export async function getAggregatedOperations(
 
   if (!res.ok) {
     throw new Error('Failed to fetch aggregated operations');
+  }
+
+  return res.json();
+}
+
+/**
+ * Persisted operation log entry
+ */
+export interface OperationLogEntry {
+  id: number;
+  operation: string;
+  label: string;
+  credits: number;
+  call_count: number;
+  timestamp: string;
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Get persisted operation log (survives restarts)
+ */
+export async function getOperationLog(
+  limit: number = 30
+): Promise<{ operations: OperationLogEntry[]; total: number }> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/stats/credits/operation-log?limit=${limit}`,
+    {
+      cache: 'no-store'
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch operation log');
   }
 
   return res.json();

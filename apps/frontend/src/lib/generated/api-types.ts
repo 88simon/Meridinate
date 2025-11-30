@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 7c0ead32e8d4aaba20b25134b6a22eeb5079b544
+ * Backend Commit: 3ef33eead79c49e6c4aacfc0187c4d532dbf3ab7
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -337,6 +337,36 @@ export interface paths {
      *         List of aggregated operation groups with labels and total credits.
      */
     get: operations['get_aggregated_operations_api_stats_credits_operations_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/stats/credits/operation-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Operation Log
+     * @description Get recent high-level operations from the persistent log.
+     *
+     *     This endpoint returns persisted operation records that survive restarts.
+     *     Each entry represents a user-facing operation like "Token Analysis",
+     *     "Position Check", "Tier-1 Enrichment", etc.
+     *
+     *     Args:
+     *         limit: Maximum number of operations to return (default: 30, max: 100)
+     *
+     *     Returns:
+     *         List of operation log entries ordered by timestamp descending.
+     */
+    get: operations['get_operation_log_api_stats_credits_operation_log_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2671,6 +2701,38 @@ export interface components {
       };
     };
     /**
+     * OperationLogEntryResponse
+     * @description Response model for a persisted operation log entry.
+     */
+    OperationLogEntryResponse: {
+      /** Id */
+      id: number;
+      /** Operation */
+      operation: string;
+      /** Label */
+      label: string;
+      /** Credits */
+      credits: number;
+      /** Call Count */
+      call_count: number;
+      /** Timestamp */
+      timestamp: string;
+      /** Context */
+      context: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /**
+     * OperationLogListResponse
+     * @description Response model for operation log list.
+     */
+    OperationLogListResponse: {
+      /** Operations */
+      operations: components['schemas']['OperationLogEntryResponse'][];
+      /** Total */
+      total: number;
+    };
+    /**
      * PositionResponse
      * @description Individual position response model.
      */
@@ -3760,6 +3822,38 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['AggregatedOperationsListResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_operation_log_api_stats_credits_operation_log_get: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of operations to return */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OperationLogListResponse'];
         };
       };
       /** @description Validation Error */

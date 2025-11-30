@@ -84,8 +84,10 @@ C:\Meridinate\
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
 - ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
 - ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated tiered token discovery: Tier-0 (DexScreener, free), Tier-1 (Helius enrichment, budgeted), promotion to full analysis. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
-- ✅ **Master Control Modal (Nov 2025)** - Replaced generic "Settings" with 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Unified control center accessible from sidebar.
-- ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent credit events (operation, credits, timestamp), new `/api/tokens/latest` endpoint for efficient latest-analysis lookup. Status bar now displayed on both Tokens and Ingestion pages.
+- ✅ **Settings Modal (Nov 2025)** - 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar.
+- ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent operations. Status bar displayed on both Scanned Tokens and Ingestion pages.
+- ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Tier-0/Tier-1, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
+- ✅ **Sidebar Navigation Reorder (Nov 2025)** - New order: Ingestion, Scanned Tokens, Codex, Trash, Settings. Renamed "Analyzed Tokens" to "Scanned Tokens" and "Master Control" to "Settings" throughout UI.
 
 ---
 
@@ -253,8 +255,8 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/frontend/src/hooks/useStatusBarData.ts` | Status bar data hook | Fetches credit stats, transactions, latest token with polling and focus revalidation |
 | `apps/frontend/src/components/meridinate-logo.tsx` | MeridinateLogo component | Reusable SVG logo with light/dark variants |
 | `apps/frontend/src/components/layout/header.tsx` | Main header | Contains logo, branding, navigation, user controls |
-| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with toggle, navigation items, Codex/Master Control |
-| `apps/frontend/src/components/master-control-modal.tsx` | Master Control modal | 5-tab settings hub: Scanning, Ingestion, SWAB, Webhooks, System |
+| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with nav items: Ingestion, Scanned Tokens, Codex, Trash, Settings |
+| `apps/frontend/src/components/master-control-modal.tsx` | Settings modal | 5-tab settings hub: Scanning, Ingestion, SWAB, Webhooks, System |
 | `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend), uses venv Python explicitly |
 | `scripts/start-backend.bat` | Backend launcher | Starts backend only, uses venv Python explicitly (line 60) |
 | `scripts/start-debug.bat` | Diagnostic tool | Troubleshooting startup issues |
@@ -319,13 +321,14 @@ When Simon says...  →  Technical term & Implementation
 - ✅ "Multi-Token Early Wallets section"
 - ❌ "Multi-Token Wallets panel" (old terminology - now called "Multi-Token Early Wallets section")
 
-#### **"Token List" / "Main Dashboard"**
-- **Technical Term:** Token Analysis Dashboard Page
-- **What it is:** The main authenticated page showing all analyzed tokens
+#### **"Token List" / "Main Dashboard" / "Scanned Tokens"**
+- **Technical Term:** Scanned Tokens Dashboard Page
+- **What it is:** The main authenticated page showing all scanned tokens
 - **Location:** `apps/frontend/src/app/dashboard/tokens/page.tsx`
 - **Route:** `/dashboard/tokens`
+- **Sidebar Label:** "Scanned Tokens" (renamed from "Analyzed Tokens" Nov 2025)
 - **Components:**
-  - `TokensTable` - Data table showing analyzed tokens with bunny icon for "View Details" button
+  - `TokensTable` - Data table showing scanned tokens with bunny icon for "View Details" button
   - Multi-Token Early Wallets section (expandable)
   - Action buttons (Refresh, Export, etc.)
 
@@ -622,6 +625,8 @@ When discussing the project with AI assistants, use these precise terms:
 | "The database file" | "SQLite database" | `analyzed_tokens.db` file |
 | "Refreshing the data" | "Triggering a data refresh" | Calls `/api/tokens/refresh` endpoint |
 | "The token page" | "Token detail page" | Dynamic route `/dashboard/tokens/[id]` |
+| "Settings" / "Master Control" | "Settings modal" | 5-tab settings hub opened from sidebar |
+| "Scanned Tokens" / "Analyzed Tokens" | "Scanned Tokens page" | Main dashboard at `/dashboard/tokens` |
 
 ### Common Misconceptions to Correct
 
@@ -970,6 +975,8 @@ pnpm install
    - "Multi-Token Wallets panel" = Multi-Token Early Wallets table/section (renamed with bunny icon branding)
    - "Action wheel" = AutoHotkey radial menu
    - "The app" = Usually refers to frontend at localhost:3000
+   - "Settings" or "Master Control" = Settings modal (5-tab hub)
+   - "Scanned Tokens" or "Analyzed Tokens" = Main token dashboard
 
 5. **Start Command:** `scripts\start.bat` launches everything
 
@@ -1014,6 +1021,8 @@ C:\Meridinate\
 └── scripts/           # start.bat launches all services
 ```
 
+**Sidebar Nav:** Ingestion, Scanned Tokens, Codex, Trash, Settings
+
 **Start:** `scripts\start.bat` → opens 3 windows (launcher, backend, frontend)
 
 **Main Features:**
@@ -1023,7 +1032,8 @@ C:\Meridinate\
 4. Market cap tracking (with trend/last-updated)
 5. Wallet balance refresh (with trend/last-updated)
 6. Real-time WebSocket notifications
-7. Unified CI/CD pipeline with automated checks
+7. Persisted operation log (Recent Operations survives restarts)
+8. Settings modal (5-tab hub for scanning, ingestion, SWAB, webhooks, system)
 
 **CI/CD:** `.github/workflows/monorepo-ci.yml` - Backend tests, frontend lint/format/typecheck, API types sync, production builds
 
@@ -1034,6 +1044,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.2
-**Last Updated:** November 28, 2025 (Master Control modal with 5-tab settings hub)
+**Document Version:** 2.3
+**Last Updated:** November 29, 2025 (Persisted operation log, sidebar reorder, terminology updates)
 **Next Review:** After production deployment

@@ -237,6 +237,20 @@ def run_token_analysis_sync(
         metrics_collector.job_completed(job_id, len(early_bidders), credits_used)
         log_analysis_complete(job_id, len(early_bidders), credits_used)
 
+        # Log high-level operation for persistent history
+        from meridinate.credit_tracker import get_credit_tracker
+        get_credit_tracker().record_operation(
+            operation="token_analysis",
+            label="Token Analysis",
+            credits=credits_used,
+            call_count=1,
+            context={
+                "token_name": token_name,
+                "token_symbol": token_symbol,
+                "wallets_found": len(early_bidders),
+            }
+        )
+
         # Send WebSocket notification via HTTP endpoint
         try:
             notification_data = {

@@ -40,7 +40,7 @@ class SwabSettingsUpdate(BaseModel):
 
     auto_check_enabled: Optional[bool] = None
     check_interval_minutes: Optional[int] = Field(None, ge=5, le=1440)
-    daily_credit_budget: Optional[int] = Field(None, ge=0, le=10000)
+    daily_credit_budget: Optional[int] = Field(None, ge=0, le=100000)
     stale_threshold_minutes: Optional[int] = Field(None, ge=5, le=1440)
     min_token_count: Optional[int] = Field(None, ge=1, le=50)
 
@@ -412,6 +412,19 @@ async def trigger_position_check(
 
         # Update SWAB credits used
         db.update_swab_last_check(credits_used=result.get("credits_used", 0))
+
+        # Log high-level operation for persistent history
+        from meridinate.credit_tracker import get_credit_tracker
+        get_credit_tracker().record_operation(
+            operation="position_check",
+            label="Position Check",
+            credits=result.get("credits_used", 0),
+            call_count=result.get("positions_checked", 0),
+            context={
+                "still_holding": result.get("still_holding", 0),
+                "sold": result.get("sold", 0),
+            }
+        )
 
         return CheckResultResponse(**result)
     except Exception as e:

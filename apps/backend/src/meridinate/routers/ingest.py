@@ -310,6 +310,19 @@ async def run_tier0(payload: Optional[Tier0RunRequest] = None):
 
     result = await run_tier0_ingestion(**params)
 
+    # Log high-level operation for persistent history
+    from meridinate.credit_tracker import get_credit_tracker
+    get_credit_tracker().record_operation(
+        operation="tier0_ingestion",
+        label="Tier-0 Ingestion",
+        credits=0,  # DexScreener is free
+        call_count=result.get("tokens_fetched", 0),
+        context={
+            "tokens_new": result.get("tokens_new", 0),
+            "tokens_updated": result.get("tokens_updated", 0),
+        }
+    )
+
     return {"status": "success", "result": result}
 
 
@@ -338,6 +351,19 @@ async def run_tier1(payload: Optional[Tier1RunRequest] = None):
     log_info("Tier-1 enrichment triggered", params=params, event_type="ingest_trigger", tier="tier1")
 
     result = await run_tier1_enrichment(**params)
+
+    # Log high-level operation for persistent history
+    from meridinate.credit_tracker import get_credit_tracker
+    get_credit_tracker().record_operation(
+        operation="tier1_enrichment",
+        label="Tier-1 Enrichment",
+        credits=result.get("credits_used", 0),
+        call_count=result.get("tokens_enriched", 0),
+        context={
+            "tokens_processed": result.get("tokens_processed", 0),
+            "tokens_failed": result.get("tokens_failed", 0),
+        }
+    )
 
     return {"status": "success", "result": result}
 
@@ -369,6 +395,19 @@ async def promote_tokens(payload: PromoteRequest):
     result = await promote_tokens_to_analysis(
         payload.token_addresses,
         register_webhooks=payload.register_webhooks,
+    )
+
+    # Log high-level operation for persistent history
+    from meridinate.credit_tracker import get_credit_tracker
+    get_credit_tracker().record_operation(
+        operation="token_promotion",
+        label="Token Promotion",
+        credits=result.get("credits_used", 0),
+        call_count=result.get("tokens_promoted", 0),
+        context={
+            "webhooks_registered": result.get("webhooks_registered", 0),
+            "tokens_failed": result.get("tokens_failed", 0),
+        }
     )
 
     return {"status": "success", "result": result}

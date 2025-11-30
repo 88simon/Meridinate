@@ -122,6 +122,30 @@ class CreditUsageStats:
         }
 
 
+@dataclass
+class OperationLogEntry:
+    """Represents a high-level operation log entry."""
+
+    id: Optional[int]
+    operation: str
+    label: str
+    credits: int
+    call_count: int
+    timestamp: datetime
+    context: Optional[Dict[str, Any]]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "operation": self.operation,
+            "label": self.label,
+            "credits": self.credits,
+            "call_count": self.call_count,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "context": self.context,
+        }
+
+
 class CreditTracker:
     """
     Centralized credit tracking with persistent storage.
@@ -208,6 +232,25 @@ class CreditTracker:
                     transaction_count INTEGER DEFAULT 0,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
+            """)
+
+            # Operation log table - persisted high-level operations
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS operation_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    operation TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    credits INTEGER NOT NULL DEFAULT 0,
+                    call_count INTEGER NOT NULL DEFAULT 1,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    context_json TEXT
+                )
+            """)
+
+            # Index for efficient recent operations lookup
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_operation_log_timestamp
+                ON operation_log(timestamp DESC)
             """)
 
             print("[CreditTracker] Schema initialized")
@@ -501,6 +544,91 @@ class CreditTracker:
         base_cost = CREDIT_COSTS.get(operation, 1)
         return base_cost * count
 
+    def record_operation(
+        self,
+        operation: str,
+        label: str,
+        credits: int = 0,
+        call_count: int = 1,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """
+        Record a high-level operation to the persistent operation log.
+
+        This creates a permanent record of user-facing operations like
+        "Token Analysis", "Position Check", "Tier-1 Enrichment", etc.
+
+        Args:
+            operation: Operation type identifier (e.g., 'token_analysis', 'position_check')
+            label: Human-readable label (e.g., 'Token Analysis', 'Position Check')
+            credits: Total credits consumed by this operation
+            call_count: Number of API calls made during this operation
+            context: Additional context data (stored as JSON)
+
+        Returns:
+            The operation log entry ID
+        """
+        import json
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            context_json = json.dumps(context) if context else None
+
+            cursor.execute("""
+                INSERT INTO operation_log (operation, label, credits, call_count, context_json)
+                VALUES (?, ?, ?, ?, ?)
+            """, (operation, label, credits, call_count, context_json))
+
+            entry_id = cursor.lastrowid
+
+            # Prune old entries to keep only the latest 100
+            cursor.execute("""
+                DELETE FROM operation_log
+                WHERE id NOT IN (
+                    SELECT id FROM operation_log ORDER BY timestamp DESC LIMIT 100
+                )
+            """)
+
+            return entry_id
+
+    def get_recent_operations(self, limit: int = 30) -> List[OperationLogEntry]:
+        """
+        Get recent high-level operations from the persistent log.
+
+        Args:
+            limit: Maximum number of operations to return (default: 30)
+
+        Returns:
+            List of OperationLogEntry objects ordered by timestamp descending
+        """
+        import json
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT id, operation, label, credits, call_count, timestamp, context_json
+                FROM operation_log
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (limit,))
+
+            entries = []
+            for row in cursor.fetchall():
+                context = json.loads(row["context_json"]) if row["context_json"] else None
+                entries.append(OperationLogEntry(
+                    id=row["id"],
+                    operation=row["operation"],
+                    label=row["label"],
+                    credits=row["credits"],
+                    call_count=row["call_count"],
+                    timestamp=datetime.fromisoformat(row["timestamp"]) if row["timestamp"] else None,
+                    context=context,
+                ))
+
+            return entries
+
 
 # Lazy singleton - initialized on first access to avoid database lock during imports
 _credit_tracker_instance = None
@@ -514,5 +642,10 @@ def get_credit_tracker() -> CreditTracker:
     return _credit_tracker_instance
 
 
-# Backwards compatibility alias (avoid using - prefer get_credit_tracker())
-credit_tracker = None  # Will be set on first import that needs it
+# Module-level __getattr__ for lazy initialization of credit_tracker
+# This allows `from credit_tracker import credit_tracker` to work
+# while still deferring database initialization until first use
+def __getattr__(name: str):
+    if name == "credit_tracker":
+        return get_credit_tracker()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

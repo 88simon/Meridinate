@@ -68,6 +68,25 @@ class AggregatedOperationsListResponse(BaseModel):
     operations: List[AggregatedOperationResponse]
 
 
+class OperationLogEntryResponse(BaseModel):
+    """Response model for a persisted operation log entry."""
+
+    id: int
+    operation: str
+    label: str
+    credits: int
+    call_count: int
+    timestamp: str
+    context: Optional[Dict[str, Any]]
+
+
+class OperationLogListResponse(BaseModel):
+    """Response model for operation log list."""
+
+    operations: List[OperationLogEntryResponse]
+    total: int
+
+
 @router.get("/api/stats/credits/today", response_model=CreditUsageStatsResponse)
 @conditional_rate_limit(READ_RATE_LIMIT)
 async def get_credits_today(request: Request):
@@ -319,6 +338,44 @@ async def get_aggregated_operations(
         )
 
     return AggregatedOperationsListResponse(operations=aggregated)
+
+
+@router.get("/api/stats/credits/operation-log", response_model=OperationLogListResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_operation_log(
+    request: Request,
+    limit: int = Query(default=30, ge=1, le=100, description="Maximum number of operations to return"),
+):
+    """
+    Get recent high-level operations from the persistent log.
+
+    This endpoint returns persisted operation records that survive restarts.
+    Each entry represents a user-facing operation like "Token Analysis",
+    "Position Check", "Tier-1 Enrichment", etc.
+
+    Args:
+        limit: Maximum number of operations to return (default: 30, max: 100)
+
+    Returns:
+        List of operation log entries ordered by timestamp descending.
+    """
+    entries = get_credit_tracker().get_recent_operations(limit=limit)
+
+    return OperationLogListResponse(
+        operations=[
+            OperationLogEntryResponse(
+                id=entry.id,
+                operation=entry.operation,
+                label=entry.label,
+                credits=entry.credits,
+                call_count=entry.call_count,
+                timestamp=entry.timestamp.isoformat() if entry.timestamp else "",
+                context=entry.context,
+            )
+            for entry in entries
+        ],
+        total=len(entries),
+    )
 
 
 @router.get("/api/stats/credits/token/{token_id}")

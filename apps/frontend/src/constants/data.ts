@@ -12,9 +12,18 @@ export type Product = {
 };
 
 //Info: The following data is used for the sidebar navigation.
+// Order: Ingestion, Scanned Tokens, Codex (button), Trash, Settings (modal)
 export const navItems: NavItem[] = [
   {
-    title: 'Analyzed Tokens',
+    title: 'Ingestion',
+    url: '/dashboard/ingestion',
+    icon: 'ingest',
+    shortcut: ['i', 'i'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Scanned Tokens',
     url: '/dashboard/tokens',
     icon: 'product',
     shortcut: ['t', 't'],

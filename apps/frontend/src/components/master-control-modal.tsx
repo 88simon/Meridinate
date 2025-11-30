@@ -1300,7 +1300,7 @@ function SystemTab() {
 }
 
 // ============================================================================
-// Main Master Control Modal
+// Main Settings Modal
 // ============================================================================
 export function MasterControlModal({
   open,
@@ -1318,10 +1318,10 @@ export function MasterControlModal({
           <DialogHeader>
             <DialogTitle className='flex items-center gap-2'>
               <Settings2 className='h-5 w-5' />
-              Master Control
+              Settings
             </DialogTitle>
             <DialogDescription>
-              Central controls for scanning, ingestion, and tracking
+              Controls for scanning, ingestion, and tracking
             </DialogDescription>
           </DialogHeader>
 

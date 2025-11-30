@@ -129,6 +129,11 @@ export default function IngestionPage() {
   const [loading, setLoading] = useState(true);
   const [runningTier0, setRunningTier0] = useState(false);
   const [runningTier1, setRunningTier1] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [processingAddresses, setProcessingAddresses] = useState<Set<string>>(
+    new Set()
+  );
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Status bar data with live credit tracking
@@ -192,6 +197,19 @@ export default function IngestionPage() {
   // Run Tier-0 ingestion
   const handleRunTier0 = async () => {
     setRunningTier0(true);
+
+    // Mark all 'ingested' tier tokens as processing (Tier-0 fetches new tokens)
+    const ingestedAddresses = new Set(
+      entries.filter((e) => e.tier === 'ingested').map((e) => e.token_address)
+    );
+    setProcessingAddresses(ingestedAddresses);
+
+    // Show background-safe toast immediately
+    toast.info(
+      'Tier-0 ingestion is running in the background. You can leave this page safely.',
+      { duration: 5000 }
+    );
+
     try {
       const response = await runTier0Ingestion();
       const result = response.result;
@@ -203,12 +221,26 @@ export default function IngestionPage() {
       toast.error('Tier-0 ingestion failed');
     } finally {
       setRunningTier0(false);
+      setProcessingAddresses(new Set());
     }
   };
 
   // Run Tier-1 enrichment
   const handleRunTier1 = async () => {
     setRunningTier1(true);
+
+    // Mark all 'ingested' tier tokens as processing (Tier-1 enriches ingested tokens)
+    const ingestedAddresses = new Set(
+      entries.filter((e) => e.tier === 'ingested').map((e) => e.token_address)
+    );
+    setProcessingAddresses(ingestedAddresses);
+
+    // Show background-safe toast immediately
+    toast.info(
+      'Tier-1 enrichment is running in the background. You can leave this page safely.',
+      { duration: 5000 }
+    );
+
     try {
       const response = await runTier1Enrichment();
       const result = response.result;
@@ -220,6 +252,7 @@ export default function IngestionPage() {
       toast.error('Tier-1 enrichment failed');
     } finally {
       setRunningTier1(false);
+      setProcessingAddresses(new Set());
     }
   };
 
@@ -229,6 +262,18 @@ export default function IngestionPage() {
       toast.error('No tokens selected');
       return;
     }
+
+    setPromoting(true);
+
+    // Mark selected tokens as processing
+    setProcessingAddresses(new Set(selectedEntries));
+
+    // Show background-safe toast immediately
+    toast.info(
+      'Promotion is running in the background. You can leave this page safely.',
+      { duration: 5000 }
+    );
+
     try {
       const response = await promoteTokens(Array.from(selectedEntries));
       toast.success(`Promoted ${response.result.tokens_promoted} tokens`);
@@ -236,6 +281,9 @@ export default function IngestionPage() {
       fetchData();
     } catch (error) {
       toast.error('Failed to promote tokens');
+    } finally {
+      setPromoting(false);
+      setProcessingAddresses(new Set());
     }
   };
 
@@ -245,6 +293,12 @@ export default function IngestionPage() {
       toast.error('No tokens selected');
       return;
     }
+
+    setDiscarding(true);
+
+    // Mark selected tokens as processing
+    setProcessingAddresses(new Set(selectedEntries));
+
     try {
       const response = await discardTokens(Array.from(selectedEntries));
       toast.success(`Discarded ${response.discarded} tokens`);
@@ -252,6 +306,9 @@ export default function IngestionPage() {
       fetchData();
     } catch (error) {
       toast.error('Failed to discard tokens');
+    } finally {
+      setDiscarding(false);
+      setProcessingAddresses(new Set());
     }
   };
 
@@ -435,21 +492,29 @@ export default function IngestionPage() {
 
               <Button
                 onClick={handlePromote}
-                disabled={selectedEntries.size === 0}
+                disabled={selectedEntries.size === 0 || promoting}
                 variant='default'
                 size='sm'
               >
-                <ArrowUpCircle className='mr-2 h-4 w-4' />
+                {promoting ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <ArrowUpCircle className='mr-2 h-4 w-4' />
+                )}
                 Promote ({selectedEntries.size})
               </Button>
 
               <Button
                 onClick={handleDiscard}
-                disabled={selectedEntries.size === 0}
+                disabled={selectedEntries.size === 0 || discarding}
                 variant='destructive'
                 size='sm'
               >
-                <Trash2 className='mr-2 h-4 w-4' />
+                {discarding ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <Trash2 className='mr-2 h-4 w-4' />
+                )}
                 Discard ({selectedEntries.size})
               </Button>
 
@@ -561,7 +626,12 @@ export default function IngestionPage() {
                             />
                           </TableCell>
                           <TableCell className='font-medium'>
-                            {entry.token_symbol || entry.token_name || '-'}
+                            <div className='flex items-center gap-1.5'>
+                              {processingAddresses.has(entry.token_address) && (
+                                <Loader2 className='h-3 w-3 animate-spin text-blue-500' />
+                              )}
+                              {entry.token_symbol || entry.token_name || '-'}
+                            </div>
                           </TableCell>
                           <TableCell className='font-mono text-xs'>
                             <Tooltip>

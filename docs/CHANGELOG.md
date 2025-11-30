@@ -8,6 +8,156 @@
 
 ## Recent Bug Fixes & Technical Notes
 
+### Sidebar Reorder and Terminology Updates (Nov 29, 2025)
+
+**Feature:** Reorganized sidebar navigation and updated terminology for consistency.
+
+**Changes:**
+1. **Sidebar navigation reordered:** Ingestion, Scanned Tokens, Codex, Trash, Settings
+2. **Renamed "Analyzed Tokens" to "Scanned Tokens"** throughout the UI
+3. **Renamed "Master Control" to "Settings"** in sidebar and modal title
+
+**Files Modified:**
+- `apps/frontend/src/constants/data.ts` - Reordered navItems, renamed title
+- `apps/frontend/src/components/layout/app-sidebar.tsx` - Restructured to insert Codex between items, renamed Settings
+- `apps/frontend/src/components/master-control-modal.tsx` - Dialog title changed to "Settings"
+- `apps/frontend/src/components/ingest-banner.tsx` - Updated references
+- `apps/frontend/src/app/dashboard/tokens/page.tsx` - Page heading updated
+
+---
+
+### Persisted Operation Log (Nov 29, 2025)
+
+**Feature:** Recent Operations history now survives frontend/backend restarts.
+
+**Problem Solved:**
+- Recent Operations in status bar popover disappeared on page refresh or backend restart
+- Operations were aggregated on-the-fly from raw credit transactions with no persistence
+
+**Solution:**
+1. **New `operation_log` SQLite table** - Stores high-level operations (Token Analysis, Position Check, Tier-0/1 runs, Promotion)
+2. **Auto-pruning** - Keeps latest 100 entries, frontend fetches last 30
+3. **New endpoint** - `GET /api/stats/credits/operation-log` returns persisted operations
+4. **Operation recording** - Added `record_operation()` calls to key handlers
+
+**Files Modified:**
+- `apps/backend/src/meridinate/credit_tracker.py` - Added `OperationLogEntry` dataclass, table schema, `record_operation()` and `get_recent_operations()` methods
+- `apps/backend/src/meridinate/routers/stats.py` - Added `OperationLogListResponse` model and endpoint
+- `apps/backend/src/meridinate/routers/analysis.py` - Added operation logging after token analysis
+- `apps/backend/src/meridinate/routers/swab.py` - Added operation logging for position checks
+- `apps/backend/src/meridinate/routers/ingest.py` - Added operation logging for Tier-0/1 and promotion
+- `apps/frontend/src/lib/api.ts` - Added `OperationLogEntry` interface and `getOperationLog()` function
+- `apps/frontend/src/hooks/useStatusBarData.ts` - Updated to use persisted operation log
+
+---
+
+### Progress Indicators for TIP and SWAB (Nov 29, 2025)
+
+**Feature:** Per-row spinners and background-safe toasts for long-running operations.
+
+**Changes:**
+1. **SWAB tab:** Blue spinner next to wallet address during position check
+2. **Ingestion page:** Blue spinner next to token name during Tier-0/1 and Promote/Discard
+3. **Background-safe toasts:** Info toast "...running in background. You can leave this page safely." for all long operations
+4. **Button loading states:** Promote/Discard buttons show spinner and are disabled while running
+
+**Files Modified:**
+- `apps/frontend/src/components/swab/swab-tab.tsx` - Added `checkingAddresses` state, spinner in table rows
+- `apps/frontend/src/app/dashboard/ingestion/page.tsx` - Added `processingAddresses` state, spinner in table rows, button loading states
+
+---
+
+### Timestamp Timezone Fix (Nov 29, 2025)
+
+**Bug:** Recent Operations showed future dates (e.g., "Nov 30, 02:33 AM" when current time was Nov 29, 08:34 PM).
+
+**Cause:** Backend stores UTC timestamps without timezone indicator, frontend parsed them as local time.
+
+**Fix:** Updated `formatDateTime()` in `status-bar.tsx` to append 'Z' to timestamps lacking timezone info before parsing, ensuring proper UTC to local conversion.
+
+---
+
+### Settings Modal (Nov 28, 2025)
+
+**Feature:** Added comprehensive 5-tab settings hub (originally named "Master Control", renamed to "Settings" on Nov 29).
+
+**What was implemented:**
+
+1. **Renamed sidebar entry** from "Settings" to "Master Control" with new icon (IconAdjustments) and descriptive tooltip.
+
+2. **5-tab modal layout:**
+   - **Scanning:** Manual scan settings (wallet limit, transaction limit, min USD filter) + Solscan/Action Wheel settings (min value, activity type, exclude zeros, remove spam).
+   - **Ingestion:** TIP thresholds (MC/volume/liquidity/age), batch sizes, credit budgets, feature flags (ingest/enrich/auto-promote/hot-refresh), last run timestamps.
+   - **SWAB:** Settings (auto-check, intervals, budgets), stats (positions, holding/sold counts, credits used), manual check trigger, reconciliation controls.
+   - **Webhooks:** List/create/delete Helius webhooks with address preview and status.
+   - **System:** Feature flag toggles, scheduler status display, ingest banner preference toggle.
+
+3. **UI improvements:**
+   - Fixed-height tab content area prevents modal resizing when switching tabs.
+   - NumericStepper components with min/max/step validation and reset buttons.
+   - InfoTooltip helper for consistent tooltip styling across all settings.
+   - Real-time save with toast notifications.
+
+4. **Backend fixes:**
+   - Increased `daily_credit_budget` validation limit from 10,000 to 100,000 in SWAB settings.
+   - Improved error logging for SWAB settings update failures.
+
+**Files Created:**
+- `apps/frontend/src/components/master-control-modal.tsx` - New 1300+ line component
+
+**Files Modified:**
+- `apps/frontend/src/components/layout/app-sidebar.tsx` - Changed import/icon/label
+- `apps/frontend/src/components/ingest-banner.tsx` - Added localStorage preference support
+- `apps/frontend/src/lib/api.ts` - Extended IngestSettings interface, improved error handling
+- `apps/backend/src/meridinate/routers/swab.py` - Increased validation limits
+- `apps/backend/src/meridinate/analyzed_tokens_db.py` - Made update_swab_settings more robust
+
+---
+
+### Token Details Modal Instant Opening (Nov 28, 2025)
+
+**Optimization:** Eliminated perceived delay when clicking "View Details" in the Token Table.
+
+**Problem Solved:**
+- Clicking "View Details" waited for `getTokenById(id)` API call to complete before opening the modal
+- This caused a noticeable ~500ms delay (network roundtrip) before any visual feedback
+- Additionally, setting modal state in `TokensTable` triggered a full table re-render (virtualized rows, column definitions)
+- Combined effect was a stuttery, unresponsive feel when opening token details
+
+**Solution: Instant Modal with Deferred Data Fetching**
+
+1. **In-memory token details cache** (`api.ts`):
+   - 30-second TTL cache stores prefetched token data
+   - `getCachedTokenDetails(id)` retrieves cached data if fresh
+   - `getTokenById()` now checks cache first, populates after fetch
+   - Existing hover prefetch (`handleRowHover`) warms the cache
+
+2. **Modal fetches internally** (`token-details-modal.tsx`):
+   - Prop changed from `token: TokenDetail` to `tokenId: number`
+   - Modal opens immediately and fetches data via `useEffect`
+   - Shows loading skeleton while fetching (if no cache hit)
+   - If cache hit: displays instantly, refreshes in background
+
+3. **Modal state lifted to parent** (`page.tsx`):
+   - Modal state moved from `TokensTable` to `page.tsx`
+   - `TokensTable` receives `onViewDetails` callback prop
+   - When modal opens, only parent re-renders (not the expensive table)
+
+**Performance Flow:**
+- On hover: `handleRowHover` prefetches token data into cache
+- On click: Modal opens instantly, checks cache
+  - Cache hit: Shows data immediately, fetches fresh in background
+  - Cache miss: Shows loading skeleton, fetches data
+- Result: Instant visual feedback regardless of network conditions
+
+**Files Modified:**
+- `apps/frontend/src/lib/api.ts` - Added token details cache functions
+- `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` - Internal fetching, loading skeleton
+- `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` - Added `onViewDetails` prop, removed modal rendering
+- `apps/frontend/src/app/dashboard/tokens/page.tsx` - Modal state and rendering lifted here
+
+---
+
 ### SWAB Position Reconciliation Tool (Nov 27, 2025)
 
 **Feature:** Automated reconciliation tool to fix sold positions with missing sell data.
@@ -1202,5 +1352,5 @@ https://solscan.io/account/{ADDRESS}?
 
 ---
 
-**Last Updated:** November 27, 2025
-**Document Version:** 1.0
+**Last Updated:** November 28, 2025
+**Document Version:** 1.1
