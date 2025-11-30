@@ -24,12 +24,18 @@ interface StatusBarProps {
   lastUpdated?: Date | null;
 }
 
-// Format timestamp to short time
-function formatTime(timestamp: string | null): string {
+// Format timestamp to readable date/time (e.g., "Nov 29, 02:01 AM")
+function formatDateTime(timestamp: string | null): string {
   if (!timestamp) return '';
   try {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   } catch {
     return '';
   }
@@ -101,11 +107,11 @@ export function StatusBar({
                 <h4 className='text-sm font-semibold'>Recent Operations</h4>
                 {lastUpdated && (
                   <p className='text-muted-foreground text-xs'>
-                    Updated {formatTime(lastUpdated.toISOString())}
+                    Updated {formatDateTime(lastUpdated.toISOString())}
                   </p>
                 )}
               </div>
-              <div className='max-h-56 overflow-y-auto'>
+              <div className='max-h-80 overflow-y-auto'>
                 {recentOperations.length > 0 ? (
                   <ul className='divide-y'>
                     {recentOperations.map((op, idx) => (
@@ -116,7 +122,7 @@ export function StatusBar({
                         <div className='flex flex-col gap-0.5'>
                           <span className='font-medium'>{op.label}</span>
                           <span className='text-muted-foreground'>
-                            {formatTime(op.timestamp)}
+                            {formatDateTime(op.timestamp)}
                             {op.transaction_count > 1 && (
                               <span className='ml-1'>
                                 ({op.transaction_count} calls)

@@ -61,7 +61,7 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
     try {
       const [stats, operations, latest] = await Promise.all([
         getCreditStatsToday(),
-        getAggregatedOperations(5),
+        getAggregatedOperations(15),
         getLatestToken()
       ]);
 
