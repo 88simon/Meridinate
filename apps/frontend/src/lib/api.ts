@@ -99,8 +99,8 @@ export interface TopHoldersResponse {
   api_credits_used: number;
 }
 
-// Backwards compatibility - ApiSettings is now AnalysisSettings
-export type ApiSettings = AnalysisSettings;
+// Backwards compatibility - ApiSettings is now AnalysisSettings with bypassLimits
+export type ApiSettings = AnalysisSettings & { bypassLimits?: boolean };
 
 // ============================================================================
 // Token Details Cache (for instant modal opening)

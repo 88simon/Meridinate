@@ -258,13 +258,14 @@ class WalletTagRequest(BaseModel):
 class AnalysisSettings(BaseModel):
     """API settings for token analysis"""
 
-    transactionLimit: int = Field(default=500, ge=1, le=10000)
+    transactionLimit: int = Field(default=500, ge=1)
     minUsdFilter: float = Field(default=50.0, ge=0)
-    walletCount: int = Field(default=10, ge=1, le=100)
+    walletCount: int = Field(default=10, ge=1)
     apiRateDelay: int = Field(default=100, ge=0)
-    maxCreditsPerAnalysis: int = Field(default=1000, ge=1, le=10000)
-    maxRetries: int = Field(default=3, ge=0, le=10)
-    topHoldersLimit: int = Field(default=10, ge=5, le=20, description="Number of top token holders to fetch (Helius API max: 20)")
+    maxCreditsPerAnalysis: int = Field(default=1000, ge=1)
+    maxRetries: int = Field(default=3, ge=0)
+    topHoldersLimit: int = Field(default=10, ge=1, description="Number of top token holders to fetch")
+    bypassLimits: bool = Field(default=False, description="Bypass all slider/input limits in UI and backend")
 
 
 class AnalyzeTokenRequest(BaseModel):
@@ -355,13 +356,14 @@ class ImportAddressesRequest(BaseModel):
 
 
 class UpdateSettingsRequest(BaseModel):
-    transactionLimit: Optional[int] = Field(None, ge=1, le=10000)
+    transactionLimit: Optional[int] = Field(None, ge=1)
     minUsdFilter: Optional[float] = Field(None, ge=0)
-    walletCount: Optional[int] = Field(None, ge=1, le=100)
+    walletCount: Optional[int] = Field(None, ge=1)
     apiRateDelay: Optional[int] = Field(None, ge=0)
-    maxCreditsPerAnalysis: Optional[int] = Field(None, ge=1, le=10000)
-    maxRetries: Optional[int] = Field(None, ge=0, le=10)
-    topHoldersLimit: Optional[int] = Field(None, ge=5, le=20, description="Number of top token holders to fetch (Helius API max: 20)")
+    maxCreditsPerAnalysis: Optional[int] = Field(None, ge=1)
+    maxRetries: Optional[int] = Field(None, ge=0)
+    topHoldersLimit: Optional[int] = Field(None, ge=1, description="Number of top token holders to fetch")
+    bypassLimits: Optional[bool] = None
 
 
 class SolscanSettings(BaseModel):
@@ -502,16 +504,21 @@ class UpdateIngestSettingsRequest(BaseModel):
     volume_min: Optional[float] = Field(None, ge=0)
     liquidity_min: Optional[float] = Field(None, ge=0)
     age_max_hours: Optional[float] = Field(None, ge=1)
-    tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1, le=500)
-    tier1_batch_size: Optional[int] = Field(None, ge=1, le=100)
-    tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1, le=1000)
+    tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1)
+    tier1_batch_size: Optional[int] = Field(None, ge=1)
+    tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1)
     ingest_enabled: Optional[bool] = None
     enrich_enabled: Optional[bool] = None
     auto_promote_enabled: Optional[bool] = None
     hot_refresh_enabled: Optional[bool] = None
-    auto_promote_max_per_run: Optional[int] = Field(None, ge=1, le=50)
-    hot_refresh_age_hours: Optional[float] = Field(None, ge=1, le=168)
-    hot_refresh_max_tokens: Optional[int] = Field(None, ge=1, le=500)
+    auto_promote_max_per_run: Optional[int] = Field(None, ge=1)
+    hot_refresh_age_hours: Optional[float] = Field(None, ge=1)
+    hot_refresh_max_tokens: Optional[int] = Field(None, ge=1)
+    # Performance scoring settings
+    score_enabled: Optional[bool] = None
+    performance_prime_threshold: Optional[int] = Field(None, ge=0, le=100)
+    performance_monitor_threshold: Optional[int] = Field(None, ge=0, le=100)
+    control_cohort_daily_quota: Optional[int] = Field(None, ge=0)
 
 
 class IngestQueueEntry(BaseModel):

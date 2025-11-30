@@ -69,6 +69,7 @@ interface ApiSettings {
   apiRateDelay: number;
   maxCreditsPerAnalysis: number;
   maxRetries: number;
+  bypassLimits?: boolean;
 }
 
 interface MasterControlModalProps {
@@ -136,7 +137,8 @@ function NumericStepper({
   min,
   max,
   step,
-  tooltip
+  tooltip,
+  bypassLimits = false
 }: {
   label: string;
   value: number;
@@ -146,7 +148,11 @@ function NumericStepper({
   max?: number;
   step: number;
   tooltip?: string;
+  bypassLimits?: boolean;
 }) {
+  // When bypassLimits is true, only enforce min >= 0
+  const effectiveMin = bypassLimits ? 0 : min;
+  const effectiveMax = bypassLimits ? undefined : max;
   return (
     <div className='space-y-1'>
       <Label className='flex items-center text-xs'>
@@ -158,7 +164,7 @@ function NumericStepper({
           variant='outline'
           size='icon'
           className='h-7 w-7'
-          onClick={() => onChange(Math.max(min, value - step))}
+          onClick={() => onChange(Math.max(effectiveMin, value - step))}
         >
           <ChevronLeft className='h-3 w-3' />
         </Button>
@@ -166,8 +172,12 @@ function NumericStepper({
           type='number'
           value={value}
           onChange={(e) => {
-            const v = parseInt(e.target.value) || min;
-            onChange(max ? Math.min(max, Math.max(min, v)) : Math.max(min, v));
+            const v = parseInt(e.target.value) || effectiveMin;
+            onChange(
+              effectiveMax
+                ? Math.min(effectiveMax, Math.max(effectiveMin, v))
+                : Math.max(effectiveMin, v)
+            );
           }}
           className='h-7 text-center text-xs [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
         />
@@ -176,7 +186,9 @@ function NumericStepper({
           size='icon'
           className='h-7 w-7'
           onClick={() =>
-            onChange(max ? Math.min(max, value + step) : value + step)
+            onChange(
+              effectiveMax ? Math.min(effectiveMax, value + step) : value + step
+            )
           }
         >
           <ChevronRight className='h-3 w-3' />
@@ -263,8 +275,26 @@ function ScanningTab({
     }
   };
 
+  const bypassLimits = apiSettings.bypassLimits ?? false;
+
   return (
     <div className='space-y-6'>
+      {/* Bypass Limits Toggle */}
+      <div className='bg-muted/50 flex items-center justify-between rounded-lg p-3'>
+        <div className='space-y-0.5'>
+          <p className='text-sm font-medium'>Bypass All Limits</p>
+          <p className='text-muted-foreground text-xs'>
+            Remove all slider caps (UI and backend validation)
+          </p>
+        </div>
+        <Switch
+          checked={bypassLimits}
+          onCheckedChange={(v) =>
+            setApiSettings({ ...apiSettings, bypassLimits: v })
+          }
+        />
+      </div>
+
       {/* Manual Scan Settings */}
       <div>
         <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
@@ -291,6 +321,7 @@ function ScanningTab({
             max={20000}
             step={500}
             tooltip='Maximum transactions to scan per wallet for early buyer detection (100-20k)'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Min USD Filter ($)'
@@ -308,6 +339,7 @@ function ScanningTab({
             max={500}
             step={10}
             tooltip='Minimum USD value to consider a wallet as an early buyer'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Wallet Count'
@@ -322,6 +354,7 @@ function ScanningTab({
             min={5}
             step={5}
             tooltip='Number of early buyer wallets to track per token'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Max Credits/Analysis'
@@ -338,6 +371,7 @@ function ScanningTab({
             min={100}
             step={100}
             tooltip='Maximum Helius API credits to spend per token analysis'
+            bypassLimits={bypassLimits}
           />
         </div>
 
@@ -479,7 +513,7 @@ function ScanningTab({
 // ============================================================================
 // Ingestion Tab (TIP Settings)
 // ============================================================================
-function IngestionTab() {
+function IngestionTab({ bypassLimits = false }: { bypassLimits?: boolean }) {
   const [settings, setSettings] = useState<IngestSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -564,6 +598,7 @@ function IngestionTab() {
             min={0}
             step={5000}
             tooltip='Minimum market cap to pass Tier-0'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Min Volume ($)'
@@ -572,6 +607,7 @@ function IngestionTab() {
             min={0}
             step={1000}
             tooltip='Minimum 24h volume'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Min Liquidity ($)'
@@ -580,6 +616,7 @@ function IngestionTab() {
             min={0}
             step={1000}
             tooltip='Minimum liquidity'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Max Age (hours)'
@@ -588,6 +625,7 @@ function IngestionTab() {
             min={1}
             step={6}
             tooltip='Maximum token age for ingestion'
+            bypassLimits={bypassLimits}
           />
         </div>
       </div>
@@ -606,6 +644,7 @@ function IngestionTab() {
             min={1}
             step={10}
             tooltip='Max tokens per Tier-0 run'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Tier-1 Batch Size'
@@ -614,6 +653,7 @@ function IngestionTab() {
             min={1}
             step={5}
             tooltip='Tokens to enrich per Tier-1 run'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Tier-1 Credit Budget'
@@ -622,6 +662,7 @@ function IngestionTab() {
             min={10}
             step={50}
             tooltip='Max credits per Tier-1 run'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Auto-Promote Max'
@@ -630,6 +671,7 @@ function IngestionTab() {
             min={1}
             step={1}
             tooltip='Max tokens to auto-promote per run'
+            bypassLimits={bypassLimits}
           />
         </div>
       </div>
@@ -662,6 +704,7 @@ function IngestionTab() {
             min={1}
             step={6}
             tooltip='Max age for hot tokens'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Hot Refresh Max Tokens'
@@ -670,6 +713,7 @@ function IngestionTab() {
             min={10}
             step={50}
             tooltip='Max tokens per hot refresh run'
+            bypassLimits={bypassLimits}
           />
         </div>
       </div>
@@ -703,6 +747,7 @@ function IngestionTab() {
             max={100}
             step={5}
             tooltip='Score ≥ this = Prime bucket'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Monitor Threshold'
@@ -714,6 +759,7 @@ function IngestionTab() {
             max={(settings.performance_prime_threshold ?? 65) - 5}
             step={5}
             tooltip='Score ≥ this (but < Prime) = Monitor'
+            bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Control Cohort Quota'
@@ -723,6 +769,7 @@ function IngestionTab() {
             max={20}
             step={1}
             tooltip='Low-score tokens tracked daily for validation'
+            bypassLimits={bypassLimits}
           />
         </div>
         {settings.last_score_run_at && (
@@ -763,7 +810,7 @@ function IngestionTab() {
 // ============================================================================
 // SWAB Tab (Settings, Status, Actions, Reconciliation)
 // ============================================================================
-function SwabTab() {
+function SwabTab({ bypassLimits = false }: { bypassLimits?: boolean }) {
   const [settings, setSettings] = useState<SwabSettings | null>(null);
   const [stats, setStats] = useState<SwabStats | null>(null);
   const [schedulerStatus, setSchedulerStatus] = useState<{
@@ -949,6 +996,7 @@ function SwabTab() {
                 max={1440}
                 step={5}
                 tooltip='How often to check for position changes (5-1440 min)'
+                bypassLimits={bypassLimits}
               />
               <NumericStepper
                 label='Daily Credit Budget'
@@ -958,6 +1006,7 @@ function SwabTab() {
                 max={100000}
                 step={500}
                 tooltip='Max credits for auto-checks per day (0-100k)'
+                bypassLimits={bypassLimits}
               />
               <NumericStepper
                 label='Stale Threshold (min)'
@@ -967,6 +1016,7 @@ function SwabTab() {
                 max={1440}
                 step={30}
                 tooltip='Consider position stale after this time (5-1440 min)'
+                bypassLimits={bypassLimits}
               />
               <NumericStepper
                 label='Min Token Count'
@@ -976,6 +1026,7 @@ function SwabTab() {
                 max={50}
                 step={1}
                 tooltip='Only track wallets appearing in N+ tokens (1-50)'
+                bypassLimits={bypassLimits}
               />
             </div>
           </div>
@@ -1588,11 +1639,13 @@ export function MasterControlModal({
               </TabsContent>
 
               <TabsContent value='ingestion'>
-                <IngestionTab />
+                <IngestionTab
+                  bypassLimits={apiSettings.bypassLimits ?? false}
+                />
               </TabsContent>
 
               <TabsContent value='swab'>
-                <SwabTab />
+                <SwabTab bypassLimits={apiSettings.bypassLimits ?? false} />
               </TabsContent>
 
               <TabsContent value='webhooks'>

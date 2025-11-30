@@ -4300,7 +4300,6 @@
         "properties": {
           "transactionLimit": {
             "type": "integer",
-            "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Transactionlimit",
             "default": 500
@@ -4313,7 +4312,6 @@
           },
           "walletCount": {
             "type": "integer",
-            "maximum": 100.0,
             "minimum": 1.0,
             "title": "Walletcount",
             "default": 10
@@ -4326,25 +4324,28 @@
           },
           "maxCreditsPerAnalysis": {
             "type": "integer",
-            "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Maxcreditsperanalysis",
             "default": 1000
           },
           "maxRetries": {
             "type": "integer",
-            "maximum": 10.0,
             "minimum": 0.0,
             "title": "Maxretries",
             "default": 3
           },
           "topHoldersLimit": {
             "type": "integer",
-            "maximum": 20.0,
-            "minimum": 5.0,
+            "minimum": 1.0,
             "title": "Topholderslimit",
-            "description": "Number of top token holders to fetch (Helius API max: 20)",
+            "description": "Number of top token holders to fetch",
             "default": 10
+          },
+          "bypassLimits": {
+            "type": "boolean",
+            "title": "Bypasslimits",
+            "description": "Bypass all slider/input limits in UI and backend",
+            "default": false
           }
         },
         "type": "object",
@@ -7822,7 +7823,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 500.0,
                 "minimum": 1.0
               },
               {
@@ -7835,7 +7835,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -7848,7 +7847,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 1000.0,
                 "minimum": 1.0
               },
               {
@@ -7905,7 +7903,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 50.0,
                 "minimum": 1.0
               },
               {
@@ -7918,7 +7915,6 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 168.0,
                 "minimum": 1.0
               },
               {
@@ -7931,7 +7927,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 500.0,
                 "minimum": 1.0
               },
               {
@@ -7939,6 +7934,55 @@
               }
             ],
             "title": "Hot Refresh Max Tokens"
+          },
+          "score_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Enabled"
+          },
+          "performance_prime_threshold": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Prime Threshold"
+          },
+          "performance_monitor_threshold": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Monitor Threshold"
+          },
+          "control_cohort_daily_quota": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Cohort Daily Quota"
           }
         },
         "type": "object",
@@ -7951,7 +7995,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 10000.0,
                 "minimum": 1.0
               },
               {
@@ -7976,7 +8019,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -8001,7 +8043,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 10000.0,
                 "minimum": 1.0
               },
               {
@@ -8014,7 +8055,6 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 10.0,
                 "minimum": 0.0
               },
               {
@@ -8027,15 +8067,25 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 20.0,
-                "minimum": 5.0
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
             "title": "Topholderslimit",
-            "description": "Number of top token holders to fetch (Helius API max: 20)"
+            "description": "Number of top token holders to fetch"
+          },
+          "bypassLimits": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bypasslimits"
           }
         },
         "type": "object",
