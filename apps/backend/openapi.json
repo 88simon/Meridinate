@@ -5199,7 +5199,6 @@
           },
           "tier0_max_tokens_per_run": {
             "type": "integer",
-            "maximum": 500.0,
             "minimum": 1.0,
             "title": "Tier0 Max Tokens Per Run",
             "description": "Max tokens per Tier-0 run",
@@ -5207,7 +5206,6 @@
           },
           "tier1_batch_size": {
             "type": "integer",
-            "maximum": 100.0,
             "minimum": 1.0,
             "title": "Tier1 Batch Size",
             "description": "Max tokens per Tier-1 run",
@@ -5215,7 +5213,6 @@
           },
           "tier1_credit_budget_per_run": {
             "type": "integer",
-            "maximum": 1000.0,
             "minimum": 1.0,
             "title": "Tier1 Credit Budget Per Run",
             "description": "Max Helius credits per Tier-1 run",
@@ -5247,7 +5244,6 @@
           },
           "auto_promote_max_per_run": {
             "type": "integer",
-            "maximum": 50.0,
             "minimum": 1.0,
             "title": "Auto Promote Max Per Run",
             "description": "Max tokens to auto-promote per run",
@@ -5255,7 +5251,6 @@
           },
           "hot_refresh_age_hours": {
             "type": "number",
-            "maximum": 168.0,
             "minimum": 1.0,
             "title": "Hot Refresh Age Hours",
             "description": "Max age for hot tokens (hours)",
@@ -5263,11 +5258,50 @@
           },
           "hot_refresh_max_tokens": {
             "type": "integer",
-            "maximum": 500.0,
             "minimum": 1.0,
             "title": "Hot Refresh Max Tokens",
             "description": "Max tokens to refresh per run",
             "default": 100
+          },
+          "score_enabled": {
+            "type": "boolean",
+            "title": "Score Enabled",
+            "description": "Enable performance scoring",
+            "default": false
+          },
+          "performance_prime_threshold": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Performance Prime Threshold",
+            "description": "Score >= this = Prime",
+            "default": 65
+          },
+          "performance_monitor_threshold": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Performance Monitor Threshold",
+            "description": "Score >= this = Monitor",
+            "default": 40
+          },
+          "control_cohort_daily_quota": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Control Cohort Daily Quota",
+            "description": "Low-score tokens to track daily",
+            "default": 5
+          },
+          "last_score_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Score Run At"
           },
           "last_tier0_run_at": {
             "anyOf": [

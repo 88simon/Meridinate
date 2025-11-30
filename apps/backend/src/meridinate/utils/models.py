@@ -472,10 +472,10 @@ class IngestSettings(BaseModel):
     liquidity_min: float = Field(default=5000, ge=0, description="Minimum liquidity in USD")
     age_max_hours: float = Field(default=48, ge=1, description="Maximum token age in hours")
 
-    # Batch and budget limits
-    tier0_max_tokens_per_run: int = Field(default=50, ge=1, le=500, description="Max tokens per Tier-0 run")
-    tier1_batch_size: int = Field(default=10, ge=1, le=100, description="Max tokens per Tier-1 run")
-    tier1_credit_budget_per_run: int = Field(default=100, ge=1, le=1000, description="Max Helius credits per Tier-1 run")
+    # Batch and budget limits (no upper bounds - bypassLimits allows any value)
+    tier0_max_tokens_per_run: int = Field(default=50, ge=1, description="Max tokens per Tier-0 run")
+    tier1_batch_size: int = Field(default=10, ge=1, description="Max tokens per Tier-1 run")
+    tier1_credit_budget_per_run: int = Field(default=100, ge=1, description="Max Helius credits per Tier-1 run")
 
     # Feature flags
     ingest_enabled: bool = Field(default=False, description="Enable Tier-0 ingestion")
@@ -484,11 +484,18 @@ class IngestSettings(BaseModel):
     hot_refresh_enabled: bool = Field(default=False, description="Enable hot token MC/volume refresh")
 
     # Auto-promote settings
-    auto_promote_max_per_run: int = Field(default=5, ge=1, le=50, description="Max tokens to auto-promote per run")
+    auto_promote_max_per_run: int = Field(default=5, ge=1, description="Max tokens to auto-promote per run")
 
     # Hot refresh settings
-    hot_refresh_age_hours: float = Field(default=48, ge=1, le=168, description="Max age for hot tokens (hours)")
-    hot_refresh_max_tokens: int = Field(default=100, ge=1, le=500, description="Max tokens to refresh per run")
+    hot_refresh_age_hours: float = Field(default=48, ge=1, description="Max age for hot tokens (hours)")
+    hot_refresh_max_tokens: int = Field(default=100, ge=1, description="Max tokens to refresh per run")
+
+    # Performance scoring settings
+    score_enabled: bool = Field(default=False, description="Enable performance scoring")
+    performance_prime_threshold: int = Field(default=65, ge=0, le=100, description="Score >= this = Prime")
+    performance_monitor_threshold: int = Field(default=40, ge=0, le=100, description="Score >= this = Monitor")
+    control_cohort_daily_quota: int = Field(default=5, ge=0, description="Low-score tokens to track daily")
+    last_score_run_at: Optional[str] = None
 
     # Run tracking (read-only)
     last_tier0_run_at: Optional[str] = None

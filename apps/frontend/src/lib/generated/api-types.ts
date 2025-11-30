@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 41277f81c93d83414a38c6e578a5bff52930666b
+ * Backend Commit: 4ec5db9e6b1ab651456eda27def74768faaaad1d
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -2748,6 +2748,32 @@ export interface components {
        * @default 100
        */
       hot_refresh_max_tokens: number;
+      /**
+       * Score Enabled
+       * @description Enable performance scoring
+       * @default false
+       */
+      score_enabled: boolean;
+      /**
+       * Performance Prime Threshold
+       * @description Score >= this = Prime
+       * @default 65
+       */
+      performance_prime_threshold: number;
+      /**
+       * Performance Monitor Threshold
+       * @description Score >= this = Monitor
+       * @default 40
+       */
+      performance_monitor_threshold: number;
+      /**
+       * Control Cohort Daily Quota
+       * @description Low-score tokens to track daily
+       * @default 5
+       */
+      control_cohort_daily_quota: number;
+      /** Last Score Run At */
+      last_score_run_at?: string | null;
       /** Last Tier0 Run At */
       last_tier0_run_at?: string | null;
       /** Last Tier1 Run At */
