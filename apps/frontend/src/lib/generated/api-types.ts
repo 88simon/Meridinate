@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 3ef33eead79c49e6c4aacfc0187c4d532dbf3ab7
+ * Backend Commit: 9bb7f0d36b97be4afe6bd44f8b4f4ace610c5e7d
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -853,6 +853,92 @@ export interface paths {
      *         TopHoldersResponse with holder addresses and balances
      */
     get: operations['get_top_holders_api_tokens__mint_address__top_holders_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/score': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Score Tokens
+     * @description Recompute performance scores for tokens.
+     *
+     *     Can score specific tokens by address or all hot tokens.
+     *
+     *     Args:
+     *         payload: ScoreTokensRequest with token_addresses or score_all_hot flag
+     *
+     *     Returns:
+     *         ScoreTokensResponse with scoring results
+     */
+    post: operations['score_tokens_api_tokens_score_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/{token_address}/performance': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Token Performance
+     * @description Get performance data and snapshots for a token.
+     *
+     *     Returns current score, bucket, explanation, and recent snapshots.
+     *
+     *     Args:
+     *         token_address: Token address
+     *         limit: Max snapshots to return (default: 20)
+     *         since_hours: Only return snapshots from last N hours
+     *
+     *     Returns:
+     *         TokenPerformanceResponse with score and snapshot history
+     */
+    get: operations['get_token_performance_api_tokens__token_address__performance_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tokens/prime-for-promotion': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Prime Tokens For Promotion
+     * @description Get Prime-bucket tokens that are ready for promotion.
+     *
+     *     These are tokens scored as 'prime' that are still in ingested/enriched tier.
+     *
+     *     Args:
+     *         limit: Max tokens to return (default: 10)
+     *
+     *     Returns:
+     *         PrimeTokensResponse with list of tokens ready to promote
+     */
+    get: operations['get_prime_tokens_for_promotion_api_tokens_prime_for_promotion_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -1992,6 +2078,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ingest/control-cohort': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Control Cohort
+     * @description Get tokens marked as control cohort.
+     *
+     *     Args:
+     *         limit: Maximum number of tokens to return
+     *
+     *     Returns:
+     *         List of control cohort tokens
+     */
+    get: operations['get_control_cohort_api_ingest_control_cohort_get'];
+    put?: never;
+    /**
+     * Select Control Cohort
+     * @description Select random low-score tokens for control cohort tracking.
+     *
+     *     This helps validate the scoring system by tracking tokens that
+     *     would normally be culled to see if they perform well.
+     *
+     *     The number of tokens selected is controlled by the
+     *     control_cohort_daily_quota setting.
+     *
+     *     Returns:
+     *         Control cohort selection results
+     */
+    post: operations['select_control_cohort_api_ingest_control_cohort_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/notify/analysis_complete': {
     parameters: {
       query?: never;
@@ -2733,6 +2858,36 @@ export interface components {
       total: number;
     };
     /**
+     * PerformanceSnapshotResponse
+     * @description Response model for a performance snapshot.
+     */
+    PerformanceSnapshotResponse: {
+      /** Id */
+      id: number;
+      /** Token Address */
+      token_address: string;
+      /** Captured At */
+      captured_at: string;
+      /** Price Usd */
+      price_usd?: number | null;
+      /** Mc Usd */
+      mc_usd?: number | null;
+      /** Volume 24H Usd */
+      volume_24h_usd?: number | null;
+      /** Liquidity Usd */
+      liquidity_usd?: number | null;
+      /** Holder Count */
+      holder_count?: number | null;
+      /** Top Holder Share */
+      top_holder_share?: number | null;
+      /** Our Positions Pnl Usd */
+      our_positions_pnl_usd?: number | null;
+      /** Lp Locked */
+      lp_locked?: boolean | null;
+      /** Ingest Tier Snapshot */
+      ingest_tier_snapshot?: string | null;
+    };
+    /**
      * PositionResponse
      * @description Individual position response model.
      */
@@ -2801,6 +2956,18 @@ export interface components {
       offset: number;
       /** Has More */
       has_more: boolean;
+    };
+    /**
+     * PrimeTokensResponse
+     * @description Response model for prime tokens ready to promote.
+     */
+    PrimeTokensResponse: {
+      /** Count */
+      count: number;
+      /** Tokens */
+      tokens: {
+        [key: string]: unknown;
+      }[];
     };
     /**
      * PromoteRequest
@@ -2956,6 +3123,51 @@ export interface components {
     RemoveTagRequest: {
       /** Tag */
       tag: string;
+    };
+    /**
+     * ScoreTokensRequest
+     * @description Request model for scoring tokens.
+     */
+    ScoreTokensRequest: {
+      /** Token Addresses */
+      token_addresses?: string[] | null;
+      /**
+       * Score All Hot
+       * @default false
+       */
+      score_all_hot: boolean;
+    };
+    /**
+     * ScoreTokensResponse
+     * @description Response model for token scoring.
+     */
+    ScoreTokensResponse: {
+      /** Status */
+      status: string;
+      /**
+       * Tokens Scored
+       * @default 0
+       */
+      tokens_scored: number;
+      /**
+       * Tokens Skipped
+       * @default 0
+       */
+      tokens_skipped: number;
+      /**
+       * By Bucket
+       * @default {}
+       */
+      by_bucket: {
+        [key: string]: number;
+      };
+      /**
+       * Errors
+       * @default []
+       */
+      errors: string[];
+      /** Message */
+      message?: string | null;
     };
     /**
      * StopTrackingRequest
@@ -3168,6 +3380,17 @@ export interface components {
       top_holders?: components['schemas']['TopHolder'][] | null;
       /** Top Holders Updated At */
       top_holders_updated_at?: string | null;
+      /** Performance Score */
+      performance_score?: number | null;
+      /** Performance Bucket */
+      performance_bucket?: string | null;
+      /** Score Timestamp */
+      score_timestamp?: string | null;
+      /**
+       * Is Control Cohort
+       * @default false
+       */
+      is_control_cohort: boolean;
     };
     /**
      * TokenDetail
@@ -3224,10 +3447,46 @@ export interface components {
       top_holders?: components['schemas']['TopHolder'][] | null;
       /** Top Holders Updated At */
       top_holders_updated_at?: string | null;
+      /** Performance Score */
+      performance_score?: number | null;
+      /** Performance Bucket */
+      performance_bucket?: string | null;
+      /** Score Timestamp */
+      score_timestamp?: string | null;
+      /**
+       * Is Control Cohort
+       * @default false
+       */
+      is_control_cohort: boolean;
       /** Wallets */
       wallets: components['schemas']['Wallet'][];
       /** Axiom Json */
       axiom_json: unknown[];
+    };
+    /**
+     * TokenPerformanceResponse
+     * @description Response model for token performance data.
+     */
+    TokenPerformanceResponse: {
+      /** Token Address */
+      token_address: string;
+      /** Performance Score */
+      performance_score?: number | null;
+      /** Performance Bucket */
+      performance_bucket?: string | null;
+      /** Score Explanation */
+      score_explanation?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
+      /** Score Timestamp */
+      score_timestamp?: string | null;
+      /**
+       * Snapshots
+       * @default []
+       */
+      snapshots: components['schemas']['PerformanceSnapshotResponse'][];
     };
     /**
      * TokenTagRequest
@@ -4559,6 +4818,104 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TopHoldersResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  score_tokens_api_tokens_score_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ScoreTokensRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ScoreTokensResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_token_performance_api_tokens__token_address__performance_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        since_hours?: number | null;
+      };
+      header?: never;
+      path: {
+        token_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokenPerformanceResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_prime_tokens_for_promotion_api_tokens_prime_for_promotion_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PrimeTokensResponse'];
         };
       };
       /** @description Validation Error */
@@ -6069,6 +6426,57 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_control_cohort_api_ingest_control_cohort_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  select_control_cohort_api_ingest_control_cohort_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
         };
       };
     };

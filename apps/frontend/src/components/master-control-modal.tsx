@@ -674,6 +674,64 @@ function IngestionTab() {
         </div>
       </div>
 
+      {/* Performance Scoring Settings */}
+      <div className='border-t pt-4'>
+        <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
+          Performance Scoring
+          <InfoTooltip>
+            Score tokens during hot refresh and categorize into buckets
+          </InfoTooltip>
+        </h4>
+        <div className='mb-4 flex items-center justify-between rounded-lg border p-3'>
+          <div>
+            <Label className='text-sm'>Enable Scoring</Label>
+            <p className='text-muted-foreground text-xs'>
+              Score tokens during hot refresh (Prime/Monitor/Cull)
+            </p>
+          </div>
+          <Switch
+            checked={settings.score_enabled ?? false}
+            onCheckedChange={(v) => updateSetting({ score_enabled: v })}
+          />
+        </div>
+        <div className='grid grid-cols-2 gap-4'>
+          <NumericStepper
+            label='Prime Threshold'
+            value={settings.performance_prime_threshold ?? 65}
+            onChange={(v) => updateSetting({ performance_prime_threshold: v })}
+            min={50}
+            max={100}
+            step={5}
+            tooltip='Score ≥ this = Prime bucket'
+          />
+          <NumericStepper
+            label='Monitor Threshold'
+            value={settings.performance_monitor_threshold ?? 40}
+            onChange={(v) =>
+              updateSetting({ performance_monitor_threshold: v })
+            }
+            min={20}
+            max={(settings.performance_prime_threshold ?? 65) - 5}
+            step={5}
+            tooltip='Score ≥ this (but < Prime) = Monitor'
+          />
+          <NumericStepper
+            label='Control Cohort Quota'
+            value={settings.control_cohort_daily_quota ?? 5}
+            onChange={(v) => updateSetting({ control_cohort_daily_quota: v })}
+            min={0}
+            max={20}
+            step={1}
+            tooltip='Low-score tokens tracked daily for validation'
+          />
+        </div>
+        {settings.last_score_run_at && (
+          <p className='text-muted-foreground mt-2 text-xs'>
+            Last scored: {new Date(settings.last_score_run_at).toLocaleString()}
+          </p>
+        )}
+      </div>
+
       {/* Scheduler Status */}
       <div className='border-t pt-4'>
         <h4 className='text-muted-foreground mb-3 text-xs font-semibold uppercase'>

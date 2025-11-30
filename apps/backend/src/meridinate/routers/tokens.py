@@ -739,3 +739,219 @@ async def get_top_holders(mint_address: str, request: Request, limit: int = None
     except Exception as e:
         log_error(f"Error in get_top_holders: {str(e)}", mint_address=mint_address[:8])
         raise HTTPException(status_code=500, detail=f"Failed to fetch top holders: {str(e)}")
+
+
+# =============================================================================
+# Performance Scoring Endpoints
+# =============================================================================
+
+
+class ScoreTokensRequest(BaseModel):
+    """Request model for scoring tokens."""
+
+    token_addresses: Optional[List[str]] = None
+    score_all_hot: bool = False
+
+
+class ScoreTokensResponse(BaseModel):
+    """Response model for token scoring."""
+
+    status: str
+    tokens_scored: int = 0
+    tokens_skipped: int = 0
+    by_bucket: Dict[str, int] = {}
+    errors: List[str] = []
+    message: Optional[str] = None
+
+
+class PerformanceSnapshotResponse(BaseModel):
+    """Response model for a performance snapshot."""
+
+    id: int
+    token_address: str
+    captured_at: str
+    price_usd: Optional[float] = None
+    mc_usd: Optional[float] = None
+    volume_24h_usd: Optional[float] = None
+    liquidity_usd: Optional[float] = None
+    holder_count: Optional[int] = None
+    top_holder_share: Optional[float] = None
+    our_positions_pnl_usd: Optional[float] = None
+    lp_locked: Optional[bool] = None
+    ingest_tier_snapshot: Optional[str] = None
+
+
+class TokenPerformanceResponse(BaseModel):
+    """Response model for token performance data."""
+
+    token_address: str
+    performance_score: Optional[float] = None
+    performance_bucket: Optional[str] = None
+    score_explanation: Optional[List[Dict]] = None
+    score_timestamp: Optional[str] = None
+    snapshots: List[PerformanceSnapshotResponse] = []
+
+
+@router.post("/api/tokens/score", response_model=ScoreTokensResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def score_tokens(request: Request, payload: ScoreTokensRequest):
+    """
+    Recompute performance scores for tokens.
+
+    Can score specific tokens by address or all hot tokens.
+
+    Args:
+        payload: ScoreTokensRequest with token_addresses or score_all_hot flag
+
+    Returns:
+        ScoreTokensResponse with scoring results
+    """
+    from meridinate.tasks.performance_scorer import score_tokens as do_score_tokens
+    from meridinate.tasks.performance_scorer import score_all_hot_tokens
+
+    try:
+        if payload.score_all_hot:
+            result = await score_all_hot_tokens()
+        elif payload.token_addresses:
+            result = await do_score_tokens(payload.token_addresses)
+        else:
+            return ScoreTokensResponse(
+                status="error",
+                message="Provide token_addresses or set score_all_hot=true",
+            )
+
+        if result.get("status") == "disabled":
+            return ScoreTokensResponse(
+                status="disabled",
+                message=result.get("message", "Scoring is disabled"),
+            )
+
+        return ScoreTokensResponse(
+            status="success",
+            tokens_scored=result.get("tokens_scored", 0),
+            tokens_skipped=result.get("tokens_skipped", 0),
+            by_bucket=result.get("by_bucket", {}),
+            errors=result.get("errors", []),
+        )
+
+    except Exception as e:
+        log_error(f"Error scoring tokens: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/tokens/{token_address}/performance", response_model=TokenPerformanceResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_token_performance(
+    token_address: str,
+    request: Request,
+    limit: int = 20,
+    since_hours: Optional[float] = None,
+):
+    """
+    Get performance data and snapshots for a token.
+
+    Returns current score, bucket, explanation, and recent snapshots.
+
+    Args:
+        token_address: Token address
+        limit: Max snapshots to return (default: 20)
+        since_hours: Only return snapshots from last N hours
+
+    Returns:
+        TokenPerformanceResponse with score and snapshot history
+    """
+    try:
+        # Get token's current score from database
+        async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+            conn.row_factory = aiosqlite.Row
+            cursor = await conn.execute(
+                """
+                SELECT performance_score, performance_bucket, score_explanation, score_timestamp
+                FROM analyzed_tokens
+                WHERE token_address = ?
+            """,
+                (token_address,),
+            )
+            row = await cursor.fetchone()
+
+        score = None
+        bucket = None
+        explanation = None
+        score_timestamp = None
+
+        if row:
+            score = row["performance_score"]
+            bucket = row["performance_bucket"]
+            score_timestamp = row["score_timestamp"]
+            if row["score_explanation"]:
+                try:
+                    explanation = json.loads(row["score_explanation"])
+                except Exception:
+                    explanation = None
+
+        # Get snapshots
+        snapshots = db.get_performance_snapshots(
+            token_address, limit=limit, since_hours=since_hours
+        )
+
+        # Convert snapshots to response models
+        snapshot_responses = []
+        for snap in snapshots:
+            snapshot_responses.append(
+                PerformanceSnapshotResponse(
+                    id=snap["id"],
+                    token_address=snap["token_address"],
+                    captured_at=snap["captured_at"],
+                    price_usd=snap.get("price_usd"),
+                    mc_usd=snap.get("mc_usd"),
+                    volume_24h_usd=snap.get("volume_24h_usd"),
+                    liquidity_usd=snap.get("liquidity_usd"),
+                    holder_count=snap.get("holder_count"),
+                    top_holder_share=snap.get("top_holder_share"),
+                    our_positions_pnl_usd=snap.get("our_positions_pnl_usd"),
+                    lp_locked=bool(snap.get("lp_locked")) if snap.get("lp_locked") is not None else None,
+                    ingest_tier_snapshot=snap.get("ingest_tier_snapshot"),
+                )
+            )
+
+        return TokenPerformanceResponse(
+            token_address=token_address,
+            performance_score=score,
+            performance_bucket=bucket,
+            score_explanation=explanation,
+            score_timestamp=score_timestamp,
+            snapshots=snapshot_responses,
+        )
+
+    except Exception as e:
+        log_error(f"Error getting token performance: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class PrimeTokensResponse(BaseModel):
+    """Response model for prime tokens ready to promote."""
+
+    count: int
+    tokens: List[Dict[str, Any]]
+
+
+@router.get("/api/tokens/prime-for-promotion", response_model=PrimeTokensResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_prime_tokens_for_promotion(request: Request, limit: int = 10):
+    """
+    Get Prime-bucket tokens that are ready for promotion.
+
+    These are tokens scored as 'prime' that are still in ingested/enriched tier.
+
+    Args:
+        limit: Max tokens to return (default: 10)
+
+    Returns:
+        PrimeTokensResponse with list of tokens ready to promote
+    """
+    try:
+        tokens = db.get_prime_tokens_for_promotion(limit=limit)
+        return PrimeTokensResponse(count=len(tokens), tokens=tokens)
+    except Exception as e:
+        log_error(f"Error getting prime tokens: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

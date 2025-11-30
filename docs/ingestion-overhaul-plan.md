@@ -98,6 +98,13 @@ Expose via API and UI:
   - Records MTEW positions for win rate tracking
   - Generates and saves analysis files and Axiom export
   - Invalidates caches so new tokens appear in dashboard immediately
+- **UI Naming Overhaul (Nov 28)**: Renamed tiers for clarity:
+  - `ingested` → **Discovered** (tooltip: "DexScreener snapshot only; no Helius calls yet.")
+  - `enriched` → **Pre-Analyzed** (tooltip: "Light Helius enrichment (holders/metadata); not in main dashboard yet.")
+  - `analyzed` → **Analyzed (Live)** (tooltip: "Full Meridinate analysis complete; visible in Tokens dashboard and SWAB.")
+  - Added "Dashboard" column showing: "Not yet in dashboard", "Needs promotion", "Live", "Excluded"
+  - Banner now shows "Pre-Analyzed tokens waiting for promotion"
+  - All labels have info icon tooltips explaining the stage
 
 ## New Settings Added
 - `hot_refresh_enabled` (bool) - Enable hot token MC/volume refresh scheduler

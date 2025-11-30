@@ -13,9 +13,13 @@ import { useState, useEffect } from 'react';
 import {
   getSolscanSettings,
   updateSolscanSettings,
-  SolscanSettings
+  SolscanSettings,
+  getIngestSettings,
+  updateIngestSettings,
+  IngestSettings
 } from '@/lib/api';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
 
 interface ApiSettings {
   transactionLimit: number;
@@ -57,7 +61,14 @@ export function SettingsModal({
   );
   const [loadingSolscanSettings, setLoadingSolscanSettings] = useState(false);
 
-  // Load Solscan settings when modal opens
+  // Performance scoring settings state
+  const [ingestSettings, setIngestSettings] = useState<Partial<IngestSettings>>(
+    {}
+  );
+  const [loadingIngestSettings, setLoadingIngestSettings] = useState(false);
+  const [savingIngestSettings, setSavingIngestSettings] = useState(false);
+
+  // Load Solscan and Ingest settings when modal opens
   useEffect(() => {
     if (open) {
       setLoadingSolscanSettings(true);
@@ -67,6 +78,15 @@ export function SettingsModal({
           toast.error('Failed to load Solscan settings');
         })
         .finally(() => setLoadingSolscanSettings(false));
+
+      // Load ingest settings
+      setLoadingIngestSettings(true);
+      getIngestSettings()
+        .then(setIngestSettings)
+        .catch(() => {
+          toast.error('Failed to load ingest settings');
+        })
+        .finally(() => setLoadingIngestSettings(false));
     }
   }, [open]);
 
@@ -89,6 +109,30 @@ export function SettingsModal({
 
     return () => clearTimeout(timer);
   }, [solscanSettings, open, loadingSolscanSettings]);
+
+  // Helper to update a single ingest setting
+  const handleIngestSettingChange = async (
+    key: keyof IngestSettings,
+    value: any
+  ) => {
+    setSavingIngestSettings(true);
+    const newSettings = { ...ingestSettings, [key]: value };
+    setIngestSettings(newSettings);
+
+    try {
+      const result = await updateIngestSettings({ [key]: value });
+      if (result.settings) {
+        setIngestSettings(result.settings);
+      }
+      toast.success('Setting saved', { duration: 1500 });
+    } catch {
+      toast.error('Failed to save setting');
+      // Revert on error
+      setIngestSettings(ingestSettings);
+    } finally {
+      setSavingIngestSettings(false);
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -672,6 +716,208 @@ export function SettingsModal({
                 {JSON.stringify(solscanSettings, null, 2)}
               </pre>
             </details>
+          </div>
+        </div>
+
+        {/* Performance Scoring Section */}
+        <div className='mb-6 border-t pt-4'>
+          <h4 className='text-muted-foreground mb-3 text-xs font-semibold uppercase'>
+            Performance Scoring
+          </h4>
+
+          <div className='space-y-4'>
+            {/* Enable Scoring Toggle */}
+            <div className='flex items-center justify-between'>
+              <div className='space-y-0.5'>
+                <Label className='text-xs'>Enable Scoring</Label>
+                <p className='text-muted-foreground text-[10px]'>
+                  Score tokens during hot refresh
+                </p>
+              </div>
+              <Switch
+                checked={ingestSettings.score_enabled ?? false}
+                onCheckedChange={(checked) =>
+                  handleIngestSettingChange('score_enabled', checked)
+                }
+                disabled={loadingIngestSettings || savingIngestSettings}
+              />
+            </div>
+
+            {/* Prime Threshold */}
+            <div className='space-y-1'>
+              <Label className='text-xs'>Prime Threshold</Label>
+              <p className='text-muted-foreground text-[10px]'>
+                Score ≥ this = Prime bucket
+              </p>
+              <div className='flex items-center gap-1'>
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() =>
+                    handleIngestSettingChange(
+                      'performance_prime_threshold',
+                      Math.max(
+                        50,
+                        (ingestSettings.performance_prime_threshold ?? 65) - 5
+                      )
+                    )
+                  }
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                >
+                  <ChevronLeft className='h-3 w-3' />
+                </Button>
+                <Input
+                  type='number'
+                  value={ingestSettings.performance_prime_threshold ?? 65}
+                  onChange={(e) =>
+                    handleIngestSettingChange(
+                      'performance_prime_threshold',
+                      parseInt(e.target.value) || 65
+                    )
+                  }
+                  className='h-7 w-16 text-center text-xs'
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                />
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() =>
+                    handleIngestSettingChange(
+                      'performance_prime_threshold',
+                      Math.min(
+                        100,
+                        (ingestSettings.performance_prime_threshold ?? 65) + 5
+                      )
+                    )
+                  }
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                >
+                  <ChevronRight className='h-3 w-3' />
+                </Button>
+              </div>
+            </div>
+
+            {/* Monitor Threshold */}
+            <div className='space-y-1'>
+              <Label className='text-xs'>Monitor Threshold</Label>
+              <p className='text-muted-foreground text-[10px]'>
+                Score ≥ this (but &lt; Prime) = Monitor
+              </p>
+              <div className='flex items-center gap-1'>
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() =>
+                    handleIngestSettingChange(
+                      'performance_monitor_threshold',
+                      Math.max(
+                        20,
+                        (ingestSettings.performance_monitor_threshold ?? 40) - 5
+                      )
+                    )
+                  }
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                >
+                  <ChevronLeft className='h-3 w-3' />
+                </Button>
+                <Input
+                  type='number'
+                  value={ingestSettings.performance_monitor_threshold ?? 40}
+                  onChange={(e) =>
+                    handleIngestSettingChange(
+                      'performance_monitor_threshold',
+                      parseInt(e.target.value) || 40
+                    )
+                  }
+                  className='h-7 w-16 text-center text-xs'
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                />
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() =>
+                    handleIngestSettingChange(
+                      'performance_monitor_threshold',
+                      Math.min(
+                        (ingestSettings.performance_prime_threshold ?? 65) - 5,
+                        (ingestSettings.performance_monitor_threshold ?? 40) + 5
+                      )
+                    )
+                  }
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                >
+                  <ChevronRight className='h-3 w-3' />
+                </Button>
+              </div>
+            </div>
+
+            {/* Control Cohort Quota */}
+            <div className='space-y-1'>
+              <Label className='text-xs'>Control Cohort Quota</Label>
+              <p className='text-muted-foreground text-[10px]'>
+                Low-score tokens tracked daily
+              </p>
+              <div className='flex items-center gap-1'>
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() =>
+                    handleIngestSettingChange(
+                      'control_cohort_daily_quota',
+                      Math.max(
+                        0,
+                        (ingestSettings.control_cohort_daily_quota ?? 5) - 1
+                      )
+                    )
+                  }
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                >
+                  <ChevronLeft className='h-3 w-3' />
+                </Button>
+                <Input
+                  type='number'
+                  value={ingestSettings.control_cohort_daily_quota ?? 5}
+                  onChange={(e) =>
+                    handleIngestSettingChange(
+                      'control_cohort_daily_quota',
+                      parseInt(e.target.value) || 5
+                    )
+                  }
+                  className='h-7 w-16 text-center text-xs'
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                />
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() =>
+                    handleIngestSettingChange(
+                      'control_cohort_daily_quota',
+                      Math.min(
+                        20,
+                        (ingestSettings.control_cohort_daily_quota ?? 5) + 1
+                      )
+                    )
+                  }
+                  disabled={loadingIngestSettings || savingIngestSettings}
+                >
+                  <ChevronRight className='h-3 w-3' />
+                </Button>
+              </div>
+            </div>
+
+            {/* Last Score Run */}
+            {ingestSettings.last_score_run_at && (
+              <div className='text-muted-foreground text-[10px]'>
+                Last scored:{' '}
+                {new Date(ingestSettings.last_score_run_at).toLocaleString()}
+              </div>
+            )}
           </div>
         </div>
       </PopoverContent>

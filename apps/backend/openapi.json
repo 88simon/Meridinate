@@ -1469,6 +1469,161 @@
         }
       }
     },
+    "/api/tokens/score": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Score Tokens",
+        "description": "Recompute performance scores for tokens.\n\nCan score specific tokens by address or all hot tokens.\n\nArgs:\n    payload: ScoreTokensRequest with token_addresses or score_all_hot flag\n\nReturns:\n    ScoreTokensResponse with scoring results",
+        "operationId": "score_tokens_api_tokens_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreTokensRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreTokensResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/{token_address}/performance": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Token Performance",
+        "description": "Get performance data and snapshots for a token.\n\nReturns current score, bucket, explanation, and recent snapshots.\n\nArgs:\n    token_address: Token address\n    limit: Max snapshots to return (default: 20)\n    since_hours: Only return snapshots from last N hours\n\nReturns:\n    TokenPerformanceResponse with score and snapshot history",
+        "operationId": "get_token_performance_api_tokens__token_address__performance_get",
+        "parameters": [
+          {
+            "name": "token_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token Address"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "since_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPerformanceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/prime-for-promotion": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Prime Tokens For Promotion",
+        "description": "Get Prime-bucket tokens that are ready for promotion.\n\nThese are tokens scored as 'prime' that are still in ingested/enriched tier.\n\nArgs:\n    limit: Max tokens to return (default: 10)\n\nReturns:\n    PrimeTokensResponse with list of tokens ready to promote",
+        "operationId": "get_prime_tokens_for_promotion_api_tokens_prime_for_promotion_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrimeTokensResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/analyze/token/redis": {
       "post": {
         "tags": [
@@ -3624,6 +3779,68 @@
         }
       }
     },
+    "/api/ingest/control-cohort": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Select Control Cohort",
+        "description": "Select random low-score tokens for control cohort tracking.\n\nThis helps validate the scoring system by tracking tokens that\nwould normally be culled to see if they perform well.\n\nThe number of tokens selected is controlled by the\ncontrol_cohort_daily_quota setting.\n\nReturns:\n    Control cohort selection results",
+        "operationId": "select_control_cohort_api_ingest_control_cohort_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Control Cohort",
+        "description": "Get tokens marked as control cohort.\n\nArgs:\n    limit: Maximum number of tokens to return\n\nReturns:\n    List of control cohort tokens",
+        "operationId": "get_control_cohort_api_ingest_control_cohort_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/notify/analysis_complete": {
       "post": {
         "summary": "Notify Analysis Complete",
@@ -5400,6 +5617,129 @@
         "title": "OperationLogListResponse",
         "description": "Response model for operation log list."
       },
+      "PerformanceSnapshotResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "token_address": {
+            "type": "string",
+            "title": "Token Address"
+          },
+          "captured_at": {
+            "type": "string",
+            "title": "Captured At"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "mc_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Usd"
+          },
+          "volume_24h_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume 24H Usd"
+          },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
+          "holder_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Count"
+          },
+          "top_holder_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Holder Share"
+          },
+          "our_positions_pnl_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Positions Pnl Usd"
+          },
+          "lp_locked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lp Locked"
+          },
+          "ingest_tier_snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Tier Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "token_address",
+          "captured_at"
+        ],
+        "title": "PerformanceSnapshotResponse",
+        "description": "Response model for a performance snapshot."
+      },
       "PositionResponse": {
         "properties": {
           "id": {
@@ -5661,6 +6001,29 @@
         ],
         "title": "PositionsResponse",
         "description": "Paginated positions response model."
+      },
+      "PrimeTokensResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "tokens": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "tokens"
+        ],
+        "title": "PrimeTokensResponse",
+        "description": "Response model for prime tokens ready to promote."
       },
       "PromoteRequest": {
         "properties": {
@@ -6128,6 +6491,83 @@
           "tag"
         ],
         "title": "RemoveTagRequest"
+      },
+      "ScoreTokensRequest": {
+        "properties": {
+          "token_addresses": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Addresses"
+          },
+          "score_all_hot": {
+            "type": "boolean",
+            "title": "Score All Hot",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ScoreTokensRequest",
+        "description": "Request model for scoring tokens."
+      },
+      "ScoreTokensResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "tokens_scored": {
+            "type": "integer",
+            "title": "Tokens Scored",
+            "default": 0
+          },
+          "tokens_skipped": {
+            "type": "integer",
+            "title": "Tokens Skipped",
+            "default": 0
+          },
+          "by_bucket": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Bucket",
+            "default": {}
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors",
+            "default": []
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ScoreTokensResponse",
+        "description": "Response model for token scoring."
       },
       "StopTrackingRequest": {
         "properties": {
@@ -6766,6 +7206,44 @@
               }
             ],
             "title": "Top Holders Updated At"
+          },
+          "performance_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Score"
+          },
+          "performance_bucket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Bucket"
+          },
+          "score_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Timestamp"
+          },
+          "is_control_cohort": {
+            "type": "boolean",
+            "title": "Is Control Cohort",
+            "default": false
           }
         },
         "type": "object",
@@ -6984,6 +7462,44 @@
             ],
             "title": "Top Holders Updated At"
           },
+          "performance_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Score"
+          },
+          "performance_bucket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Bucket"
+          },
+          "score_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Timestamp"
+          },
+          "is_control_cohort": {
+            "type": "boolean",
+            "title": "Is Control Cohort",
+            "default": false
+          },
           "wallets": {
             "items": {
               "$ref": "#/components/schemas/Wallet"
@@ -7012,6 +7528,76 @@
         ],
         "title": "TokenDetail",
         "description": "Token with wallet details and axiom data"
+      },
+      "TokenPerformanceResponse": {
+        "properties": {
+          "token_address": {
+            "type": "string",
+            "title": "Token Address"
+          },
+          "performance_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Score"
+          },
+          "performance_bucket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Bucket"
+          },
+          "score_explanation": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Explanation"
+          },
+          "score_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Timestamp"
+          },
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceSnapshotResponse"
+            },
+            "type": "array",
+            "title": "Snapshots",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "token_address"
+        ],
+        "title": "TokenPerformanceResponse",
+        "description": "Response model for token performance data."
       },
       "TokenTagRequest": {
         "properties": {

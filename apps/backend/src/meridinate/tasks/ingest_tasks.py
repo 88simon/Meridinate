@@ -249,6 +249,25 @@ async def run_tier1_enrichment(
                 db.update_ingest_queue_tier(address, "enriched")
                 result["tokens_enriched"] += 1
 
+                # Save performance snapshot with holder data
+                holder_count = len(top_holders) if top_holders else None
+                top_holder_share = None
+                if top_holders and len(top_holders) > 0:
+                    # Calculate top holder share (first holder's percentage)
+                    first_holder = top_holders[0]
+                    if first_holder.get("percentage"):
+                        top_holder_share = first_holder["percentage"] / 100.0
+
+                db.save_performance_snapshot(
+                    token_address=address,
+                    mc_usd=token.get("last_mc_usd"),
+                    volume_24h_usd=token.get("last_volume_usd"),
+                    liquidity_usd=token.get("last_liquidity"),
+                    holder_count=holder_count,
+                    top_holder_share=top_holder_share,
+                    ingest_tier_snapshot="enriched",
+                )
+
                 log_info(f"[Tier-1] Enriched {address}: {meta_credits + holders_credits} credits")
 
             except Exception as e:
@@ -332,8 +351,10 @@ async def run_hot_token_refresh(
 
         # Refresh each token
         updates = []
+        perf_snapshots = []
         for token in hot_tokens:
             address = token["token_address"]
+            tier = token.get("tier", "ingested")
             try:
                 snapshot = dexscreener.get_token_snapshot(address)
                 if snapshot:
@@ -344,6 +365,15 @@ async def run_hot_token_refresh(
                         "last_liquidity": snapshot.get("liquidity_usd"),
                         "age_hours": snapshot.get("age_hours"),
                     })
+                    # Build performance snapshot for scoring
+                    perf_snapshots.append({
+                        "token_address": address,
+                        "price_usd": snapshot.get("price_usd"),
+                        "mc_usd": snapshot.get("market_cap_usd"),
+                        "volume_24h_usd": snapshot.get("volume_24h_usd"),
+                        "liquidity_usd": snapshot.get("liquidity_usd"),
+                        "ingest_tier_snapshot": tier,
+                    })
                 else:
                     result["tokens_failed"] += 1
             except Exception as e:
@@ -351,9 +381,29 @@ async def run_hot_token_refresh(
                 result["errors"].append(f"{address}: {str(e)}")
                 result["tokens_failed"] += 1
 
-        # Bulk update snapshots
+        # Bulk update ingest queue snapshots
         if updates:
             result["tokens_updated"] = db.bulk_update_ingest_snapshots(updates)
+
+        # Save performance snapshots for scoring
+        if perf_snapshots:
+            snapshots_saved = db.bulk_save_performance_snapshots(perf_snapshots)
+            result["snapshots_saved"] = snapshots_saved
+            log_info(f"[Hot Refresh] Saved {snapshots_saved} performance snapshots")
+
+        # Run scoring if enabled
+        if settings.get("score_enabled", False) and perf_snapshots:
+            try:
+                from meridinate.tasks.performance_scorer import score_tokens
+                addresses = [s["token_address"] for s in perf_snapshots]
+                score_result = await score_tokens(addresses)
+                result["scoring"] = score_result
+                log_info(
+                    f"[Hot Refresh] Scoring complete: {score_result.get('tokens_scored', 0)} scored"
+                )
+            except Exception as e:
+                log_error(f"[Hot Refresh] Scoring error: {e}")
+                result["scoring_error"] = str(e)
 
         # Update last run timestamp
         CURRENT_INGEST_SETTINGS["last_hot_refresh_at"] = datetime.now().isoformat()

@@ -50,6 +50,10 @@ export async function fetchWithTimeout(
 // Type Exports (from generated schemas)
 // ============================================================================
 
+// Performance bucket type for type guards
+export type PerformanceBucket = 'prime' | 'monitor' | 'cull' | 'excluded';
+
+// Token types - use generated schemas directly (performance fields now included)
 export type Token = components['schemas']['Token'];
 export type TokenDetail = components['schemas']['TokenDetail'];
 export type TokensResponse = components['schemas']['TokensResponse'];
@@ -1265,10 +1269,19 @@ export interface IngestSettings {
   auto_promote_max_per_run: number;
   hot_refresh_age_hours: number;
   hot_refresh_max_tokens: number;
+  // Performance scoring settings
+  score_enabled: boolean;
+  performance_prime_threshold: number;
+  performance_monitor_threshold: number;
+  control_cohort_daily_quota: number;
+  score_weights: Record<string, number>;
+  // Run tracking
   last_tier0_run_at: string | null;
   last_tier1_run_at: string | null;
   last_tier1_credits_used: number;
   last_hot_refresh_at: string | null;
+  last_score_run_at: string | null;
+  last_control_cohort_run_at: string | null;
 }
 
 export interface IngestQueueEntry {

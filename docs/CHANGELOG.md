@@ -6,7 +6,83 @@
 
 ---
 
+## Quick Summary (Nov 30, 2025)
+- **Performance Scoring** - Rule-based token categorization (Prime/Monitor/Cull). Score/Bucket columns in tokens table with filter. Settings in Ingestion tab.
+- Settings modal resilient to ingestion (timeouts/retry).
+- Sidebar renamed/reordered: Ingestion, Scanned Tokens, Codex, Trash, Settings.
+- Live credits bar + persisted operation log (survives restarts).
+- TIP/SWAB progress indicators and background-safe toasts.
+- Recent Operations timestamps fixed; operation log persists last 100 entries.
+
+Details below.
+
+---
+
 ## Recent Bug Fixes & Technical Notes
+
+### Performance Scoring / Token Categorization (Nov 30, 2025)
+
+**Feature:** Rule-based scoring engine that classifies tokens into quality buckets based on performance metrics.
+
+**What was implemented:**
+
+1. **Database Schema:**
+   - New `token_performance_snapshots` table for time-series metrics (price, MC, volume, liquidity, holder counts)
+   - New columns on `analyzed_tokens` and `token_ingest_queue`: `performance_score`, `performance_bucket`, `score_explanation`, `score_timestamp`, `is_control_cohort`
+
+2. **Scoring Engine (`tasks/performance_scorer.py`):**
+   - `calculate_token_score()` - Rule-based scoring with configurable weights
+   - `score_token()` - Score single token and update DB
+   - `score_tokens()` - Batch scoring
+   - `score_all_hot_tokens()` - Score tokens in hot refresh window
+   - `run_control_cohort_selection()` - Random low-score token selection for validation
+
+3. **Scoring Rules (configurable via `score_weights` setting):**
+   - MC momentum: +15 (>=50% up), +10 (>=30% up), -10 (>=35% down)
+   - Liquidity: +10 (>=30% up), -15 (>=40% down)
+   - Volume: +10 (>=100k), -10 (<10k)
+   - Holder quality: +12 (>=3 high-win-rate), +6 (1-2), -8 (top holder >45%)
+   - Age/lock: -10 (<1h and LP unlocked)
+   - PnL feedback: +8 (positive), -8 (negative)
+
+4. **Buckets:** Prime (>=65), Monitor (40-64), Cull (<40), Excluded (flagged)
+
+5. **API Endpoints:**
+   - `POST /api/tokens/score` - Recompute scores for token list
+   - `GET /api/tokens/{address}/performance` - Recent snapshots + bucket history
+   - `GET /api/tokens/prime-for-promotion` - List Prime tokens not yet promoted
+   - `POST /api/ingest/control-cohort` - Run control cohort selection
+   - `GET /api/ingest/control-cohort` - List control cohort tokens
+
+6. **Frontend:**
+   - Score column with color-coded display (green >=65, yellow 40-64, red <40)
+   - Bucket column with styled badges (Prime/Monitor/Cull)
+   - CTL badge for control cohort tokens
+   - Bucket filter dropdown (All/Prime/Monitor/Cull/Unscored)
+   - Performance Scoring settings section in Settings modal (Ingestion tab)
+
+**Files Created:**
+- `apps/backend/src/meridinate/tasks/performance_scorer.py`
+
+**Files Modified:**
+- `apps/backend/src/meridinate/analyzed_tokens_db.py` - Schema + helper functions
+- `apps/backend/src/meridinate/settings.py` - Scoring settings
+- `apps/backend/src/meridinate/tasks/ingest_tasks.py` - Snapshot writing during hot refresh
+- `apps/backend/src/meridinate/routers/tokens.py` - Score/performance endpoints
+- `apps/backend/src/meridinate/routers/ingest.py` - Control cohort endpoints
+- `apps/backend/src/meridinate/utils/models.py` - Token model fields
+- `apps/frontend/src/lib/api.ts` - Types + IngestSettings
+- `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` - Score/Bucket columns + filter
+- `apps/frontend/src/components/master-control-modal.tsx` - Settings UI
+
+**Settings Added:**
+- `score_enabled` (bool) - Enable/disable scoring
+- `performance_prime_threshold` (int, default 65)
+- `performance_monitor_threshold` (int, default 40)
+- `control_cohort_daily_quota` (int, default 5)
+- `score_weights` (object) - All rule weights
+
+---
 
 ### Settings Modal Timeout/Retry During Ingestion (Nov 30, 2025)
 

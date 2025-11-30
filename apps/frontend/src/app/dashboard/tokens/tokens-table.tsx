@@ -694,6 +694,118 @@ const createColumns = (
     )
   },
   {
+    accessorKey: 'performance_score',
+    header: 'Score',
+    cell: ({ row }) => {
+      const score = row.original.performance_score;
+      const bucket = row.original.performance_bucket;
+      const isControlCohort = row.original.is_control_cohort;
+
+      if (score === null || score === undefined) {
+        return (
+          <span
+            className={cn(
+              'text-muted-foreground',
+              isCompact ? 'text-[10px]' : 'text-xs'
+            )}
+          >
+            —
+          </span>
+        );
+      }
+
+      // Color based on bucket
+      const bucketColors: Record<string, string> = {
+        prime: 'text-green-600 dark:text-green-400',
+        monitor: 'text-yellow-600 dark:text-yellow-400',
+        cull: 'text-red-600 dark:text-red-400',
+        excluded: 'text-gray-500'
+      };
+
+      const colorClass = bucket ? bucketColors[bucket] || '' : '';
+
+      return (
+        <div className='flex items-center gap-1'>
+          <span
+            className={cn(
+              'font-medium',
+              isCompact ? 'text-xs' : 'text-sm',
+              colorClass
+            )}
+          >
+            {score.toFixed(0)}
+          </span>
+          {isControlCohort && (
+            <span className='rounded bg-purple-500 px-1 py-0.5 text-[8px] font-bold text-white uppercase'>
+              CTL
+            </span>
+          )}
+        </div>
+      );
+    }
+  },
+  {
+    accessorKey: 'performance_bucket',
+    header: 'Bucket',
+    cell: ({ row }) => {
+      const bucket = row.original.performance_bucket;
+
+      if (!bucket) {
+        return (
+          <span
+            className={cn(
+              'text-muted-foreground',
+              isCompact ? 'text-[10px]' : 'text-xs'
+            )}
+          >
+            —
+          </span>
+        );
+      }
+
+      const bucketStyles: Record<
+        string,
+        { bg: string; text: string; label: string }
+      > = {
+        prime: {
+          bg: 'bg-green-100 dark:bg-green-900/30',
+          text: 'text-green-700 dark:text-green-300',
+          label: 'Prime'
+        },
+        monitor: {
+          bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+          text: 'text-yellow-700 dark:text-yellow-300',
+          label: 'Monitor'
+        },
+        cull: {
+          bg: 'bg-red-100 dark:bg-red-900/30',
+          text: 'text-red-700 dark:text-red-300',
+          label: 'Cull'
+        },
+        excluded: {
+          bg: 'bg-gray-100 dark:bg-gray-800',
+          text: 'text-gray-600 dark:text-gray-400',
+          label: 'Excluded'
+        }
+      };
+
+      const style = bucketStyles[bucket] || bucketStyles.excluded;
+
+      return (
+        <span
+          className={cn(
+            'inline-flex items-center rounded-full px-2 py-0.5 font-medium',
+            style.bg,
+            style.text,
+            isCompact ? 'text-[9px]' : 'text-[10px]'
+          )}
+        >
+          {style.label}
+        </span>
+      );
+    }
+  },
+  {
     id: 'actions',
     header: () => (
       <div className='flex items-center gap-2'>
@@ -907,6 +1019,7 @@ export function TokensTable({
   const router = useRouter();
   const { isCodexOpen } = useCodex();
   const [globalFilter, setGlobalFilter] = useState('');
+  const [bucketFilter, setBucketFilter] = useState<string>('all');
   const [isCompactMode, setIsCompactMode] = useState(isCodexOpen);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<number>>(
     new Set()
@@ -1356,7 +1469,8 @@ export function TokensTable({
 
   // Merge tokens with local market cap and gem status updates for instant UI feedback
   const tokensWithUpdates = useMemo(() => {
-    return tokens.map((token) => {
+    // First map with updates
+    const mappedTokens = tokens.map((token) => {
       const marketCapUpdate = marketCapUpdates.get(token.id);
       const gemStatusUpdate = gemStatusUpdates.get(token.id);
 
@@ -1394,7 +1508,20 @@ export function TokensTable({
 
       return updatedToken;
     });
-  }, [tokens, marketCapUpdates, gemStatusUpdates]);
+
+    // Then filter by bucket if needed
+    if (bucketFilter === 'all') {
+      return mappedTokens;
+    }
+    if (bucketFilter === 'unscored') {
+      return mappedTokens.filter(
+        (token) => !token.performance_bucket && token.performance_score === null
+      );
+    }
+    return mappedTokens.filter(
+      (token) => token.performance_bucket === bucketFilter
+    );
+  }, [tokens, marketCapUpdates, gemStatusUpdates, bucketFilter]);
 
   const columns = useMemo(
     () =>
@@ -1481,7 +1608,7 @@ export function TokensTable({
   return (
     <>
       <div className='space-y-4'>
-        {/* Search Input */}
+        {/* Search Input and Filters */}
         <div className='flex items-center gap-2'>
           <div className='relative flex-1'>
             <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
@@ -1492,6 +1619,38 @@ export function TokensTable({
               className='pl-10'
             />
           </div>
+          <Select value={bucketFilter} onValueChange={setBucketFilter}>
+            <SelectTrigger className='w-[140px]'>
+              <SelectValue placeholder='All Buckets' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All Buckets</SelectItem>
+              <SelectItem value='prime'>
+                <span className='flex items-center gap-1'>
+                  <span className='h-2 w-2 rounded-full bg-green-500' />
+                  Prime
+                </span>
+              </SelectItem>
+              <SelectItem value='monitor'>
+                <span className='flex items-center gap-1'>
+                  <span className='h-2 w-2 rounded-full bg-yellow-500' />
+                  Monitor
+                </span>
+              </SelectItem>
+              <SelectItem value='cull'>
+                <span className='flex items-center gap-1'>
+                  <span className='h-2 w-2 rounded-full bg-red-500' />
+                  Cull
+                </span>
+              </SelectItem>
+              <SelectItem value='unscored'>
+                <span className='flex items-center gap-1'>
+                  <span className='h-2 w-2 rounded-full bg-gray-400' />
+                  Unscored
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Selection Control Panel */}

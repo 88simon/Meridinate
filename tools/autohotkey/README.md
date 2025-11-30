@@ -1,34 +1,23 @@
 # Meridinate AutoHotkey Action Wheel
 
-Desktop automation tool for Meridinate - provides quick access to Solana analysis tools via a mouse-driven radial menu.
+Desktop automation tool for Meridinate - quick access to Solana analysis tools via a radial menu.
 
 ## Overview
 
-The **Action Wheel** is a Windows-only AutoHotkey v2 script that provides instant access to Solana blockchain analysis tools without leaving your browser. Activate it with a hotkey (default: backtick `` ` ``), then click or use keyboard shortcuts to trigger actions.
+Windows-only AutoHotkey v2 script. Press backtick `` ` `` to open the wheel; click or press 1-6.
 
 ## Features
 
-### Radial Menu System
+### Radial Menu
 
-- **Mouse-driven Interface** - Visual wheel menu with 6 action wedges
-- **Keyboard Shortcuts** - Press 1-6 to select actions without moving mouse
-- **Real-time Hover States** - Visual feedback for current selection
-- **Customizable Hotkey** - Default backtick `` ` ``, configurable via settings dialog
-
-### Available Actions
-
-1. **Solscan** (Wedge 1) - Opens wallet address in Solscan with custom filters
-2. **Exclude** (Wedge 2) - Adds wallet to exclusion list and reloads Solscan page
-3. **Monitor** (Wedge 3) - Reserved for future monitoring features
-4. **Defined.fi** (Wedge 4) - Opens wallet in Defined.fi DEX aggregator
-5. **Analyze** (Wedge 5) - Reserved for quick token analysis
-6. **Cancel** (Wedge 6) - Closes menu without action
+- 6 wedges, mouse or 1-6 keys; hotkey configurable (default backtick)
+- Actions: Solscan, Exclude, Defined.fi, Cancel (Monitor/Analyze reserved)
 
 ### Solscan Integration & Settings Sync
 
-- **Shared Settings File** - `apps/backend/action_wheel_settings.ini` drives both the dashboard and AutoHotkey (activity type, min value, spam toggle, page size, token address). The file is UTF-16 LE because Windows INI editors expect it.
-- **Web UI Control** - Adjust filters inside the dashboard Settings modal; reload the script afterward to pick up the new values.
-- **URL Builder** - The script always emits Solscan URLs with the same parameter order (`token_address` before `value` plus the final `value=undefined`) so the filters behave exactly like the web app.
+- Shared settings: `apps/backend/action_wheel_settings.ini` (UTF-16 LE)
+- Change via dashboard Settings; reload script to apply
+- URL order preserved (`token_address` before `value`, trailing `value=undefined`)
 
 ## Requirements
 
@@ -57,14 +46,9 @@ The **Action Wheel** is a Windows-only AutoHotkey v2 script that provides instan
 
 ### Using the Action Wheel
 
-1. **Navigate to any Solscan wallet page** so the script can grab the address.
-2. **Press backtick** `` ` `` to display the radial menu.
-3. **Choose an action** (mouse or number key):
-   - **1 – Solscan**: opens the same wallet with your configured filters (min value, spam, etc.).
-   - **2 – Exclude**: appends the current wallet to the URL’s `to_address=!Wallet1,!Wallet2,...` filter and reloads the page.
-   - **4 – Defined.fi**: jumps to the wallet on Defined.fi for quick context.
-   - **3/5** remain reserved, **6** cancels.
-4. **Reload the script** after changing settings via the dashboard so the new parameters apply.
+1. Go to a Solscan wallet page.
+2. Press backtick; pick 1-6 (Solscan, Exclude, Defined.fi, Cancel; 3/5 reserved).
+3. Reload script after changing settings.
 
 ## Configuration
 

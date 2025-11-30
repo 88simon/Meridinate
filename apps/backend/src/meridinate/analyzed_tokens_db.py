@@ -648,6 +648,44 @@ def init_database():
         """
         )
 
+        # Token Performance Snapshots table - for scoring/categorization
+        # Stores time-series snapshots of token metrics for performance scoring
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_performance_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_address TEXT NOT NULL,
+                captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                price_usd REAL,
+                mc_usd REAL,
+                volume_24h_usd REAL,
+                liquidity_usd REAL,
+                trade_count_1h INTEGER,
+                trade_count_24h INTEGER,
+                holder_count INTEGER,
+                top_holder_share REAL,
+                our_positions_pnl_usd REAL,
+                lp_locked INTEGER,
+                ingest_tier_snapshot TEXT,
+                UNIQUE(token_address, captured_at)
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_perf_snapshots_address
+            ON token_performance_snapshots(token_address)
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_perf_snapshots_captured
+            ON token_performance_snapshots(captured_at DESC)
+        """
+        )
+
         # Run migrations to add new columns to existing tables
         # Check if total_usd column exists in early_buyer_wallets, if not add it
         cursor.execute("PRAGMA table_info(early_buyer_wallets)")
@@ -737,6 +775,43 @@ def init_database():
         if "ingest_tier" not in at_columns:
             print("[Database] Migrating: Adding ingest_tier column...")
             cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN ingest_tier TEXT")
+
+        # Performance scoring columns (for token categorization)
+        if "performance_score" not in at_columns:
+            print("[Database] Migrating: Adding performance_score column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN performance_score REAL")
+
+        if "performance_bucket" not in at_columns:
+            print("[Database] Migrating: Adding performance_bucket column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN performance_bucket TEXT")
+
+        if "score_explanation" not in at_columns:
+            print("[Database] Migrating: Adding score_explanation column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN score_explanation TEXT")
+
+        if "score_timestamp" not in at_columns:
+            print("[Database] Migrating: Adding score_timestamp column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN score_timestamp TIMESTAMP")
+
+        if "is_control_cohort" not in at_columns:
+            print("[Database] Migrating: Adding is_control_cohort column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN is_control_cohort INTEGER DEFAULT 0")
+
+        # Add is_control_cohort to token_ingest_queue
+        cursor.execute("PRAGMA table_info(token_ingest_queue)")
+        tiq_columns = [col[1] for col in cursor.fetchall()]
+
+        if "is_control_cohort" not in tiq_columns:
+            print("[Database] Migrating: Adding is_control_cohort column to token_ingest_queue...")
+            cursor.execute("ALTER TABLE token_ingest_queue ADD COLUMN is_control_cohort INTEGER DEFAULT 0")
+
+        if "performance_score" not in tiq_columns:
+            print("[Database] Migrating: Adding performance_score column to token_ingest_queue...")
+            cursor.execute("ALTER TABLE token_ingest_queue ADD COLUMN performance_score REAL")
+
+        if "performance_bucket" not in tiq_columns:
+            print("[Database] Migrating: Adding performance_bucket column to token_ingest_queue...")
+            cursor.execute("ALTER TABLE token_ingest_queue ADD COLUMN performance_bucket TEXT")
 
         # Fix ISO-format timestamps (convert to SQLite format)
         # Old format: 2025-01-15T12:34:56.123456
@@ -927,6 +1002,12 @@ def init_database():
             "market_cap_usd_previous",
             "top_holders_json",
             "top_holders_updated_at",
+            # Performance scoring columns
+            "performance_score",
+            "performance_bucket",
+            "score_explanation",
+            "score_timestamp",
+            "is_control_cohort",
         }
 
         missing_columns = required_columns - columns
@@ -2965,9 +3046,23 @@ def update_swab_settings(
             params.append(min_token_count)
 
         if updates:
-            updates.append("updated_at = CURRENT_TIMESTAMP")
-            query = f"UPDATE swab_settings SET {', '.join(updates)} WHERE id = 1"
-            cursor.execute(query, params)
+            # Ensure the settings row exists first
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO swab_settings (id, auto_check_enabled, check_interval_minutes,
+                    daily_credit_budget, stale_threshold_minutes, min_token_count)
+                VALUES (1, 0, 30, 500, 15, 2)
+                """
+            )
+            # Try to update with updated_at, fall back without if column doesn't exist
+            try:
+                updates_with_ts = updates + ["updated_at = CURRENT_TIMESTAMP"]
+                query = f"UPDATE swab_settings SET {', '.join(updates_with_ts)} WHERE id = 1"
+                cursor.execute(query, params)
+            except sqlite3.OperationalError:
+                # Fallback for older databases without updated_at column
+                query = f"UPDATE swab_settings SET {', '.join(updates)} WHERE id = 1"
+                cursor.execute(query, params)
 
     return get_swab_settings()
 
@@ -4118,6 +4213,490 @@ def bulk_update_ingest_snapshots(updates: List[Dict]) -> int:
             if cursor.rowcount > 0:
                 updated_count += 1
     return updated_count
+
+
+# ============================================================================
+# Performance Scoring Functions
+# ============================================================================
+
+
+def save_performance_snapshot(
+    token_address: str,
+    price_usd: Optional[float] = None,
+    mc_usd: Optional[float] = None,
+    volume_24h_usd: Optional[float] = None,
+    liquidity_usd: Optional[float] = None,
+    trade_count_1h: Optional[int] = None,
+    trade_count_24h: Optional[int] = None,
+    holder_count: Optional[int] = None,
+    top_holder_share: Optional[float] = None,
+    our_positions_pnl_usd: Optional[float] = None,
+    lp_locked: Optional[bool] = None,
+    ingest_tier_snapshot: Optional[str] = None,
+) -> int:
+    """
+    Save a performance snapshot for a token.
+
+    Args:
+        token_address: Token address
+        price_usd: Current price in USD
+        mc_usd: Market cap in USD
+        volume_24h_usd: 24h volume in USD
+        liquidity_usd: Liquidity in USD
+        trade_count_1h: Number of trades in last hour
+        trade_count_24h: Number of trades in last 24h
+        holder_count: Number of holders
+        top_holder_share: Top holder share (0-1)
+        our_positions_pnl_usd: Our positions PnL from SWAB
+        lp_locked: Whether LP is locked
+        ingest_tier_snapshot: Current tier at snapshot time
+
+    Returns:
+        Snapshot ID
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO token_performance_snapshots (
+                token_address, price_usd, mc_usd, volume_24h_usd, liquidity_usd,
+                trade_count_1h, trade_count_24h, holder_count, top_holder_share,
+                our_positions_pnl_usd, lp_locked, ingest_tier_snapshot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                token_address,
+                price_usd,
+                mc_usd,
+                volume_24h_usd,
+                liquidity_usd,
+                trade_count_1h,
+                trade_count_24h,
+                holder_count,
+                top_holder_share,
+                our_positions_pnl_usd,
+                1 if lp_locked else 0 if lp_locked is not None else None,
+                ingest_tier_snapshot,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def bulk_save_performance_snapshots(snapshots: List[Dict]) -> int:
+    """
+    Save multiple performance snapshots in a batch.
+
+    Args:
+        snapshots: List of snapshot dictionaries
+
+    Returns:
+        Number of snapshots saved
+    """
+    if not snapshots:
+        return 0
+
+    saved_count = 0
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        for snap in snapshots:
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO token_performance_snapshots (
+                        token_address, price_usd, mc_usd, volume_24h_usd, liquidity_usd,
+                        trade_count_1h, trade_count_24h, holder_count, top_holder_share,
+                        our_positions_pnl_usd, lp_locked, ingest_tier_snapshot
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        snap.get("token_address"),
+                        snap.get("price_usd"),
+                        snap.get("mc_usd"),
+                        snap.get("volume_24h_usd"),
+                        snap.get("liquidity_usd"),
+                        snap.get("trade_count_1h"),
+                        snap.get("trade_count_24h"),
+                        snap.get("holder_count"),
+                        snap.get("top_holder_share"),
+                        snap.get("our_positions_pnl_usd"),
+                        1 if snap.get("lp_locked") else 0 if snap.get("lp_locked") is not None else None,
+                        snap.get("ingest_tier_snapshot"),
+                    ),
+                )
+                saved_count += 1
+            except Exception as e:
+                print(f"[Database] Error saving snapshot for {snap.get('token_address')}: {e}")
+    return saved_count
+
+
+def get_performance_snapshots(
+    token_address: str,
+    limit: int = 50,
+    since_hours: Optional[float] = None,
+) -> List[Dict]:
+    """
+    Get performance snapshots for a token.
+
+    Args:
+        token_address: Token address
+        limit: Maximum number of snapshots to return
+        since_hours: Only return snapshots from the last N hours
+
+    Returns:
+        List of snapshot dictionaries, newest first
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if since_hours:
+            cursor.execute(
+                """
+                SELECT * FROM token_performance_snapshots
+                WHERE token_address = ?
+                AND captured_at >= datetime('now', ? || ' hours')
+                ORDER BY captured_at DESC
+                LIMIT ?
+            """,
+                (token_address, f"-{since_hours}", limit),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT * FROM token_performance_snapshots
+                WHERE token_address = ?
+                ORDER BY captured_at DESC
+                LIMIT ?
+            """,
+                (token_address, limit),
+            )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_first_snapshot(token_address: str) -> Optional[Dict]:
+    """
+    Get the first (oldest) performance snapshot for a token.
+
+    Args:
+        token_address: Token address
+
+    Returns:
+        First snapshot dict or None
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM token_performance_snapshots
+            WHERE token_address = ?
+            ORDER BY captured_at ASC
+            LIMIT 1
+        """,
+            (token_address,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def update_token_performance_score(
+    token_address: str,
+    score: float,
+    bucket: str,
+    explanation: str,
+) -> bool:
+    """
+    Update performance score for a token in analyzed_tokens.
+
+    Args:
+        token_address: Token address
+        score: Performance score (0-100)
+        bucket: Performance bucket (prime|monitor|cull|excluded)
+        explanation: JSON string of triggered rules
+
+    Returns:
+        True if updated, False otherwise
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE analyzed_tokens
+            SET performance_score = ?,
+                performance_bucket = ?,
+                score_explanation = ?,
+                score_timestamp = CURRENT_TIMESTAMP
+            WHERE token_address = ?
+        """,
+            (score, bucket, explanation, token_address),
+        )
+        return cursor.rowcount > 0
+
+
+def update_ingest_queue_score(
+    token_address: str,
+    score: float,
+    bucket: str,
+) -> bool:
+    """
+    Update performance score for a token in token_ingest_queue.
+
+    Args:
+        token_address: Token address
+        score: Performance score (0-100)
+        bucket: Performance bucket (prime|monitor|cull|excluded)
+
+    Returns:
+        True if updated, False otherwise
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE token_ingest_queue
+            SET performance_score = ?,
+                performance_bucket = ?
+            WHERE token_address = ?
+        """,
+            (score, bucket, token_address),
+        )
+        return cursor.rowcount > 0
+
+
+def bulk_update_performance_scores(updates: List[Dict]) -> int:
+    """
+    Bulk update performance scores for multiple tokens.
+
+    Args:
+        updates: List of dicts with token_address, score, bucket, explanation
+
+    Returns:
+        Number of tokens updated
+    """
+    if not updates:
+        return 0
+
+    updated_count = 0
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        for update in updates:
+            address = update.get("token_address")
+            if not address:
+                continue
+
+            # Update analyzed_tokens
+            cursor.execute(
+                """
+                UPDATE analyzed_tokens
+                SET performance_score = ?,
+                    performance_bucket = ?,
+                    score_explanation = ?,
+                    score_timestamp = CURRENT_TIMESTAMP
+                WHERE token_address = ?
+            """,
+                (
+                    update.get("score"),
+                    update.get("bucket"),
+                    update.get("explanation"),
+                    address,
+                ),
+            )
+
+            # Also update ingest queue if present
+            cursor.execute(
+                """
+                UPDATE token_ingest_queue
+                SET performance_score = ?,
+                    performance_bucket = ?
+                WHERE token_address = ?
+            """,
+                (
+                    update.get("score"),
+                    update.get("bucket"),
+                    address,
+                ),
+            )
+
+            if cursor.rowcount > 0:
+                updated_count += 1
+    return updated_count
+
+
+def get_tokens_by_bucket(
+    bucket: str,
+    include_deleted: bool = False,
+    limit: int = 100,
+) -> List[Dict]:
+    """
+    Get tokens by performance bucket.
+
+    Args:
+        bucket: Performance bucket (prime|monitor|cull|excluded)
+        include_deleted: Include soft-deleted tokens
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of token dictionaries
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if include_deleted:
+            cursor.execute(
+                """
+                SELECT * FROM analyzed_tokens
+                WHERE performance_bucket = ?
+                ORDER BY performance_score DESC
+                LIMIT ?
+            """,
+                (bucket, limit),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT * FROM analyzed_tokens
+                WHERE performance_bucket = ?
+                AND (is_deleted = 0 OR is_deleted IS NULL)
+                ORDER BY performance_score DESC
+                LIMIT ?
+            """,
+                (bucket, limit),
+            )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_prime_tokens_for_promotion(limit: int = 10) -> List[Dict]:
+    """
+    Get Prime-bucket tokens that are not yet Analyzed (ready to promote).
+
+    Returns tokens from ingest queue with bucket='prime' and tier != 'analyzed'.
+
+    Args:
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of token dictionaries
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM token_ingest_queue
+            WHERE performance_bucket = 'prime'
+            AND tier IN ('ingested', 'enriched')
+            ORDER BY performance_score DESC
+            LIMIT ?
+        """,
+            (limit,),
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+def mark_control_cohort(token_addresses: List[str]) -> int:
+    """
+    Mark tokens as part of the control cohort.
+
+    Args:
+        token_addresses: List of token addresses to mark
+
+    Returns:
+        Number of tokens marked
+    """
+    if not token_addresses:
+        return 0
+
+    marked_count = 0
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        for address in token_addresses:
+            # Update both tables
+            cursor.execute(
+                """
+                UPDATE token_ingest_queue
+                SET is_control_cohort = 1
+                WHERE token_address = ?
+            """,
+                (address,),
+            )
+            cursor.execute(
+                """
+                UPDATE analyzed_tokens
+                SET is_control_cohort = 1
+                WHERE token_address = ?
+            """,
+                (address,),
+            )
+            marked_count += 1
+    return marked_count
+
+
+def get_control_cohort_tokens(limit: int = 50) -> List[Dict]:
+    """
+    Get tokens marked as control cohort.
+
+    Args:
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of token dictionaries from ingest queue
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM token_ingest_queue
+            WHERE is_control_cohort = 1
+            ORDER BY first_seen_at DESC
+            LIMIT ?
+        """,
+            (limit,),
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_random_low_score_tokens(
+    max_score: float = 40,
+    count: int = 5,
+    exclude_control_cohort: bool = True,
+) -> List[Dict]:
+    """
+    Get random low-score tokens for control cohort selection.
+
+    Args:
+        max_score: Maximum performance score threshold
+        count: Number of tokens to select
+        exclude_control_cohort: Exclude tokens already in control cohort
+
+    Returns:
+        List of randomly selected token dictionaries
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if exclude_control_cohort:
+            cursor.execute(
+                """
+                SELECT * FROM token_ingest_queue
+                WHERE (performance_score IS NULL OR performance_score < ?)
+                AND tier IN ('ingested', 'enriched')
+                AND (is_control_cohort = 0 OR is_control_cohort IS NULL)
+                ORDER BY RANDOM()
+                LIMIT ?
+            """,
+                (max_score, count),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT * FROM token_ingest_queue
+                WHERE (performance_score IS NULL OR performance_score < ?)
+                AND tier IN ('ingested', 'enriched')
+                ORDER BY RANDOM()
+                LIMIT ?
+            """,
+                (max_score, count),
+            )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
 
 
 # Initialize database on module import

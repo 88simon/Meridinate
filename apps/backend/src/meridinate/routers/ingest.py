@@ -504,3 +504,43 @@ async def trigger_auto_promote(payload: Optional[AutoPromoteRequest] = None):
     result = await run_auto_promote(**params)
 
     return {"status": "success", "result": result}
+
+
+@router.post("/control-cohort")
+async def select_control_cohort():
+    """
+    Select random low-score tokens for control cohort tracking.
+
+    This helps validate the scoring system by tracking tokens that
+    would normally be culled to see if they perform well.
+
+    The number of tokens selected is controlled by the
+    control_cohort_daily_quota setting.
+
+    Returns:
+        Control cohort selection results
+    """
+    from meridinate.tasks.performance_scorer import run_control_cohort_selection
+
+    log_info("Control cohort selection triggered", event_type="ingest_trigger", tier="control_cohort")
+
+    result = await run_control_cohort_selection()
+
+    return {"status": "success", "result": result}
+
+
+@router.get("/control-cohort")
+async def get_control_cohort(limit: int = 50):
+    """
+    Get tokens marked as control cohort.
+
+    Args:
+        limit: Maximum number of tokens to return
+
+    Returns:
+        List of control cohort tokens
+    """
+    from meridinate import analyzed_tokens_db as db
+
+    tokens = db.get_control_cohort_tokens(limit=limit)
+    return {"status": "success", "count": len(tokens), "tokens": tokens}

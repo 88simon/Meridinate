@@ -37,6 +37,11 @@ class Token(BaseModel):
     tags: List[str] = []  # New: token tags (gem, dud, etc.)
     top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
     top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
+    # Performance scoring fields
+    performance_score: Optional[float] = None  # Score 0-100
+    performance_bucket: Optional[str] = None  # prime, monitor, cull, excluded
+    score_timestamp: Optional[str] = None  # When score was last computed
+    is_control_cohort: bool = False  # Whether token is in control cohort for validation
 
 
 class Wallet(BaseModel):
@@ -76,6 +81,11 @@ class TokenDetail(BaseModel):
     tags: List[str] = []  # New: token tags (gem, dud, etc.)
     top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
     top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
+    # Performance scoring fields
+    performance_score: Optional[float] = None  # Score 0-100
+    performance_bucket: Optional[str] = None  # prime, monitor, cull, excluded
+    score_timestamp: Optional[str] = None  # When score was last computed
+    is_control_cohort: bool = False  # Whether token is in control cohort for validation
     wallets: List[Wallet]
     axiom_json: List[Any]
 

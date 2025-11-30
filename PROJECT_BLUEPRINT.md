@@ -88,6 +88,7 @@ C:\Meridinate\
 - ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent operations. Status bar displayed on both Scanned Tokens and Ingestion pages.
 - ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Tier-0/Tier-1, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
 - ✅ **Sidebar Navigation Reorder (Nov 2025)** - New order: Ingestion, Scanned Tokens, Codex, Trash, Settings. Renamed "Analyzed Tokens" to "Scanned Tokens" and "Master Control" to "Settings" throughout UI.
+- ✅ **Performance Scoring (Nov 2025)** - Rule-based token categorization system. Scores 0-100 based on MC momentum, liquidity, volume, holder quality, age, and PnL. Buckets: Prime (>=65), Monitor (40-64), Cull (<40). Control cohort tracking for validation. Score/Bucket columns in tokens table with filter dropdown. Settings in Ingestion tab.
 
 ---
 
@@ -103,6 +104,10 @@ C:\Meridinate\                                    # PROJECT ROOT
 │   ├── backend/                                  # FASTAPI BACKEND (Python 3.11)
 │   │   ├── src/                                  # Source code
 │   │   │   └── meridinate/                       # Python package (IMPORTANT: package name is "meridinate")
+│   │   │       ├── tasks/                        # Background task modules
+│   │   │       │   ├── performance_scorer.py     # Token performance scoring engine
+│   │   │       │   ├── ingest_tasks.py           # Ingestion pipeline tasks
+│   │   │       │   └── position_tracker.py       # SWAB position tracking
 │   │   │       ├── routers/                      # API endpoint handlers (9 routers)
 │   │   │       │   ├── analysis.py               # Token analysis endpoints (includes Redis queue)
 │   │   │       │   ├── tokens.py                 # Token data retrieval
@@ -487,6 +492,35 @@ When Simon says...  →  Technical term & Implementation
   - Returns only counts, not full holder lists, for badge display (3,000 holder records reduced to 50 numbers)
   - Client-side refetch callbacks replace router.refresh() for instant updates without full page reload
   - Optimistic UI updates with local state before server sync
+
+#### **"Performance Scoring / Token Categorization" (Nov 2025)**
+- **What it is:** Rule-based scoring engine that classifies tokens into quality buckets (Prime/Monitor/Cull) based on performance metrics.
+- **Location (Backend):**
+  - `tasks/performance_scorer.py` - Scoring engine with configurable rule weights
+  - `analyzed_tokens_db.py` - Schema for `token_performance_snapshots` table and performance columns
+  - `routers/tokens.py` - Score/performance endpoints
+  - `routers/ingest.py` - Control cohort endpoints
+- **Location (Frontend):**
+  - `tokens-table.tsx` - Score/Bucket columns with CTL badge, bucket filter dropdown
+  - `master-control-modal.tsx` - Performance Scoring settings in Ingestion tab
+- **Database:**
+  - New table: `token_performance_snapshots` (price, MC, volume, liquidity, holder metrics over time)
+  - New columns on `analyzed_tokens` and `token_ingest_queue`: `performance_score`, `performance_bucket`, `score_explanation`, `score_timestamp`, `is_control_cohort`
+- **Scoring Rules (configurable via `score_weights` in settings):**
+  - MC momentum: +15 if >=50% up, +10 if >=30% up, -10 if >=35% down
+  - Liquidity: +10 if >=30% up, -15 if >=40% down
+  - Volume: +10 if >=100k, -10 if <10k
+  - Holder quality: +12 if >=3 high-win-rate wallets, +6 if 1-2, -8 if top holder >45%
+  - Age/lock: -10 if <1h old and LP unlocked
+  - PnL feedback: +8 if positive, -8 if negative
+- **Buckets:** Prime (>=65), Monitor (40-64), Cull (<40), Excluded (flagged)
+- **API Endpoints:**
+  - `POST /api/tokens/score` - Recompute scores for token list
+  - `GET /api/tokens/{address}/performance` - Recent snapshots + bucket history
+  - `GET /api/tokens/prime-for-promotion` - List Prime tokens not yet promoted
+  - `POST /api/ingest/control-cohort` - Run control cohort selection
+  - `GET /api/ingest/control-cohort` - List control cohort tokens
+- **Settings:** `score_enabled`, `performance_prime_threshold`, `performance_monitor_threshold`, `control_cohort_daily_quota`, `score_weights`
 
 #### **"Token Ingestion Pipeline" (Nov 2025)**
 - **What it is:** Automated tiered token discovery system that ingests tokens from DexScreener, enriches with Helius data, and promotes to full analysis.
@@ -1044,6 +1078,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.4
-**Last Updated:** November 30, 2025 (Settings modal timeout/retry during ingestion)
+**Document Version:** 2.5
+**Last Updated:** November 30, 2025 (Performance Scoring feature)
 **Next Review:** After production deployment
