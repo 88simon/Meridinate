@@ -1009,6 +1009,42 @@ interface TokensTableProps {
   onViewDetails?: (tokenId: number) => void;
 }
 
+// localStorage key for persisting table filters
+const FILTERS_STORAGE_KEY = 'tokens-table-filters';
+
+interface PersistedFilters {
+  globalFilter: string;
+  bucketFilter: string;
+}
+
+function loadPersistedFilters(): PersistedFilters {
+  if (typeof window === 'undefined') {
+    return { globalFilter: '', bucketFilter: 'all' };
+  }
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        globalFilter: parsed.globalFilter ?? '',
+        bucketFilter: parsed.bucketFilter ?? 'all'
+      };
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { globalFilter: '', bucketFilter: 'all' };
+}
+
+function savePersistedFilters(filters: PersistedFilters): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // Ignore storage errors (e.g., quota exceeded)
+  }
+}
+
 export function TokensTable({
   tokens,
   onDelete,
@@ -1018,8 +1054,16 @@ export function TokensTable({
 }: TokensTableProps) {
   const router = useRouter();
   const { isCodexOpen } = useCodex();
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [bucketFilter, setBucketFilter] = useState<string>('all');
+
+  // Load persisted filters on mount
+  const [globalFilter, setGlobalFilter] = useState(() => {
+    const persisted = loadPersistedFilters();
+    return persisted.globalFilter;
+  });
+  const [bucketFilter, setBucketFilter] = useState<string>(() => {
+    const persisted = loadPersistedFilters();
+    return persisted.bucketFilter;
+  });
   const [isCompactMode, setIsCompactMode] = useState(isCodexOpen);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<number>>(
     new Set()
@@ -1084,6 +1128,11 @@ export function TokensTable({
     };
     fetchSettings();
   }, []);
+
+  // Persist filters to localStorage when they change
+  useEffect(() => {
+    savePersistedFilters({ globalFilter, bucketFilter });
+  }, [globalFilter, bucketFilter]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
