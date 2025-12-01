@@ -647,6 +647,28 @@
         }
       }
     },
+    "/api/stats/scheduler/jobs": {
+      "get": {
+        "tags": [
+          "Stats"
+        ],
+        "summary": "Get Scheduled Jobs",
+        "description": "Get status of all scheduled background jobs.\n\nReturns:\n    List of scheduled jobs with their next run times and enabled status.\n    Used by the frontend to show live countdowns.",
+        "operationId": "get_scheduled_jobs_api_stats_scheduler_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledJobsListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/register": {
       "post": {
         "tags": [
@@ -6533,6 +6555,69 @@
           "tag"
         ],
         "title": "RemoveTagRequest"
+      },
+      "ScheduledJobResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At"
+          },
+          "interval_minutes": {
+            "type": "integer",
+            "title": "Interval Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "next_run_at",
+          "interval_minutes"
+        ],
+        "title": "ScheduledJobResponse",
+        "description": "Response model for a scheduled job."
+      },
+      "ScheduledJobsListResponse": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduledJobResponse"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "scheduler_running": {
+            "type": "boolean",
+            "title": "Scheduler Running"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs",
+          "scheduler_running"
+        ],
+        "title": "ScheduledJobsListResponse",
+        "description": "Response model for scheduled jobs list."
       },
       "ScoreTokensRequest": {
         "properties": {

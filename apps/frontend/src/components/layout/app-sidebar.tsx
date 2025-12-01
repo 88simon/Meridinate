@@ -37,7 +37,8 @@ import {
   IconChevronRight,
   IconChevronsDown,
   IconTags,
-  IconAdjustments
+  IconAdjustments,
+  IconClock
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -46,9 +47,13 @@ import { Icons } from '../icons';
 
 interface AppSidebarProps {
   onCodexToggle?: () => void;
+  onSchedulerToggle?: () => void;
 }
 
-export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
+export default function AppSidebar({
+  onCodexToggle,
+  onSchedulerToggle
+}: AppSidebarProps) {
   const pathname = usePathname();
   const { isOpen } = useMediaQuery();
   const { user } = useUser();
@@ -152,6 +157,17 @@ export default function AppSidebar({ onCodexToggle }: AppSidebarProps) {
 
                 return navItem;
               })}
+
+              {/* Scheduler panel toggle */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={onSchedulerToggle}
+                  tooltip='Scheduler'
+                >
+                  <IconClock />
+                  <span>Scheduler</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* Settings at the end */}
               <SidebarMenuItem>

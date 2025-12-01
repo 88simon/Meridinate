@@ -398,3 +398,76 @@ def update_ingest_scheduler():
         log_info("[Ingest] Hot Refresh scheduler enabled: running every 2 hours")
     else:
         log_info("[Ingest] Hot Refresh scheduler disabled")
+
+
+def get_all_scheduled_jobs() -> list:
+    """
+    Get status of all scheduled jobs with their next run times.
+
+    Returns:
+        List of job status dictionaries with id, name, enabled, next_run_at, interval
+    """
+    global _scheduler
+    from meridinate.settings import CURRENT_INGEST_SETTINGS
+
+    jobs = []
+
+    # SWAB position check
+    swab_settings = db.get_swab_settings()
+    swab_job = {
+        "id": _check_job_id,
+        "name": "SWAB Position Check",
+        "enabled": swab_settings["auto_check_enabled"],
+        "next_run_at": None,
+        "interval_minutes": swab_settings["check_interval_minutes"],
+    }
+    if _scheduler is not None and _scheduler.running:
+        job = _scheduler.get_job(_check_job_id)
+        if job and job.next_run_time:
+            swab_job["next_run_at"] = job.next_run_time.isoformat()
+    jobs.append(swab_job)
+
+    # Tier-0 Ingestion
+    tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
+    tier0_job = {
+        "id": _tier0_job_id,
+        "name": "Tier-0 Ingestion",
+        "enabled": CURRENT_INGEST_SETTINGS.get("ingest_enabled", False),
+        "next_run_at": None,
+        "interval_minutes": tier0_interval,
+    }
+    if _scheduler is not None and _scheduler.running:
+        job = _scheduler.get_job(_tier0_job_id)
+        if job and job.next_run_time:
+            tier0_job["next_run_at"] = job.next_run_time.isoformat()
+    jobs.append(tier0_job)
+
+    # Tier-1 Enrichment
+    tier1_job = {
+        "id": _tier1_job_id,
+        "name": "Tier-1 Enrichment",
+        "enabled": CURRENT_INGEST_SETTINGS.get("enrich_enabled", False),
+        "next_run_at": None,
+        "interval_minutes": 240,  # 4 hours
+    }
+    if _scheduler is not None and _scheduler.running:
+        job = _scheduler.get_job(_tier1_job_id)
+        if job and job.next_run_time:
+            tier1_job["next_run_at"] = job.next_run_time.isoformat()
+    jobs.append(tier1_job)
+
+    # Hot Token Refresh
+    hot_refresh_job = {
+        "id": _hot_refresh_job_id,
+        "name": "Hot Token Refresh",
+        "enabled": CURRENT_INGEST_SETTINGS.get("hot_refresh_enabled", False),
+        "next_run_at": None,
+        "interval_minutes": 120,  # 2 hours
+    }
+    if _scheduler is not None and _scheduler.running:
+        job = _scheduler.get_job(_hot_refresh_job_id)
+        if job and job.next_run_time:
+            hot_refresh_job["next_run_at"] = job.next_run_time.isoformat()
+    jobs.append(hot_refresh_job)
+
+    return jobs

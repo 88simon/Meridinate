@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: c4db3f928cfcfd7ee5df2594ae01149f19dcd78a
+ * Backend Commit: 09d2e3b9c8476373dd432ba38268b6552d6e77ca
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -443,6 +443,30 @@ export interface paths {
      *         Estimated credit cost.
      */
     get: operations["estimate_operation_cost_api_stats_credits_estimate_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/stats/scheduler/jobs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Scheduled Jobs
+     * @description Get status of all scheduled background jobs.
+     *
+     *     Returns:
+     *         List of scheduled jobs with their next run times and enabled status.
+     *         Used by the frontend to show live countdowns.
+     */
+    get: operations["get_scheduled_jobs_api_stats_scheduler_jobs_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -3163,6 +3187,32 @@ export interface components {
       tag: string;
     };
     /**
+     * ScheduledJobResponse
+     * @description Response model for a scheduled job.
+     */
+    ScheduledJobResponse: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Enabled */
+      enabled: boolean;
+      /** Next Run At */
+      next_run_at: string | null;
+      /** Interval Minutes */
+      interval_minutes: number;
+    };
+    /**
+     * ScheduledJobsListResponse
+     * @description Response model for scheduled jobs list.
+     */
+    ScheduledJobsListResponse: {
+      /** Jobs */
+      jobs: components["schemas"]["ScheduledJobResponse"][];
+      /** Scheduler Running */
+      scheduler_running: boolean;
+    };
+    /**
      * ScoreTokensRequest
      * @description Request model for scoring tokens.
      */
@@ -4255,6 +4305,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_scheduled_jobs_api_stats_scheduler_jobs_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScheduledJobsListResponse"];
         };
       };
     };

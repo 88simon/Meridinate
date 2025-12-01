@@ -87,6 +87,23 @@ class OperationLogListResponse(BaseModel):
     total: int
 
 
+class ScheduledJobResponse(BaseModel):
+    """Response model for a scheduled job."""
+
+    id: str
+    name: str
+    enabled: bool
+    next_run_at: Optional[str]
+    interval_minutes: int
+
+
+class ScheduledJobsListResponse(BaseModel):
+    """Response model for scheduled jobs list."""
+
+    jobs: List[ScheduledJobResponse]
+    scheduler_running: bool
+
+
 @router.get("/api/stats/credits/today", response_model=CreditUsageStatsResponse)
 @conditional_rate_limit(READ_RATE_LIMIT)
 async def get_credits_today(request: Request):
@@ -443,3 +460,33 @@ async def estimate_operation_cost(
             "estimated_credits": count,  # Default to 1 credit per operation
             "warning": f"Unknown operation type: {operation}",
         }
+
+
+@router.get("/api/stats/scheduler/jobs", response_model=ScheduledJobsListResponse)
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_scheduled_jobs(request: Request):
+    """
+    Get status of all scheduled background jobs.
+
+    Returns:
+        List of scheduled jobs with their next run times and enabled status.
+        Used by the frontend to show live countdowns.
+    """
+    from meridinate.scheduler import get_all_scheduled_jobs, get_scheduler
+
+    scheduler = get_scheduler()
+    jobs = get_all_scheduled_jobs()
+
+    return ScheduledJobsListResponse(
+        jobs=[
+            ScheduledJobResponse(
+                id=job["id"],
+                name=job["name"],
+                enabled=job["enabled"],
+                next_run_at=job["next_run_at"],
+                interval_minutes=job["interval_minutes"],
+            )
+            for job in jobs
+        ],
+        scheduler_running=scheduler.running if scheduler else False,
+    )

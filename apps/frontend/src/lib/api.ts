@@ -847,6 +847,44 @@ export async function getOperationLog(
   return res.json();
 }
 
+// ============================================================================
+// Scheduled Jobs API
+// ============================================================================
+
+/**
+ * Scheduled job status
+ */
+export interface ScheduledJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  next_run_at: string | null;
+  interval_minutes: number;
+}
+
+/**
+ * Scheduled jobs list response
+ */
+export interface ScheduledJobsResponse {
+  jobs: ScheduledJob[];
+  scheduler_running: boolean;
+}
+
+/**
+ * Get all scheduled background jobs with next run times
+ */
+export async function getScheduledJobs(): Promise<ScheduledJobsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/stats/scheduler/jobs`, {
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch scheduled jobs');
+  }
+
+  return res.json();
+}
+
 /**
  * Latest token response type
  */
