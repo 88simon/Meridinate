@@ -14,6 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -627,6 +634,38 @@ function IngestionTab({ bypassLimits = false }: { bypassLimits?: boolean }) {
             tooltip='Maximum token age for ingestion'
             bypassLimits={bypassLimits}
           />
+        </div>
+      </div>
+
+      {/* Scheduler Intervals */}
+      <div className='border-t pt-4'>
+        <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
+          Scheduler Intervals
+          <InfoTooltip>Control how often scheduled jobs run</InfoTooltip>
+        </h4>
+        <div className='grid grid-cols-2 gap-4'>
+          <div className='space-y-2'>
+            <Label className='text-xs'>Tier-0 Interval</Label>
+            <Select
+              value={String(settings.tier0_interval_minutes ?? 60)}
+              onValueChange={(v) =>
+                updateSetting({ tier0_interval_minutes: parseInt(v, 10) })
+              }
+            >
+              <SelectTrigger className='w-full'>
+                <SelectValue placeholder='Select interval' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='15'>Every 15 minutes</SelectItem>
+                <SelectItem value='30'>Every 30 minutes</SelectItem>
+                <SelectItem value='60'>Every 60 minutes</SelectItem>
+                <SelectItem value='120'>Every 2 hours</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className='text-muted-foreground text-xs'>
+              How often Tier-0 (DexScreener) ingestion runs
+            </p>
+          </div>
         </div>
       </div>
 

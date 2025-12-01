@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 4ec5db9e6b1ab651456eda27def74768faaaad1d
+ * Backend Commit: c4db3f928cfcfd7ee5df2594ae01149f19dcd78a
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -2689,6 +2689,12 @@ export interface components {
        */
       age_max_hours: number;
       /**
+       * Tier0 Interval Minutes
+       * @description Tier-0 scheduler interval in minutes
+       * @default 60
+       */
+      tier0_interval_minutes: number;
+      /**
        * Tier0 Max Tokens Per Run
        * @description Max tokens per Tier-0 run
        * @default 50
@@ -3598,6 +3604,8 @@ export interface components {
       liquidity_min?: number | null;
       /** Age Max Hours */
       age_max_hours?: number | null;
+      /** Tier0 Interval Minutes */
+      tier0_interval_minutes?: number | null;
       /** Tier0 Max Tokens Per Run */
       tier0_max_tokens_per_run?: number | null;
       /** Tier1 Batch Size */

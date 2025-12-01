@@ -5197,6 +5197,13 @@
             "description": "Maximum token age in hours",
             "default": 48
           },
+          "tier0_interval_minutes": {
+            "type": "integer",
+            "minimum": 5.0,
+            "title": "Tier0 Interval Minutes",
+            "description": "Tier-0 scheduler interval in minutes",
+            "default": 60
+          },
           "tier0_max_tokens_per_run": {
             "type": "integer",
             "minimum": 1.0,
@@ -7852,6 +7859,18 @@
               }
             ],
             "title": "Age Max Hours"
+          },
+          "tier0_interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Interval Minutes"
           },
           "tier0_max_tokens_per_run": {
             "anyOf": [

@@ -164,6 +164,8 @@ DEFAULT_INGEST_SETTINGS = {
     "volume_min": 5000,  # Minimum 24h volume in USD
     "liquidity_min": 5000,  # Minimum liquidity in USD
     "age_max_hours": 48,  # Maximum token age in hours
+    # Scheduler intervals
+    "tier0_interval_minutes": 60,  # Tier-0 (DexScreener) scheduler interval
     # Batch and budget limits
     "tier0_max_tokens_per_run": 50,  # Max tokens to ingest per Tier-0 run
     "tier1_batch_size": 10,  # Max tokens to enrich per Tier-1 run

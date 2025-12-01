@@ -155,14 +155,15 @@ def start_scheduler():
 
     # Configure Ingest jobs (feature-flagged)
     if CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
+        tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
         scheduler.add_job(
             ingest_tier0_job,
-            trigger=IntervalTrigger(hours=1),
+            trigger=IntervalTrigger(minutes=tier0_interval),
             id=_tier0_job_id,
             name="Ingest Tier-0 (DexScreener)",
             replace_existing=True,
         )
-        log_info("[Ingest] Tier-0 scheduler enabled: running hourly")
+        log_info(f"[Ingest] Tier-0 scheduler enabled: running every {tier0_interval} minutes")
     else:
         log_info("[Ingest] Tier-0 scheduler disabled at startup")
 
@@ -358,16 +359,17 @@ def update_ingest_scheduler():
     if _scheduler.get_job(_hot_refresh_job_id):
         _scheduler.remove_job(_hot_refresh_job_id)
 
-    # Add Tier-0 job if enabled (runs hourly)
+    # Add Tier-0 job if enabled (uses tier0_interval_minutes setting)
     if CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
+        tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
         _scheduler.add_job(
             ingest_tier0_job,
-            trigger=IntervalTrigger(hours=1),
+            trigger=IntervalTrigger(minutes=tier0_interval),
             id=_tier0_job_id,
             name="Ingest Tier-0 (DexScreener)",
             replace_existing=True,
         )
-        log_info("[Ingest] Tier-0 scheduler enabled: running hourly")
+        log_info(f"[Ingest] Tier-0 scheduler enabled: running every {tier0_interval} minutes")
     else:
         log_info("[Ingest] Tier-0 scheduler disabled")
 

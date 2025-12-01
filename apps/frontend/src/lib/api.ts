@@ -1259,6 +1259,7 @@ export interface IngestSettings {
   volume_min: number;
   liquidity_min: number;
   age_max_hours: number;
+  tier0_interval_minutes: number;
   tier0_max_tokens_per_run: number;
   tier1_batch_size: number;
   tier1_credit_budget_per_run: number;

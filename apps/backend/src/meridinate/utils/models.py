@@ -472,6 +472,9 @@ class IngestSettings(BaseModel):
     liquidity_min: float = Field(default=5000, ge=0, description="Minimum liquidity in USD")
     age_max_hours: float = Field(default=48, ge=1, description="Maximum token age in hours")
 
+    # Scheduler intervals
+    tier0_interval_minutes: int = Field(default=60, ge=5, description="Tier-0 scheduler interval in minutes")
+
     # Batch and budget limits (no upper bounds - bypassLimits allows any value)
     tier0_max_tokens_per_run: int = Field(default=50, ge=1, description="Max tokens per Tier-0 run")
     tier1_batch_size: int = Field(default=10, ge=1, description="Max tokens per Tier-1 run")
@@ -511,6 +514,7 @@ class UpdateIngestSettingsRequest(BaseModel):
     volume_min: Optional[float] = Field(None, ge=0)
     liquidity_min: Optional[float] = Field(None, ge=0)
     age_max_hours: Optional[float] = Field(None, ge=1)
+    tier0_interval_minutes: Optional[int] = Field(None, ge=5)
     tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1)
     tier1_batch_size: Optional[int] = Field(None, ge=1)
     tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1)
