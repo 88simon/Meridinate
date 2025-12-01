@@ -97,10 +97,20 @@ class ScheduledJobResponse(BaseModel):
     interval_minutes: int
 
 
+class RunningJobResponse(BaseModel):
+    """Response model for a currently running job."""
+
+    id: str
+    name: str
+    started_at: str
+    elapsed_seconds: int
+
+
 class ScheduledJobsListResponse(BaseModel):
     """Response model for scheduled jobs list."""
 
     jobs: List[ScheduledJobResponse]
+    running_jobs: List[RunningJobResponse]
     scheduler_running: bool
 
 
@@ -469,13 +479,15 @@ async def get_scheduled_jobs(request: Request):
     Get status of all scheduled background jobs.
 
     Returns:
-        List of scheduled jobs with their next run times and enabled status.
-        Used by the frontend to show live countdowns.
+        List of scheduled jobs with their next run times and enabled status,
+        plus any currently running jobs with elapsed time.
+        Used by the frontend to show live countdowns and running status.
     """
-    from meridinate.scheduler import get_all_scheduled_jobs, get_scheduler
+    from meridinate.scheduler import get_all_scheduled_jobs, get_running_jobs, get_scheduler
 
     scheduler = get_scheduler()
     jobs = get_all_scheduled_jobs()
+    running = get_running_jobs()
 
     return ScheduledJobsListResponse(
         jobs=[
@@ -487,6 +499,15 @@ async def get_scheduled_jobs(request: Request):
                 interval_minutes=job["interval_minutes"],
             )
             for job in jobs
+        ],
+        running_jobs=[
+            RunningJobResponse(
+                id=rj["id"],
+                name=rj["name"],
+                started_at=rj["started_at"],
+                elapsed_seconds=rj["elapsed_seconds"],
+            )
+            for rj in running
         ],
         scheduler_running=scheduler.running if scheduler else False,
     )

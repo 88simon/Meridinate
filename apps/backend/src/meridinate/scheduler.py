@@ -10,7 +10,7 @@ Uses APScheduler with asyncio support.
 
 import asyncio
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -24,6 +24,52 @@ _check_job_id = "swab_position_check"
 _tier0_job_id = "ingest_tier0"
 _tier1_job_id = "ingest_tier1"
 _hot_refresh_job_id = "ingest_hot_refresh"
+
+# Track currently running jobs: job_id -> started_at timestamp
+_running_jobs: Dict[str, datetime] = {}
+
+
+def mark_job_started(job_id: str) -> None:
+    """Mark a job as currently running."""
+    global _running_jobs
+    _running_jobs[job_id] = datetime.now()
+
+
+def mark_job_finished(job_id: str) -> None:
+    """Mark a job as no longer running."""
+    global _running_jobs
+    _running_jobs.pop(job_id, None)
+
+
+def get_running_jobs() -> list:
+    """
+    Get list of currently running jobs with elapsed time.
+
+    Returns:
+        List of dicts with job_id, name, started_at, elapsed_seconds
+    """
+    global _running_jobs
+
+    job_names = {
+        _check_job_id: "SWAB Position Check",
+        _tier0_job_id: "Tier-0 Ingestion",
+        _tier1_job_id: "Tier-1 Enrichment",
+        _hot_refresh_job_id: "Hot Token Refresh",
+    }
+
+    running = []
+    now = datetime.now()
+
+    for job_id, started_at in _running_jobs.items():
+        elapsed = (now - started_at).total_seconds()
+        running.append({
+            "id": job_id,
+            "name": job_names.get(job_id, job_id),
+            "started_at": started_at.isoformat(),
+            "elapsed_seconds": int(elapsed),
+        })
+
+    return running
 
 
 def get_scheduler() -> AsyncIOScheduler:
@@ -67,6 +113,8 @@ async def swab_position_check_job():
             log_info("SWAB insufficient credits for position check")
             return
 
+        mark_job_started(_check_job_id)
+
         log_info(
             f"SWAB scheduled check starting: max_positions={max_positions}, "
             f"credits_remaining={credits_remaining}"
@@ -92,6 +140,8 @@ async def swab_position_check_job():
 
     except Exception as e:
         log_error(f"SWAB scheduled check failed: {e}")
+    finally:
+        mark_job_finished(_check_job_id)
 
 
 def update_scheduler_interval():
@@ -250,6 +300,7 @@ async def ingest_tier0_job():
             log_info("[Tier-0] Auto-ingestion disabled, skipping scheduled run")
             return
 
+        mark_job_started(_tier0_job_id)
         log_info("[Tier-0] Starting scheduled ingestion")
 
         result = await run_tier0_ingestion()
@@ -261,6 +312,8 @@ async def ingest_tier0_job():
 
     except Exception as e:
         log_error(f"[Tier-0] Scheduled run failed: {e}")
+    finally:
+        mark_job_finished(_tier0_job_id)
 
 
 async def ingest_tier1_job():
@@ -283,6 +336,7 @@ async def ingest_tier1_job():
             log_info("[Tier-1] Auto-enrichment disabled, skipping scheduled run")
             return
 
+        mark_job_started(_tier1_job_id)
         log_info("[Tier-1] Starting scheduled enrichment")
 
         result = await run_tier1_enrichment()
@@ -303,6 +357,8 @@ async def ingest_tier1_job():
 
     except Exception as e:
         log_error(f"[Tier-1] Scheduled run failed: {e}")
+    finally:
+        mark_job_finished(_tier1_job_id)
 
 
 async def ingest_hot_refresh_job():
@@ -326,6 +382,7 @@ async def ingest_hot_refresh_job():
             log_info("[Hot Refresh] Disabled, skipping scheduled run")
             return
 
+        mark_job_started(_hot_refresh_job_id)
         log_info("[Hot Refresh] Starting scheduled refresh")
 
         result = await run_hot_token_refresh()
@@ -337,6 +394,8 @@ async def ingest_hot_refresh_job():
 
     except Exception as e:
         log_error(f"[Hot Refresh] Scheduled run failed: {e}")
+    finally:
+        mark_job_finished(_hot_refresh_job_id)
 
 
 def update_ingest_scheduler():

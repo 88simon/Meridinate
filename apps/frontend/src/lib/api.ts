@@ -863,10 +863,21 @@ export interface ScheduledJob {
 }
 
 /**
+ * Currently running job status
+ */
+export interface RunningJob {
+  id: string;
+  name: string;
+  started_at: string;
+  elapsed_seconds: number;
+}
+
+/**
  * Scheduled jobs list response
  */
 export interface ScheduledJobsResponse {
   jobs: ScheduledJob[];
+  running_jobs: RunningJob[];
   scheduler_running: boolean;
 }
 

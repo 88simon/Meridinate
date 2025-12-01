@@ -1,9 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getScheduledJobs, ScheduledJob } from '@/lib/api';
+import { getScheduledJobs, ScheduledJob, RunningJob } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { X, Clock, Play, Pause, RefreshCw, Loader2 } from 'lucide-react';
+import {
+  X,
+  Clock,
+  Play,
+  Pause,
+  RefreshCw,
+  Loader2,
+  Activity
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ScheduledJobsPanelProps {
@@ -12,10 +20,10 @@ interface ScheduledJobsPanelProps {
 }
 
 /**
- * Format seconds into HH:MM:SS countdown string
+ * Format seconds into HH:MM:SS string
  */
-function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return '00:00:00';
+function formatTime(seconds: number): string {
+  if (seconds < 0) return '00:00:00';
 
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -39,10 +47,12 @@ function getSecondsUntil(isoTimestamp: string | null): number {
 
 export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
+  const [runningJobs, setRunningJobs] = useState<RunningJob[]>([]);
   const [schedulerRunning, setSchedulerRunning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdowns, setCountdowns] = useState<Record<string, number>>({});
+  const [elapsedTimes, setElapsedTimes] = useState<Record<string, number>>({});
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -50,6 +60,7 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
     try {
       const data = await getScheduledJobs();
       setJobs(data.jobs);
+      setRunningJobs(data.running_jobs || []);
       setSchedulerRunning(data.scheduler_running);
 
       // Initialize countdowns
@@ -58,6 +69,13 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
         initialCountdowns[job.id] = getSecondsUntil(job.next_run_at);
       }
       setCountdowns(initialCountdowns);
+
+      // Initialize elapsed times for running jobs
+      const initialElapsed: Record<string, number> = {};
+      for (const rj of data.running_jobs || []) {
+        initialElapsed[rj.id] = rj.elapsed_seconds;
+      }
+      setElapsedTimes(initialElapsed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load jobs');
     } finally {
@@ -72,11 +90,12 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
     }
   }, [open, loadJobs]);
 
-  // Countdown timer - update every second
+  // Timer - update countdowns and elapsed times every second
   useEffect(() => {
-    if (!open || jobs.length === 0) return;
+    if (!open) return;
 
     const intervalId = setInterval(() => {
+      // Update countdowns (decrement)
       setCountdowns((prev) => {
         const updated: Record<string, number> = {};
         for (const job of jobs) {
@@ -85,21 +104,31 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
         }
         return updated;
       });
+
+      // Update elapsed times (increment)
+      setElapsedTimes((prev) => {
+        const updated: Record<string, number> = {};
+        for (const rj of runningJobs) {
+          updated[rj.id] = (prev[rj.id] ?? rj.elapsed_seconds) + 1;
+        }
+        return updated;
+      });
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [open, jobs]);
+  }, [open, jobs, runningJobs]);
 
-  // Refresh data every 30 seconds to keep next_run_at accurate
+  // Refresh data every 5 seconds when jobs are running, 30 seconds otherwise
   useEffect(() => {
     if (!open) return;
 
+    const refreshMs = runningJobs.length > 0 ? 5000 : 30000;
     const refreshInterval = setInterval(() => {
       loadJobs();
-    }, 30000);
+    }, refreshMs);
 
     return () => clearInterval(refreshInterval);
-  }, [open, loadJobs]);
+  }, [open, loadJobs, runningJobs.length]);
 
   return (
     <div
@@ -165,68 +194,118 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
                 {error}
               </div>
             ) : (
-              <div className='space-y-3'>
-                {jobs.map((job) => {
-                  const countdown = countdowns[job.id] ?? -1;
-                  const isActive = job.enabled && countdown >= 0;
-
-                  return (
-                    <div
-                      key={job.id}
-                      className={cn(
-                        'rounded-lg border p-3 transition-colors',
-                        job.enabled ? 'bg-card' : 'bg-muted/50 opacity-60'
-                      )}
-                    >
-                      <div className='flex items-start justify-between'>
-                        <div className='flex items-center gap-2'>
-                          {job.enabled ? (
-                            <Play className='h-3.5 w-3.5 text-green-500' />
-                          ) : (
-                            <Pause className='text-muted-foreground h-3.5 w-3.5' />
-                          )}
-                          <span className='text-sm font-medium'>
-                            {job.name}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className='mt-2 space-y-1'>
-                        {isActive ? (
+              <div className='space-y-4'>
+                {/* Running Jobs Section */}
+                {runningJobs.length > 0 && (
+                  <div className='space-y-2'>
+                    <div className='flex items-center gap-2 text-xs font-semibold tracking-wide text-blue-500 uppercase'>
+                      <Activity className='h-3.5 w-3.5 animate-pulse' />
+                      Running Now
+                    </div>
+                    {runningJobs.map((rj) => {
+                      const elapsed = elapsedTimes[rj.id] ?? rj.elapsed_seconds;
+                      return (
+                        <div
+                          key={rj.id}
+                          className='rounded-lg border border-blue-500/30 bg-blue-500/10 p-3'
+                        >
                           <div className='flex items-center gap-2'>
-                            <span className='text-muted-foreground text-xs'>
-                              Next run in:
-                            </span>
-                            <span
-                              className={cn(
-                                'font-mono text-sm font-semibold',
-                                countdown <= 60
-                                  ? 'text-orange-500'
-                                  : countdown <= 300
-                                    ? 'text-yellow-500'
-                                    : 'text-foreground'
-                              )}
-                            >
-                              {formatCountdown(countdown)}
+                            <Loader2 className='h-3.5 w-3.5 animate-spin text-blue-500' />
+                            <span className='text-sm font-medium'>
+                              {rj.name}
                             </span>
                           </div>
-                        ) : (
-                          <span className='text-muted-foreground text-xs'>
-                            {job.enabled ? 'Waiting...' : 'Disabled'}
-                          </span>
-                        )}
-
-                        <div className='text-muted-foreground text-xs'>
-                          Interval: {job.interval_minutes} min
-                          {job.interval_minutes >= 60 &&
-                            ` (${(job.interval_minutes / 60).toFixed(1)}h)`}
+                          <div className='mt-2 flex items-center gap-2'>
+                            <span className='text-muted-foreground text-xs'>
+                              Running for:
+                            </span>
+                            <span className='font-mono text-sm font-semibold text-blue-500'>
+                              {formatTime(elapsed)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
 
-                {jobs.length === 0 && !loading && (
+                {/* Scheduled Jobs Section */}
+                {jobs.length > 0 && (
+                  <div className='space-y-2'>
+                    {runningJobs.length > 0 && (
+                      <div className='text-muted-foreground text-xs font-semibold tracking-wide uppercase'>
+                        Scheduled
+                      </div>
+                    )}
+                    {jobs.map((job) => {
+                      const countdown = countdowns[job.id] ?? -1;
+                      const isActive = job.enabled && countdown >= 0;
+                      const isRunning = runningJobs.some(
+                        (rj) => rj.id === job.id
+                      );
+
+                      // Skip jobs that are currently running
+                      if (isRunning) return null;
+
+                      return (
+                        <div
+                          key={job.id}
+                          className={cn(
+                            'rounded-lg border p-3 transition-colors',
+                            job.enabled ? 'bg-card' : 'bg-muted/50 opacity-60'
+                          )}
+                        >
+                          <div className='flex items-start justify-between'>
+                            <div className='flex items-center gap-2'>
+                              {job.enabled ? (
+                                <Play className='h-3.5 w-3.5 text-green-500' />
+                              ) : (
+                                <Pause className='text-muted-foreground h-3.5 w-3.5' />
+                              )}
+                              <span className='text-sm font-medium'>
+                                {job.name}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className='mt-2 space-y-1'>
+                            {isActive ? (
+                              <div className='flex items-center gap-2'>
+                                <span className='text-muted-foreground text-xs'>
+                                  Next run in:
+                                </span>
+                                <span
+                                  className={cn(
+                                    'font-mono text-sm font-semibold',
+                                    countdown <= 60
+                                      ? 'text-orange-500'
+                                      : countdown <= 300
+                                        ? 'text-yellow-500'
+                                        : 'text-foreground'
+                                  )}
+                                >
+                                  {formatTime(countdown)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className='text-muted-foreground text-xs'>
+                                {job.enabled ? 'Waiting...' : 'Disabled'}
+                              </span>
+                            )}
+
+                            <div className='text-muted-foreground text-xs'>
+                              Interval: {job.interval_minutes} min
+                              {job.interval_minutes >= 60 &&
+                                ` (${(job.interval_minutes / 60).toFixed(1)}h)`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {jobs.length === 0 && runningJobs.length === 0 && !loading && (
                   <div className='text-muted-foreground py-4 text-center text-sm'>
                     No scheduled jobs found
                   </div>
@@ -237,7 +316,9 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
 
           {/* Footer */}
           <div className='text-muted-foreground border-t px-4 py-2 text-center text-xs'>
-            Auto-refreshes every 30s
+            {runningJobs.length > 0
+              ? 'Auto-refreshes every 5s'
+              : 'Auto-refreshes every 30s'}
           </div>
         </div>
       )}
