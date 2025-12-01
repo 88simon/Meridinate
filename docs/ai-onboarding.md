@@ -1,5 +1,5 @@
 # AI Onboarding (Concise Context)
-**Version:** 1.0 (Nov 30, 2025)  
+**Version:** 1.1 (Dec 1, 2025)  
 **Use:** Quick orientation for new assistants. For full detail, see `PROJECT_BLUEPRINT.md` and topic docs in `docs/`.
 
 ## Stack & Paths
@@ -10,7 +10,7 @@
 - **Start:** `scripts/start.bat` (Windows) / `scripts/start.sh` (Unix).
 
 ## Navigation (UI)
-- Sidebar order: Ingestion, Scanned Tokens, Codex, Trash, Settings.
+- Sidebar order: Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings.
 - Settings modal: tabs for Scanning (manual + Solscan), Ingestion (TIP + Performance Scoring), SWAB, Webhooks, System.
 
 ## Key Features
@@ -19,12 +19,14 @@
 - SWAB position tracking with webhooks; reconciliation as fallback.
 - Live credits bar with persisted operation log.
 - Performance Scoring: rule-based token categorization (Prime/Monitor/Cull) with configurable weights.
+- Scheduler Panel: slide-out showing jobs with live countdowns and running job elapsed time.
 
 ## Important Endpoints
 - Ingest: `/api/ingest/settings`, `/api/ingest/run-tier0`, `/api/ingest/run-tier1`, `/api/ingest/promote`, `/api/ingest/refresh-hot`, `/api/ingest/queue`.
 - SWAB: `/api/swab/settings`, `/api/swab/check`, `/api/swab/update-pnl`, `/api/swab/reconcile-all`.
 - Scoring: `/api/tokens/score`, `/api/tokens/{address}/performance`, `/api/ingest/control-cohort`.
 - Credits/Stats: `/api/stats/credits/today`, `/api/stats/credits/transactions?limit=5`, `/api/stats/credits/operation-log`, `/api/tokens/latest`.
+- Scheduler: `/api/stats/scheduler/jobs`.
 - Webhooks: `/webhooks/*` (create/list/delete, callback at `/webhooks/callback`).
 
 ## Critical Notes
@@ -33,6 +35,6 @@
 - Ingestion and checks can be long-running—run them as background jobs (see `docs/ingest-async-queue-plan.md`).
 
 ## Reference Docs
-- `PROJECT_BLUEPRINT.md` (full state, v2.4).
+- `PROJECT_BLUEPRINT.md` (full state, v2.6).
 - `docs/ingestion-overhaul-plan.md`, `docs/ingest-async-queue-plan.md`.
 - `docs/live-credits-bar-plan.md`, `docs/master-control-plan.md`, `docs/swab-check-progress-plan.md`.
