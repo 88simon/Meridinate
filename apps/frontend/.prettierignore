@@ -46,3 +46,6 @@ node_modules
 build
 dist
 ico
+
+# Auto-generated files (managed by sync-types script)
+src/lib/generated/api-types.ts
