@@ -972,6 +972,66 @@ const createColumns = (
     }
   },
   {
+    accessorKey: 'ingest_source',
+    header: () => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className='flex cursor-help items-center gap-1'>
+              <span>ToS</span>
+              <Info className='text-muted-foreground h-3 w-3' />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className='max-w-[250px]'>
+            <div className='space-y-1 text-xs'>
+              <p className='font-semibold'>Type of Scan</p>
+              <p>
+                <span className='font-medium text-blue-400'>Manual</span> =
+                Token was scanned manually via the Scanning page
+              </p>
+              <p>
+                <span className='font-medium text-purple-400'>TIP</span> = Token
+                was ingested via the automated Ingestion Pipeline (DexScreener)
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ),
+    cell: ({ row }) => {
+      const source = row.original.ingest_source;
+      const isManual = source === 'manual';
+      const isTip = source === 'dexscreener' || source === 'ingest_queue';
+
+      if (!source) {
+        return (
+          <span
+            className={cn(
+              'text-muted-foreground',
+              isCompact ? 'text-[10px]' : 'text-xs'
+            )}
+          >
+            —
+          </span>
+        );
+      }
+
+      return (
+        <Badge
+          variant='outline'
+          className={cn(
+            'font-medium',
+            isCompact ? 'px-1 py-0 text-[9px]' : 'px-1.5 py-0.5 text-[10px]',
+            isManual && 'border-blue-500/50 bg-blue-500/10 text-blue-500',
+            isTip && 'border-purple-500/50 bg-purple-500/10 text-purple-500'
+          )}
+        >
+          {isManual ? 'Manual' : isTip ? 'TIP' : source}
+        </Badge>
+      );
+    }
+  },
+  {
     accessorKey: 'last_analysis_credits',
     header: isCompact ? 'Latest Credits' : 'Credits Used For Latest Report',
     cell: ({ row }) => (

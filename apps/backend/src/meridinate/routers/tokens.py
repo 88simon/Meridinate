@@ -133,7 +133,8 @@ async def get_tokens_history(request: Request, response: Response):
                     t.gem_status,
                     COALESCE(t.state_version, 0) as state_version,
                     t.top_holders_json,
-                    t.top_holders_updated_at
+                    t.top_holders_updated_at,
+                    t.ingest_source
                 FROM analyzed_tokens t
                 LEFT JOIN early_buyer_wallets ebw ON ebw.token_id = t.id
                 WHERE t.deleted_at IS NULL OR t.deleted_at = ''

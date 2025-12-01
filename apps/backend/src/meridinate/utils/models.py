@@ -42,6 +42,8 @@ class Token(BaseModel):
     performance_bucket: Optional[str] = None  # prime, monitor, cull, excluded
     score_timestamp: Optional[str] = None  # When score was last computed
     is_control_cohort: bool = False  # Whether token is in control cohort for validation
+    # Ingestion tracking fields
+    ingest_source: Optional[str] = None  # 'manual' or 'dexscreener' (TIP)
 
 
 class Wallet(BaseModel):
@@ -86,6 +88,8 @@ class TokenDetail(BaseModel):
     performance_bucket: Optional[str] = None  # prime, monitor, cull, excluded
     score_timestamp: Optional[str] = None  # When score was last computed
     is_control_cohort: bool = False  # Whether token is in control cohort for validation
+    # Ingestion tracking fields
+    ingest_source: Optional[str] = None  # 'manual' or 'dexscreener' (TIP)
     wallets: List[Wallet]
     axiom_json: List[Any]
 

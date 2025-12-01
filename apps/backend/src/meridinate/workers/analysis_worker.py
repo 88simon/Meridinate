@@ -124,6 +124,7 @@ async def analyze_token_task(
             max_wallets=settings.get("max_wallets", 10),
             market_cap_usd=result.get("market_cap_usd"),
             top_holders=result.get("top_holders"),
+            ingest_source="manual",  # Manual scan (not from TIP ingestion)
         )
         log_info("Saved token to database", token_id=token_id, acronym=acronym)
 
