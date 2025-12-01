@@ -48,13 +48,14 @@ async def get_multi_early_buyer_wallets(request: Request, min_tokens: int = 2):
                 FROM early_buyer_wallets tw
                 JOIN analyzed_tokens t ON tw.token_id = t.id
                 WHERE t.deleted_at IS NULL
+                ORDER BY t.id DESC
             )
             SELECT
                 dwt.wallet_address,
                 COUNT(DISTINCT dwt.token_id) as token_count,
-                GROUP_CONCAT(dwt.token_name ORDER BY dwt.token_table_id DESC) as token_names,
-                GROUP_CONCAT(dwt.token_address ORDER BY dwt.token_table_id DESC) as token_addresses,
-                GROUP_CONCAT(dwt.token_table_id ORDER BY dwt.token_table_id DESC) as token_ids,
+                GROUP_CONCAT(dwt.token_name) as token_names,
+                GROUP_CONCAT(dwt.token_address) as token_addresses,
+                GROUP_CONCAT(dwt.token_table_id) as token_ids,
                 MAX(dwt.wallet_balance_usd) as wallet_balance_usd,
                 MAX(dwt.wallet_balance_usd_previous) as wallet_balance_usd_previous,
                 MAX(dwt.wallet_balance_updated_at) as wallet_balance_updated_at,
