@@ -1649,13 +1649,13 @@ export function MasterControlModal({
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue='scanning' className='flex-1'>
+          <Tabs defaultValue='ingestion' className='flex-1'>
             <TabsList className='grid w-full grid-cols-5'>
-              <TabsTrigger value='scanning' className='text-xs'>
-                Scanning
-              </TabsTrigger>
               <TabsTrigger value='ingestion' className='text-xs'>
                 Ingestion
+              </TabsTrigger>
+              <TabsTrigger value='scanning' className='text-xs'>
+                Scanning
               </TabsTrigger>
               <TabsTrigger value='swab' className='text-xs'>
                 SWAB
@@ -1669,17 +1669,17 @@ export function MasterControlModal({
             </TabsList>
 
             <div className='mt-4 h-[55vh] overflow-y-auto pr-2'>
+              <TabsContent value='ingestion'>
+                <IngestionTab
+                  bypassLimits={apiSettings.bypassLimits ?? false}
+                />
+              </TabsContent>
+
               <TabsContent value='scanning'>
                 <ScanningTab
                   apiSettings={apiSettings}
                   setApiSettings={setApiSettings}
                   defaultApiSettings={defaultApiSettings}
-                />
-              </TabsContent>
-
-              <TabsContent value='ingestion'>
-                <IngestionTab
-                  bypassLimits={apiSettings.bypassLimits ?? false}
                 />
               </TabsContent>
 
