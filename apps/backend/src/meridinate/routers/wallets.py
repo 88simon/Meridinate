@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import aiosqlite
 import requests
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Request
 
 from meridinate.middleware.rate_limit import READ_RATE_LIMIT, WALLET_BALANCE_RATE_LIMIT, conditional_rate_limit
 
@@ -305,7 +305,7 @@ async def get_wallet_top_holder_tokens(request: Request, wallet_address: str):
 
 @router.post("/wallets/batch-top-holder-counts")
 @conditional_rate_limit(READ_RATE_LIMIT)
-async def get_batch_top_holder_counts(request: Request, wallet_addresses: list[str]):
+async def get_batch_top_holder_counts(request: Request, wallet_addresses: list[str] = Body(embed=True)):
     """
     Get count of tokens where each wallet is a top holder.
     Optimized batch endpoint that returns only counts, not full holder lists.
@@ -354,6 +354,6 @@ async def get_batch_top_holder_counts(request: Request, wallet_addresses: list[s
 
     result = {"counts": counts}
 
-    # Cache for 5 minutes
-    cache.set(cache_key, result, ttl=300)
+    # Cache result (ResponseCache uses default 30s TTL)
+    cache.set(cache_key, result)
     return result
