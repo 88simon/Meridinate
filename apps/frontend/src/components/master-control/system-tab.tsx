@@ -4,13 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  Loader2,
-  RefreshCw,
-  AlertTriangle,
-  Zap,
-  Bell
-} from 'lucide-react';
+import { Loader2, RefreshCw, AlertTriangle, Zap, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   updateIngestSettings,

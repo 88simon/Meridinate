@@ -18,7 +18,7 @@ export type IngestSettings = components['schemas']['IngestSettings'] & {
 };
 
 export type IngestSettingsUpdate =
-  components['schemas']['UpdateIngestSettingsRequest'] & {
+  components['schemas']['IngestSettingsUpdate'] & {
     bypass_limits?: boolean;
     score_weights?: ScoreWeights;
   };
@@ -71,7 +71,7 @@ export const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   top_holder_concentrated: -8,
   young_unlocked_lp: -10,
   positions_positive_pnl: 8,
-  positions_negative_pnl: -8,
+  positions_negative_pnl: -8
 };
 
 export const DEFAULT_INGEST_SETTINGS: IngestSettings = {
@@ -118,7 +118,7 @@ export const DEFAULT_INGEST_SETTINGS: IngestSettings = {
   last_tier1_credits_used: 0,
   last_hot_refresh_at: null,
   last_score_run_at: null,
-  last_control_cohort_run_at: null,
+  last_control_cohort_run_at: null
 };
 
 // ============================================================================
@@ -150,7 +150,7 @@ export const INGEST_LIMITS = {
   // Performance scoring
   performance_prime_threshold: { min: 0, max: 100 },
   performance_monitor_threshold: { min: 0, max: 100 },
-  control_cohort_daily_quota: { min: 0, max: 50 },
+  control_cohort_daily_quota: { min: 0, max: 50 }
 } as const;
 
 // ============================================================================
@@ -168,8 +168,8 @@ export function mergeWithDefaults(
     ...partial,
     score_weights: {
       ...DEFAULT_SCORE_WEIGHTS,
-      ...(partial.score_weights || {}),
-    },
+      ...(partial.score_weights || {})
+    }
   };
 }
 
