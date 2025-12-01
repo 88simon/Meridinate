@@ -3374,7 +3374,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateIngestSettingsRequest"
+                "$ref": "#/components/schemas/IngestSettingsUpdate"
               }
             }
           },
@@ -5283,6 +5283,12 @@
             "description": "Enable hot token MC/volume refresh",
             "default": false
           },
+          "bypass_limits": {
+            "type": "boolean",
+            "title": "Bypass Limits",
+            "description": "Bypass UI/backend validation caps",
+            "default": false
+          },
           "auto_promote_max_per_run": {
             "type": "integer",
             "minimum": 1.0,
@@ -5333,6 +5339,19 @@
             "description": "Low-score tokens to track daily",
             "default": 5
           },
+          "score_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Weights",
+            "description": "Configurable score weights"
+          },
           "last_score_run_at": {
             "anyOf": [
               {
@@ -5381,11 +5400,277 @@
               }
             ],
             "title": "Last Hot Refresh At"
+          },
+          "last_control_cohort_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Control Cohort Run At"
           }
         },
         "type": "object",
         "title": "IngestSettings",
         "description": "Settings for the tiered token ingestion pipeline"
+      },
+      "IngestSettingsUpdate": {
+        "properties": {
+          "mc_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Min"
+          },
+          "volume_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Min"
+          },
+          "liquidity_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Min"
+          },
+          "age_max_hours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Max Hours"
+          },
+          "tier0_interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Interval Minutes"
+          },
+          "tier0_max_tokens_per_run": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Max Tokens Per Run"
+          },
+          "tier1_batch_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier1 Batch Size"
+          },
+          "tier1_credit_budget_per_run": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier1 Credit Budget Per Run"
+          },
+          "ingest_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Enabled"
+          },
+          "enrich_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enrich Enabled"
+          },
+          "auto_promote_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Promote Enabled"
+          },
+          "hot_refresh_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Enabled"
+          },
+          "bypass_limits": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bypass Limits"
+          },
+          "auto_promote_max_per_run": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Promote Max Per Run"
+          },
+          "hot_refresh_age_hours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Age Hours"
+          },
+          "hot_refresh_max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Max Tokens"
+          },
+          "score_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Enabled"
+          },
+          "performance_prime_threshold": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Prime Threshold"
+          },
+          "performance_monitor_threshold": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Monitor Threshold"
+          },
+          "control_cohort_daily_quota": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Cohort Daily Quota"
+          },
+          "score_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Weights"
+          }
+        },
+        "type": "object",
+        "title": "IngestSettingsUpdate",
+        "description": "Request model for updating ingest settings (partial update)"
       },
       "LatestTokenResponse": {
         "properties": {
@@ -7965,238 +8250,6 @@
         "type": "object",
         "title": "UpdateGemStatusRequest",
         "description": "Request to update gem status of a token"
-      },
-      "UpdateIngestSettingsRequest": {
-        "properties": {
-          "mc_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mc Min"
-          },
-          "volume_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Volume Min"
-          },
-          "liquidity_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Liquidity Min"
-          },
-          "age_max_hours": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age Max Hours"
-          },
-          "tier0_interval_minutes": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 5.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier0 Interval Minutes"
-          },
-          "tier0_max_tokens_per_run": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier0 Max Tokens Per Run"
-          },
-          "tier1_batch_size": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Batch Size"
-          },
-          "tier1_credit_budget_per_run": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Credit Budget Per Run"
-          },
-          "ingest_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ingest Enabled"
-          },
-          "enrich_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Enrich Enabled"
-          },
-          "auto_promote_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auto Promote Enabled"
-          },
-          "hot_refresh_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Enabled"
-          },
-          "auto_promote_max_per_run": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auto Promote Max Per Run"
-          },
-          "hot_refresh_age_hours": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Age Hours"
-          },
-          "hot_refresh_max_tokens": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Max Tokens"
-          },
-          "score_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Enabled"
-          },
-          "performance_prime_threshold": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 100.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Performance Prime Threshold"
-          },
-          "performance_monitor_threshold": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 100.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Performance Monitor Threshold"
-          },
-          "control_cohort_daily_quota": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Control Cohort Daily Quota"
-          }
-        },
-        "type": "object",
-        "title": "UpdateIngestSettingsRequest",
-        "description": "Request model for updating ingest settings"
       },
       "UpdateSettingsRequest": {
         "properties": {

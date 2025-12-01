@@ -466,74 +466,11 @@ class TopHoldersResponse(BaseModel):
 # Ingest Pipeline Models
 # ============================================================================
 
+# Import from centralized models package (single source of truth)
+from meridinate.models.ingest_settings import IngestSettings, IngestSettingsUpdate
 
-class IngestSettings(BaseModel):
-    """Settings for the tiered token ingestion pipeline"""
-
-    # Threshold filters
-    mc_min: float = Field(default=10000, ge=0, description="Minimum market cap in USD")
-    volume_min: float = Field(default=5000, ge=0, description="Minimum 24h volume in USD")
-    liquidity_min: float = Field(default=5000, ge=0, description="Minimum liquidity in USD")
-    age_max_hours: float = Field(default=48, ge=1, description="Maximum token age in hours")
-
-    # Scheduler intervals
-    tier0_interval_minutes: int = Field(default=60, ge=5, description="Tier-0 scheduler interval in minutes")
-
-    # Batch and budget limits (no upper bounds - bypassLimits allows any value)
-    tier0_max_tokens_per_run: int = Field(default=50, ge=1, description="Max tokens per Tier-0 run")
-    tier1_batch_size: int = Field(default=10, ge=1, description="Max tokens per Tier-1 run")
-    tier1_credit_budget_per_run: int = Field(default=100, ge=1, description="Max Helius credits per Tier-1 run")
-
-    # Feature flags
-    ingest_enabled: bool = Field(default=False, description="Enable Tier-0 ingestion")
-    enrich_enabled: bool = Field(default=False, description="Enable Tier-1 enrichment")
-    auto_promote_enabled: bool = Field(default=False, description="Auto-promote enriched tokens")
-    hot_refresh_enabled: bool = Field(default=False, description="Enable hot token MC/volume refresh")
-
-    # Auto-promote settings
-    auto_promote_max_per_run: int = Field(default=5, ge=1, description="Max tokens to auto-promote per run")
-
-    # Hot refresh settings
-    hot_refresh_age_hours: float = Field(default=48, ge=1, description="Max age for hot tokens (hours)")
-    hot_refresh_max_tokens: int = Field(default=100, ge=1, description="Max tokens to refresh per run")
-
-    # Performance scoring settings
-    score_enabled: bool = Field(default=False, description="Enable performance scoring")
-    performance_prime_threshold: int = Field(default=65, ge=0, le=100, description="Score >= this = Prime")
-    performance_monitor_threshold: int = Field(default=40, ge=0, le=100, description="Score >= this = Monitor")
-    control_cohort_daily_quota: int = Field(default=5, ge=0, description="Low-score tokens to track daily")
-    last_score_run_at: Optional[str] = None
-
-    # Run tracking (read-only)
-    last_tier0_run_at: Optional[str] = None
-    last_tier1_run_at: Optional[str] = None
-    last_tier1_credits_used: int = 0
-    last_hot_refresh_at: Optional[str] = None
-
-
-class UpdateIngestSettingsRequest(BaseModel):
-    """Request model for updating ingest settings"""
-
-    mc_min: Optional[float] = Field(None, ge=0)
-    volume_min: Optional[float] = Field(None, ge=0)
-    liquidity_min: Optional[float] = Field(None, ge=0)
-    age_max_hours: Optional[float] = Field(None, ge=1)
-    tier0_interval_minutes: Optional[int] = Field(None, ge=5)
-    tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1)
-    tier1_batch_size: Optional[int] = Field(None, ge=1)
-    tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1)
-    ingest_enabled: Optional[bool] = None
-    enrich_enabled: Optional[bool] = None
-    auto_promote_enabled: Optional[bool] = None
-    hot_refresh_enabled: Optional[bool] = None
-    auto_promote_max_per_run: Optional[int] = Field(None, ge=1)
-    hot_refresh_age_hours: Optional[float] = Field(None, ge=1)
-    hot_refresh_max_tokens: Optional[int] = Field(None, ge=1)
-    # Performance scoring settings
-    score_enabled: Optional[bool] = None
-    performance_prime_threshold: Optional[int] = Field(None, ge=0, le=100)
-    performance_monitor_threshold: Optional[int] = Field(None, ge=0, le=100)
-    control_cohort_daily_quota: Optional[int] = Field(None, ge=0)
+# Re-export for backwards compatibility
+UpdateIngestSettingsRequest = IngestSettingsUpdate
 
 
 class IngestQueueEntry(BaseModel):

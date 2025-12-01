@@ -126,6 +126,9 @@ C:\Meridinate\                                    # PROJECT ROOT
 │   │   │       ├── middleware/                   # FastAPI middleware
 │   │   │       │   └── rate_limit.py             # slowapi rate limiting
 │   │   │       ├── models/                       # Pydantic data models
+│   │   │       │   └── ingest_settings.py        # Ingest settings schema + defaults (single source of truth)
+│   │   │       ├── config/                       # Configuration modules
+│   │   │       │   └── ingest_config.py          # DexScreener API config constants
 │   │   │       ├── services/                     # Business logic
 │   │   │       ├── database/                     # Future: DB utilities
 │   │   │       ├── observability/                # Logging/monitoring
@@ -181,6 +184,13 @@ C:\Meridinate\                                    # PROJECT ROOT
 │       │   │   └── page.tsx                      # Landing page
 │       │   ├── components/                       # Reusable UI components
 │       │   │   ├── ui/                           # shadcn/ui components
+│       │   │   ├── master-control/               # Split settings modal components
+│       │   │   │   ├── scanning-tab.tsx          # Scanning settings tab
+│       │   │   │   ├── ingestion-tab.tsx         # TIP settings tab
+│       │   │   │   ├── swab-tab.tsx              # SWAB settings tab
+│       │   │   │   ├── webhooks-tab.tsx          # Webhooks management tab
+│       │   │   │   ├── system-tab.tsx            # Feature flags tab
+│       │   │   │   └── NumericStepper.tsx        # Shared numeric input component
 │       │   │   ├── wallet-tags.tsx               # Wallet tagging UI
 │       │   │   ├── additional-tags.tsx           # Additional tag components (bot, whale, insider, gunslinger, gambler)
 │       │   │   ├── meridinate-logo.tsx           # MeridinateLogo SVG component (light/dark variants)
@@ -197,6 +207,7 @@ C:\Meridinate\                                    # PROJECT ROOT
 │       │   ├── contexts/                         # React Context providers
 │       │   │   └── WalletTagsContext.tsx         # Wallet tags state management
 │       │   ├── types/                            # TypeScript type definitions
+│       │   │   └── ingest-settings.ts            # Ingest settings types (mirrors backend models)
 │       │   ├── config/                           # App configuration
 │       │   └── constants/                        # App constants
 │       ├── public/                               # Static assets (images, fonts)
@@ -265,7 +276,10 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/frontend/src/components/layout/header.tsx` | Main header | Contains logo, branding, navigation, user controls |
 | `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with nav items: Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings |
 | `apps/frontend/src/components/scheduled-jobs-panel.tsx` | Scheduler panel | Slide-out panel showing scheduled jobs with live countdowns and running job status |
-| `apps/frontend/src/components/master-control-modal.tsx` | Settings modal | 5-tab settings hub: Scanning, Ingestion, SWAB, Webhooks, System |
+| `apps/frontend/src/components/master-control-modal.tsx` | Settings modal | Orchestrates 5 tabs; actual tab logic in `master-control/` |
+| `apps/frontend/src/components/master-control/` | Tab components | Split tab implementations: scanning, ingestion, swab, webhooks, system |
+| `apps/backend/src/meridinate/models/ingest_settings.py` | Ingest settings schema | Pydantic models + defaults; single source of truth for settings shape |
+| `apps/backend/tests/routers/test_ingest_settings.py` | Ingest settings tests | Tests for settings save/load, bypass_limits, persistence |
 | `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend), uses venv Python explicitly |
 | `scripts/start-backend.bat` | Backend launcher | Starts backend only, uses venv Python explicitly (line 60) |
 | `scripts/start-debug.bat` | Diagnostic tool | Troubleshooting startup issues |

@@ -1,5 +1,5 @@
 # AI Onboarding (Concise Context)
-**Version:** 1.1 (Dec 1, 2025)  
+**Version:** 1.2 (Dec 1, 2025)
 **Use:** Quick orientation for new assistants. For full detail, see `PROJECT_BLUEPRINT.md` and topic docs in `docs/`.
 
 ## Stack & Paths
@@ -8,10 +8,11 @@
 - **DB:** SQLite at `apps/backend/data/db/analyzed_tokens.db`.
 - **Tools:** AutoHotkey action wheel at `tools/autohotkey/`.
 - **Start:** `scripts/start.bat` (Windows) / `scripts/start.sh` (Unix).
+- **Shared types:** Backend `models/ingest_settings.py` + frontend `types/ingest-settings.ts` for ingest settings schema.
 
 ## Navigation (UI)
 - Sidebar order: Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings.
-- Settings modal: tabs for Scanning (manual + Solscan), Ingestion (TIP + Performance Scoring), SWAB, Webhooks, System.
+- Settings modal: orchestrator at `master-control-modal.tsx`, tab logic in `components/master-control/*-tab.tsx`.
 
 ## Key Features
 - Manual scan / Scanned Tokens.

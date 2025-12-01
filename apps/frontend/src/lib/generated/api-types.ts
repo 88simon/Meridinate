@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 47cf55edeffbe0ad61569d9dd2f7927a3dbf8711
+ * Backend Commit: 3f3275796e4fb8dcfb9f010eb822f5d19de0a32d
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -2767,6 +2767,12 @@ export interface components {
        */
       hot_refresh_enabled: boolean;
       /**
+       * Bypass Limits
+       * @description Bypass UI/backend validation caps
+       * @default false
+       */
+      bypass_limits: boolean;
+      /**
        * Auto Promote Max Per Run
        * @description Max tokens to auto-promote per run
        * @default 5
@@ -2808,6 +2814,13 @@ export interface components {
        * @default 5
        */
       control_cohort_daily_quota: number;
+      /**
+       * Score Weights
+       * @description Configurable score weights
+       */
+      score_weights?: {
+        [key: string]: unknown;
+      } | null;
       /** Last Score Run At */
       last_score_run_at?: string | null;
       /** Last Tier0 Run At */
@@ -2821,6 +2834,58 @@ export interface components {
       last_tier1_credits_used: number;
       /** Last Hot Refresh At */
       last_hot_refresh_at?: string | null;
+      /** Last Control Cohort Run At */
+      last_control_cohort_run_at?: string | null;
+    };
+    /**
+     * IngestSettingsUpdate
+     * @description Request model for updating ingest settings (partial update)
+     */
+    IngestSettingsUpdate: {
+      /** Mc Min */
+      mc_min?: number | null;
+      /** Volume Min */
+      volume_min?: number | null;
+      /** Liquidity Min */
+      liquidity_min?: number | null;
+      /** Age Max Hours */
+      age_max_hours?: number | null;
+      /** Tier0 Interval Minutes */
+      tier0_interval_minutes?: number | null;
+      /** Tier0 Max Tokens Per Run */
+      tier0_max_tokens_per_run?: number | null;
+      /** Tier1 Batch Size */
+      tier1_batch_size?: number | null;
+      /** Tier1 Credit Budget Per Run */
+      tier1_credit_budget_per_run?: number | null;
+      /** Ingest Enabled */
+      ingest_enabled?: boolean | null;
+      /** Enrich Enabled */
+      enrich_enabled?: boolean | null;
+      /** Auto Promote Enabled */
+      auto_promote_enabled?: boolean | null;
+      /** Hot Refresh Enabled */
+      hot_refresh_enabled?: boolean | null;
+      /** Bypass Limits */
+      bypass_limits?: boolean | null;
+      /** Auto Promote Max Per Run */
+      auto_promote_max_per_run?: number | null;
+      /** Hot Refresh Age Hours */
+      hot_refresh_age_hours?: number | null;
+      /** Hot Refresh Max Tokens */
+      hot_refresh_max_tokens?: number | null;
+      /** Score Enabled */
+      score_enabled?: boolean | null;
+      /** Performance Prime Threshold */
+      performance_prime_threshold?: number | null;
+      /** Performance Monitor Threshold */
+      performance_monitor_threshold?: number | null;
+      /** Control Cohort Daily Quota */
+      control_cohort_daily_quota?: number | null;
+      /** Score Weights */
+      score_weights?: {
+        [key: string]: unknown;
+      } | null;
     };
     /**
      * LatestTokenResponse
@@ -3666,50 +3731,6 @@ export interface components {
     UpdateGemStatusRequest: {
       /** Gem Status */
       gem_status?: string | null;
-    };
-    /**
-     * UpdateIngestSettingsRequest
-     * @description Request model for updating ingest settings
-     */
-    UpdateIngestSettingsRequest: {
-      /** Mc Min */
-      mc_min?: number | null;
-      /** Volume Min */
-      volume_min?: number | null;
-      /** Liquidity Min */
-      liquidity_min?: number | null;
-      /** Age Max Hours */
-      age_max_hours?: number | null;
-      /** Tier0 Interval Minutes */
-      tier0_interval_minutes?: number | null;
-      /** Tier0 Max Tokens Per Run */
-      tier0_max_tokens_per_run?: number | null;
-      /** Tier1 Batch Size */
-      tier1_batch_size?: number | null;
-      /** Tier1 Credit Budget Per Run */
-      tier1_credit_budget_per_run?: number | null;
-      /** Ingest Enabled */
-      ingest_enabled?: boolean | null;
-      /** Enrich Enabled */
-      enrich_enabled?: boolean | null;
-      /** Auto Promote Enabled */
-      auto_promote_enabled?: boolean | null;
-      /** Hot Refresh Enabled */
-      hot_refresh_enabled?: boolean | null;
-      /** Auto Promote Max Per Run */
-      auto_promote_max_per_run?: number | null;
-      /** Hot Refresh Age Hours */
-      hot_refresh_age_hours?: number | null;
-      /** Hot Refresh Max Tokens */
-      hot_refresh_max_tokens?: number | null;
-      /** Score Enabled */
-      score_enabled?: boolean | null;
-      /** Performance Prime Threshold */
-      performance_prime_threshold?: number | null;
-      /** Performance Monitor Threshold */
-      performance_monitor_threshold?: number | null;
-      /** Control Cohort Daily Quota */
-      control_cohort_daily_quota?: number | null;
     };
     /** UpdateSettingsRequest */
     UpdateSettingsRequest: {
@@ -6294,7 +6315,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["UpdateIngestSettingsRequest"];
+        "application/json": components["schemas"]["IngestSettingsUpdate"];
       };
     };
     responses: {

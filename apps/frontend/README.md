@@ -91,6 +91,7 @@ apps/frontend/
 │   ├── components/             # React components
 │   │   ├── ui/                 # shadcn/ui components
 │   │   ├── layout/             # Layout components (header, sidebar, dashboard-wrapper)
+│   │   ├── master-control/     # Split settings modal (tab components, shared inputs)
 │   │   ├── meridinate-logo.tsx # MeridinateLogo SVG component
 │   │   ├── status-bar.tsx      # Bottom status bar with metrics
 │   │   ├── wallet-tags.tsx     # Wallet tagging UI
@@ -107,6 +108,7 @@ apps/frontend/
 │   │   ├── useStatusBarData.ts # Status bar polling + focus revalidation
 │   │   └── ...                 # Other hooks
 │   ├── types/                  # TypeScript types
+│   │   └── ingest-settings.ts  # Ingest settings (mirrors backend schema)
 │   ├── contexts/               # React contexts
 │   └── config/                 # App configuration
 ├── public/                     # Static assets
