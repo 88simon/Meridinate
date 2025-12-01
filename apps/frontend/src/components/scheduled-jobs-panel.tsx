@@ -125,9 +125,7 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
             onClick={loadJobs}
             disabled={loading}
           >
-            <RefreshCw
-              className={cn('h-4 w-4', loading && 'animate-spin')}
-            />
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </Button>
           <Button
             variant='ghost'
@@ -184,7 +182,7 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
                       {job.enabled ? (
                         <Play className='h-3.5 w-3.5 text-green-500' />
                       ) : (
-                        <Pause className='h-3.5 w-3.5 text-muted-foreground' />
+                        <Pause className='text-muted-foreground h-3.5 w-3.5' />
                       )}
                       <span className='text-sm font-medium'>{job.name}</span>
                     </div>
