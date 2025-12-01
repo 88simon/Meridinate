@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: b1f644132e2a9becb5e204b5f49f82c2df100397
+ * Backend Commit: 47cf55edeffbe0ad61569d9dd2f7927a3dbf8711
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -2438,6 +2438,11 @@ export interface components {
     BatchTagsRequest: {
       /** Addresses */
       addresses: string[];
+    };
+    /** Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post */
+    Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post: {
+      /** Wallet Addresses */
+      wallet_addresses: string[];
     };
     /**
      * CheckResultResponse
@@ -5363,7 +5368,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": string[];
+        "application/json": components["schemas"]["Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post"];
       };
     };
     responses: {

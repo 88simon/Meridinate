@@ -2047,11 +2047,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array",
-                "title": "Wallet Addresses"
+                "$ref": "#/components/schemas/Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post"
               }
             }
           },
@@ -4506,6 +4502,22 @@
           "addresses"
         ],
         "title": "BatchTagsRequest"
+      },
+      "Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post": {
+        "properties": {
+          "wallet_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallet Addresses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_addresses"
+        ],
+        "title": "Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post"
       },
       "CheckResultResponse": {
         "properties": {

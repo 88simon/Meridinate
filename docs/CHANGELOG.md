@@ -13,12 +13,21 @@
 - **Settings Modal Retry** - 8s timeout with automatic retry (2 retries, exponential backoff).
 - **Performance Scoring** - Rule-based token categorization (Prime/Monitor/Cull).
 - Live credits bar + persisted operation log (survives restarts).
+- **Bug Fixes** - SQLite GROUP_CONCAT syntax, batch-top-holder-counts endpoint.
 
 Details below.
 
 ---
 
 ## Recent Bug Fixes & Technical Notes
+
+### Wallets Endpoint Bug Fixes (Dec 1, 2025)
+
+**SQLite GROUP_CONCAT Syntax** - `/multi-token-wallets` crashed due to MySQL-only `ORDER BY` inside `GROUP_CONCAT()`. Fixed by moving ordering to CTE subquery.
+
+**Batch Top Holder Counts** - `POST /wallets/batch-top-holder-counts` returned 422/500 due to missing `Body(embed=True)` and invalid `ttl` parameter on `cache.set()`. Both fixed in `wallets.py`.
+
+---
 
 ### Scheduler Panel with Running Jobs (Dec 1, 2025)
 
