@@ -653,7 +653,7 @@
           "Stats"
         ],
         "summary": "Get Scheduled Jobs",
-        "description": "Get status of all scheduled background jobs.\n\nReturns:\n    List of scheduled jobs with their next run times and enabled status.\n    Used by the frontend to show live countdowns.",
+        "description": "Get status of all scheduled background jobs.\n\nReturns:\n    List of scheduled jobs with their next run times and enabled status,\n    plus any currently running jobs with elapsed time.\n    Used by the frontend to show live countdowns and running status.",
         "operationId": "get_scheduled_jobs_api_stats_scheduler_jobs_get",
         "responses": {
           "200": {
@@ -6556,6 +6556,35 @@
         ],
         "title": "RemoveTagRequest"
       },
+      "RunningJobResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "elapsed_seconds": {
+            "type": "integer",
+            "title": "Elapsed Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "started_at",
+          "elapsed_seconds"
+        ],
+        "title": "RunningJobResponse",
+        "description": "Response model for a currently running job."
+      },
       "ScheduledJobResponse": {
         "properties": {
           "id": {
@@ -6606,6 +6635,13 @@
             "type": "array",
             "title": "Jobs"
           },
+          "running_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/RunningJobResponse"
+            },
+            "type": "array",
+            "title": "Running Jobs"
+          },
           "scheduler_running": {
             "type": "boolean",
             "title": "Scheduler Running"
@@ -6614,6 +6650,7 @@
         "type": "object",
         "required": [
           "jobs",
+          "running_jobs",
           "scheduler_running"
         ],
         "title": "ScheduledJobsListResponse",
@@ -7371,6 +7408,17 @@
             "type": "boolean",
             "title": "Is Control Cohort",
             "default": false
+          },
+          "ingest_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Source"
           }
         },
         "type": "object",
@@ -7626,6 +7674,17 @@
             "type": "boolean",
             "title": "Is Control Cohort",
             "default": false
+          },
+          "ingest_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Source"
           },
           "wallets": {
             "items": {

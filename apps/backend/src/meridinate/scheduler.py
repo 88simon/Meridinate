@@ -354,6 +354,18 @@ async def ingest_tier1_job():
                 f"{ap.get('tokens_promoted', 0)} promoted, "
                 f"{ap.get('webhooks_registered', 0)} webhooks"
             )
+            # Record auto-promote operation for persistent history
+            from meridinate.credit_tracker import get_credit_tracker
+            get_credit_tracker().record_operation(
+                operation="auto_promotion",
+                label="Auto Promotion",
+                credits=ap.get("credits_used", 0),
+                call_count=ap.get("tokens_promoted", 0),
+                context={
+                    "webhooks_registered": ap.get("webhooks_registered", 0),
+                    "trigger": "scheduled",
+                }
+            )
 
     except Exception as e:
         log_error(f"[Tier-1] Scheduled run failed: {e}")

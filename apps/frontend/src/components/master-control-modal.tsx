@@ -66,8 +66,48 @@ import {
   fetchWithTimeout
 } from '@/lib/api';
 
-// Settings modal timeout - shorter than default to fail fast during ingestion
-const SETTINGS_FETCH_TIMEOUT = 3000;
+// Settings modal timeout - longer to handle slow responses during ingestion
+const SETTINGS_FETCH_TIMEOUT = 8000;
+const SETTINGS_MAX_RETRIES = 2;
+const SETTINGS_RETRY_DELAY = 1000;
+
+/**
+ * Fetch with retry logic for settings endpoints.
+ * Retries on timeout/failure with exponential backoff.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries: number = SETTINGS_MAX_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetchWithTimeout(
+        url,
+        options,
+        SETTINGS_FETCH_TIMEOUT
+      );
+      if (response.ok) {
+        return response;
+      }
+      // Non-OK response, try again
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('Unknown error');
+    }
+
+    // Wait before retrying (exponential backoff)
+    if (attempt < maxRetries) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, SETTINGS_RETRY_DELAY * Math.pow(2, attempt))
+      );
+    }
+  }
+
+  throw lastError || new Error('Failed after retries');
+}
 
 interface ApiSettings {
   transactionLimit: number;
@@ -247,19 +287,16 @@ function ScanningTab({
     setLoadingSolscan(true);
     setSolscanError(null);
     try {
-      const res = await fetchWithTimeout(
-        `${API_BASE_URL}/api/solscan-settings`,
-        { cache: 'no-store' },
-        SETTINGS_FETCH_TIMEOUT
-      );
-      if (!res.ok) throw new Error('Failed to fetch');
+      const res = await fetchWithRetry(`${API_BASE_URL}/api/solscan-settings`, {
+        cache: 'no-store'
+      });
       const data = await res.json();
       setSolscanSettings(data);
     } catch (err) {
       const message =
         err instanceof Error && err.message.includes('timeout')
-          ? 'Backend busy. Retry shortly.'
-          : 'Failed to load';
+          ? 'Backend busy. Retried but still unavailable.'
+          : 'Failed to load after retries';
       setSolscanError(message);
     } finally {
       setLoadingSolscan(false);
@@ -302,13 +339,13 @@ function ScanningTab({
         />
       </div>
 
-      {/* Manual Scan Settings */}
+      {/* Scan Settings */}
       <div>
         <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
-          Manual Scan Settings
+          Scan Settings
           <InfoTooltip>
-            Controls for manual token analysis: wallet limits, transaction
-            depth, and filtering.
+            Controls for token analysis: wallet limits, transaction depth, and
+            filtering. Used by both manual scans and TIP promotions.
           </InfoTooltip>
         </h4>
         <div className='grid grid-cols-2 gap-4'>
@@ -529,19 +566,16 @@ function IngestionTab({ bypassLimits = false }: { bypassLimits?: boolean }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchWithTimeout(
-        `${API_BASE_URL}/api/ingest/settings`,
-        { cache: 'no-store' },
-        SETTINGS_FETCH_TIMEOUT
-      );
-      if (!res.ok) throw new Error('Failed to fetch');
+      const res = await fetchWithRetry(`${API_BASE_URL}/api/ingest/settings`, {
+        cache: 'no-store'
+      });
       const data = await res.json();
       setSettings(data);
     } catch (err) {
       const message =
         err instanceof Error && err.message.includes('timeout')
-          ? 'Backend busy (ingestion running). Try again shortly.'
-          : 'Failed to load settings';
+          ? 'Backend busy. Retried but still unavailable.'
+          : 'Failed to load settings after retries';
       setError(message);
     } finally {
       setLoading(false);
@@ -868,28 +902,16 @@ function SwabTab({ bypassLimits = false }: { bypassLimits?: boolean }) {
     setLoading(true);
     setError(null);
     try {
-      // Fetch with timeouts to prevent hanging during ingestion
+      // Fetch with retry to handle slow responses during ingestion
       const [settingsRes, statsRes, schedulerRes] = await Promise.all([
-        fetchWithTimeout(
-          `${API_BASE_URL}/api/swab/settings`,
-          { cache: 'no-store' },
-          SETTINGS_FETCH_TIMEOUT
-        ),
-        fetchWithTimeout(
-          `${API_BASE_URL}/api/swab/stats`,
-          { cache: 'no-store' },
-          SETTINGS_FETCH_TIMEOUT
-        ),
-        fetchWithTimeout(
-          `${API_BASE_URL}/api/swab/scheduler/status`,
-          { cache: 'no-store' },
-          SETTINGS_FETCH_TIMEOUT
-        )
+        fetchWithRetry(`${API_BASE_URL}/api/swab/settings`, {
+          cache: 'no-store'
+        }),
+        fetchWithRetry(`${API_BASE_URL}/api/swab/stats`, { cache: 'no-store' }),
+        fetchWithRetry(`${API_BASE_URL}/api/swab/scheduler/status`, {
+          cache: 'no-store'
+        })
       ]);
-
-      if (!settingsRes.ok || !statsRes.ok || !schedulerRes.ok) {
-        throw new Error('Failed to fetch');
-      }
 
       const [s, st, sc] = await Promise.all([
         settingsRes.json(),
@@ -902,8 +924,8 @@ function SwabTab({ bypassLimits = false }: { bypassLimits?: boolean }) {
     } catch (err) {
       const message =
         err instanceof Error && err.message.includes('timeout')
-          ? 'Backend busy (ingestion running). Try again shortly.'
-          : 'Failed to load SWAB data';
+          ? 'Backend busy. Retried but still unavailable.'
+          : 'Failed to load SWAB data after retries';
       setError(message);
     } finally {
       setLoading(false);

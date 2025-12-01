@@ -84,11 +84,14 @@ C:\Meridinate\
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
 - ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
 - ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated tiered token discovery: Tier-0 (DexScreener, free), Tier-1 (Helius enrichment, budgeted), promotion to full analysis. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
-- ✅ **Settings Modal (Nov 2025)** - 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar. Includes 3-second fetch timeouts with retry buttons to prevent indefinite loading when backend is busy with ingestion operations.
+- ✅ **Settings Modal (Nov 2025)** - 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar. Includes 8-second fetch timeouts with automatic retry (2 retries, exponential backoff) to prevent indefinite loading when backend is busy with ingestion operations.
 - ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent operations. Status bar displayed on both Scanned Tokens and Ingestion pages.
 - ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Tier-0/Tier-1, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
 - ✅ **Sidebar Navigation Reorder (Nov 2025)** - New order: Ingestion, Scanned Tokens, Codex, Trash, Settings. Renamed "Analyzed Tokens" to "Scanned Tokens" and "Master Control" to "Settings" throughout UI.
 - ✅ **Performance Scoring (Nov 2025)** - Rule-based token categorization system. Scores 0-100 based on MC momentum, liquidity, volume, holder quality, age, and PnL. Buckets: Prime (>=65), Monitor (40-64), Cull (<40). Control cohort tracking for validation. Score/Bucket columns in tokens table with filter dropdown. Settings in Ingestion tab.
+- ✅ **Scheduler Panel (Dec 2025)** - Sidebar toggle opens slide-out panel showing all scheduled jobs (SWAB, Tier-0, Tier-1, Hot Refresh) with live countdowns. Running jobs display with elapsed time. Panel shifts content like Codex (not overlay). Auto-refresh: 5s when jobs running, 30s otherwise.
+- ✅ **ToS Column (Dec 2025)** - "Type of Scan" column in Scanned Tokens table. Shows Manual (blue badge) for tokens scanned via Scanning page, TIP (purple badge) for tokens ingested via DexScreener pipeline. Tooltip explains each type.
+- ✅ **Filter Persistence (Dec 2025)** - Scanned Tokens table filters (search text, bucket filter) persist to localStorage. Filters restore on return navigation without page reload.
 
 ---
 
@@ -260,7 +263,8 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/frontend/src/hooks/useStatusBarData.ts` | Status bar data hook | Fetches credit stats, transactions, latest token with polling and focus revalidation |
 | `apps/frontend/src/components/meridinate-logo.tsx` | MeridinateLogo component | Reusable SVG logo with light/dark variants |
 | `apps/frontend/src/components/layout/header.tsx` | Main header | Contains logo, branding, navigation, user controls |
-| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with nav items: Ingestion, Scanned Tokens, Codex, Trash, Settings |
+| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with nav items: Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings |
+| `apps/frontend/src/components/scheduled-jobs-panel.tsx` | Scheduler panel | Slide-out panel showing scheduled jobs with live countdowns and running job status |
 | `apps/frontend/src/components/master-control-modal.tsx` | Settings modal | 5-tab settings hub: Scanning, Ingestion, SWAB, Webhooks, System |
 | `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend), uses venv Python explicitly |
 | `scripts/start-backend.bat` | Backend launcher | Starts backend only, uses venv Python explicitly (line 60) |
@@ -1055,7 +1059,7 @@ C:\Meridinate\
 └── scripts/           # start.bat launches all services
 ```
 
-**Sidebar Nav:** Ingestion, Scanned Tokens, Codex, Trash, Settings
+**Sidebar Nav:** Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings
 
 **Start:** `scripts\start.bat` → opens 3 windows (launcher, backend, frontend)
 
@@ -1078,6 +1082,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.5
-**Last Updated:** November 30, 2025 (Performance Scoring feature)
+**Document Version:** 2.6
+**Last Updated:** December 1, 2025 (Scheduler Panel, ToS Column, Filter Persistence)
 **Next Review:** After production deployment

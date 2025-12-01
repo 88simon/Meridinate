@@ -503,6 +503,19 @@ async def trigger_auto_promote(payload: Optional[AutoPromoteRequest] = None):
 
     result = await run_auto_promote(**params)
 
+    # Log high-level operation for persistent history
+    from meridinate.credit_tracker import get_credit_tracker
+    get_credit_tracker().record_operation(
+        operation="auto_promotion",
+        label="Auto Promotion",
+        credits=result.get("credits_used", 0),
+        call_count=result.get("tokens_promoted", 0),
+        context={
+            "webhooks_registered": result.get("webhooks_registered", 0),
+            "trigger": "manual",
+        }
+    )
+
     return {"status": "success", "result": result}
 
 

@@ -6,19 +6,93 @@
 
 ---
 
-## Quick Summary (Nov 30, 2025)
-- **Performance Scoring** - Rule-based token categorization (Prime/Monitor/Cull). Score/Bucket columns in tokens table with filter. Settings in Ingestion tab.
-- Settings modal resilient to ingestion (timeouts/retry).
-- Sidebar renamed/reordered: Ingestion, Scanned Tokens, Codex, Trash, Settings.
+## Quick Summary (Dec 1, 2025)
+- **Scheduler Panel** - Sidebar toggle showing scheduled jobs with live countdowns and running job elapsed time.
+- **ToS Column** - "Type of Scan" in Scanned Tokens table (Manual vs TIP badge).
+- **Filter Persistence** - Table filters persist to localStorage across navigation.
+- **Settings Modal Retry** - 8s timeout with automatic retry (2 retries, exponential backoff).
+- **Performance Scoring** - Rule-based token categorization (Prime/Monitor/Cull).
 - Live credits bar + persisted operation log (survives restarts).
-- TIP/SWAB progress indicators and background-safe toasts.
-- Recent Operations timestamps fixed; operation log persists last 100 entries.
 
 Details below.
 
 ---
 
 ## Recent Bug Fixes & Technical Notes
+
+### Scheduler Panel with Running Jobs (Dec 1, 2025)
+
+**Feature:** Sidebar toggle showing all scheduled jobs with live countdowns and running job tracking.
+
+**What was implemented:**
+
+1. **Backend:**
+   - Added `_running_jobs` dict in `scheduler.py` to track jobs currently executing
+   - Added `mark_job_started()`, `mark_job_finished()`, `get_running_jobs()` helpers
+   - Updated all 4 scheduler jobs (SWAB, Tier-0, Tier-1, Hot Refresh) with try/finally tracking
+   - Extended `GET /api/stats/scheduler/jobs` to return `running_jobs` array with elapsed time
+
+2. **Frontend:**
+   - New `ScheduledJobsPanel` component with width-based animation (shifts content, not overlay)
+   - "Running Now" section with blue styling, elapsed time counter (updates every second)
+   - Scheduled jobs section with live countdowns (color-coded: orange <1min, yellow <5min)
+   - Auto-refresh: 5s when jobs running, 30s otherwise
+   - Added Scheduler toggle to sidebar after Trash
+
+**Files Created:**
+- `apps/frontend/src/components/scheduled-jobs-panel.tsx`
+
+**Files Modified:**
+- `apps/backend/src/meridinate/scheduler.py` - Running job tracking
+- `apps/backend/src/meridinate/routers/stats.py` - Extended endpoint with `RunningJobResponse`
+- `apps/frontend/src/lib/api.ts` - Added `RunningJob` interface
+- `apps/frontend/src/components/layout/app-sidebar.tsx` - Added Scheduler toggle
+- `apps/frontend/src/components/layout/dashboard-wrapper.tsx` - Panel state management
+
+---
+
+### ToS (Type of Scan) Column (Dec 1, 2025)
+
+**Feature:** Shows how each token entered the system (manual scan vs TIP ingestion).
+
+**What was implemented:**
+
+1. **Backend:**
+   - Added `ingest_source` field to `Token` and `TokenDetail` models
+   - Added `t.ingest_source` to `/api/tokens/history` SELECT query
+   - Manual scans now set `ingest_source='manual'` in `analysis_worker.py`
+   - TIP ingestion already sets `ingest_source='dexscreener'` via ingest queue
+
+2. **Frontend:**
+   - New ToS column in tokens table with tooltip explaining values
+   - Manual: Blue badge for tokens scanned via Scanning page
+   - TIP: Purple badge for tokens ingested via DexScreener pipeline
+   - No source: Shows "—" for legacy tokens
+
+**Files Modified:**
+- `apps/backend/src/meridinate/utils/models.py` - Added `ingest_source` field
+- `apps/backend/src/meridinate/routers/tokens.py` - Extended SELECT query
+- `apps/backend/src/meridinate/workers/analysis_worker.py` - Set `ingest_source='manual'`
+- `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` - ToS column definition
+
+---
+
+### Filter Persistence in localStorage (Dec 1, 2025)
+
+**Feature:** Scanned Tokens table filters persist across navigation.
+
+**Problem Solved:** Table filters (search text, bucket dropdown) reset when navigating away and returning.
+
+**Solution:**
+- Added `FILTERS_STORAGE_KEY = 'tokens-table-filters'` localStorage key
+- `loadPersistedFilters()` retrieves filters on mount with defaults
+- `savePersistedFilters()` saves on filter change via useEffect
+- Handles SSR (window check), parse errors, and storage quota exceeded
+
+**Files Modified:**
+- `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` - Filter persistence logic
+
+---
 
 ### Performance Scoring / Token Categorization (Nov 30, 2025)
 
@@ -84,21 +158,22 @@ Details below.
 
 ---
 
-### Settings Modal Timeout/Retry During Ingestion (Nov 30, 2025)
+### Settings Modal Timeout/Retry During Ingestion (Dec 1, 2025)
 
 **Bug:** Opening the Settings modal while ingestion operations (Tier-0/Tier-1/Promote) were running left it stuck on loading indefinitely.
 
 **Root Cause:** All Settings modal tabs made API calls that hung while the backend was busy with long-running database operations.
 
 **Solution:**
-1. Added `fetchWithTimeout()` utility to `api.ts` using AbortController for 3-second timeouts
-2. Updated all 5 Settings tabs to use timeouts and handle errors gracefully
-3. Added error states with "Backend busy (ingestion running). Try again shortly." message
-4. Added Retry buttons for each tab section
+1. Added `fetchWithTimeout()` utility to `api.ts` using AbortController
+2. Added `fetchWithRetry()` helper with automatic retry (2 retries, exponential backoff: 1s, 2s)
+3. Increased timeout from 3s to 8s per attempt (total ~24s before final failure)
+4. Updated all 3 tab loaders (Solscan, Ingestion, SWAB) to use retry logic
+5. Error states show "Backend busy. Retried but still unavailable." after all retries fail
 
 **Files Modified:**
 - `apps/frontend/src/lib/api.ts` - Added `fetchWithTimeout()` utility
-- `apps/frontend/src/components/master-control-modal.tsx` - Timeout handling for all tabs
+- `apps/frontend/src/components/master-control-modal.tsx` - Added `fetchWithRetry()`, updated all tab loaders
 
 **API URL Fixes (same commit):**
 - `/api/solscan/settings` corrected to `/api/solscan-settings`
@@ -1450,5 +1525,5 @@ https://solscan.io/account/{ADDRESS}?
 
 ---
 
-**Last Updated:** November 30, 2025
-**Document Version:** 1.2
+**Last Updated:** December 1, 2025
+**Document Version:** 1.3
