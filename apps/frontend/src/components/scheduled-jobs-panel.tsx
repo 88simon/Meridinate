@@ -101,141 +101,146 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
     return () => clearInterval(refreshInterval);
   }, [open, loadJobs]);
 
-  if (!open) return null;
-
   return (
     <div
       className={cn(
-        'bg-background fixed top-0 right-0 z-50 flex h-full w-80 flex-col border-l shadow-lg',
-        'transform transition-transform duration-200 ease-in-out',
-        open ? 'translate-x-0' : 'translate-x-full'
+        'bg-background flex flex-col border-l transition-all duration-300 ease-in-out',
+        open ? 'w-80' : 'w-0 border-l-0'
       )}
     >
-      {/* Header */}
-      <div className='flex items-center justify-between border-b px-4 py-3'>
-        <div className='flex items-center gap-2'>
-          <Clock className='h-4 w-4' />
-          <span className='font-semibold'>Scheduled Jobs</span>
-        </div>
-        <div className='flex items-center gap-1'>
-          <Button
-            variant='ghost'
-            size='icon'
-            className='h-7 w-7'
-            onClick={loadJobs}
-            disabled={loading}
-          >
-            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-          </Button>
-          <Button
-            variant='ghost'
-            size='icon'
-            className='h-7 w-7'
-            onClick={onClose}
-          >
-            <X className='h-4 w-4' />
-          </Button>
-        </div>
-      </div>
-
-      {/* Scheduler Status */}
-      <div className='border-b px-4 py-2'>
-        <div className='flex items-center gap-2 text-xs'>
-          <span
-            className={cn(
-              'h-2 w-2 rounded-full',
-              schedulerRunning ? 'bg-green-500' : 'bg-red-500'
-            )}
-          />
-          <span className='text-muted-foreground'>
-            Scheduler: {schedulerRunning ? 'Running' : 'Stopped'}
-          </span>
-        </div>
-      </div>
-
-      {/* Jobs List */}
-      <div className='flex-1 overflow-y-auto p-4'>
-        {loading && jobs.length === 0 ? (
-          <div className='flex items-center justify-center py-8'>
-            <Loader2 className='h-5 w-5 animate-spin' />
+      {open && (
+        <div className='flex h-full flex-col overflow-hidden'>
+          {/* Header */}
+          <div className='flex items-center justify-between border-b px-4 py-3'>
+            <div className='flex items-center gap-2'>
+              <Clock className='h-4 w-4' />
+              <span className='font-semibold'>Scheduled Jobs</span>
+            </div>
+            <div className='flex items-center gap-1'>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='h-7 w-7'
+                onClick={loadJobs}
+                disabled={loading}
+              >
+                <RefreshCw
+                  className={cn('h-4 w-4', loading && 'animate-spin')}
+                />
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='h-7 w-7'
+                onClick={onClose}
+              >
+                <X className='h-4 w-4' />
+              </Button>
+            </div>
           </div>
-        ) : error ? (
-          <div className='text-destructive py-4 text-center text-sm'>
-            {error}
-          </div>
-        ) : (
-          <div className='space-y-3'>
-            {jobs.map((job) => {
-              const countdown = countdowns[job.id] ?? -1;
-              const isActive = job.enabled && countdown >= 0;
 
-              return (
-                <div
-                  key={job.id}
-                  className={cn(
-                    'rounded-lg border p-3 transition-colors',
-                    job.enabled ? 'bg-card' : 'bg-muted/50 opacity-60'
-                  )}
-                >
-                  <div className='flex items-start justify-between'>
-                    <div className='flex items-center gap-2'>
-                      {job.enabled ? (
-                        <Play className='h-3.5 w-3.5 text-green-500' />
-                      ) : (
-                        <Pause className='text-muted-foreground h-3.5 w-3.5' />
+          {/* Scheduler Status */}
+          <div className='border-b px-4 py-2'>
+            <div className='flex items-center gap-2 text-xs'>
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full',
+                  schedulerRunning ? 'bg-green-500' : 'bg-red-500'
+                )}
+              />
+              <span className='text-muted-foreground'>
+                Scheduler: {schedulerRunning ? 'Running' : 'Stopped'}
+              </span>
+            </div>
+          </div>
+
+          {/* Jobs List */}
+          <div className='flex-1 overflow-y-auto p-4'>
+            {loading && jobs.length === 0 ? (
+              <div className='flex items-center justify-center py-8'>
+                <Loader2 className='h-5 w-5 animate-spin' />
+              </div>
+            ) : error ? (
+              <div className='text-destructive py-4 text-center text-sm'>
+                {error}
+              </div>
+            ) : (
+              <div className='space-y-3'>
+                {jobs.map((job) => {
+                  const countdown = countdowns[job.id] ?? -1;
+                  const isActive = job.enabled && countdown >= 0;
+
+                  return (
+                    <div
+                      key={job.id}
+                      className={cn(
+                        'rounded-lg border p-3 transition-colors',
+                        job.enabled ? 'bg-card' : 'bg-muted/50 opacity-60'
                       )}
-                      <span className='text-sm font-medium'>{job.name}</span>
-                    </div>
-                  </div>
-
-                  <div className='mt-2 space-y-1'>
-                    {isActive ? (
-                      <div className='flex items-center gap-2'>
-                        <span className='text-muted-foreground text-xs'>
-                          Next run in:
-                        </span>
-                        <span
-                          className={cn(
-                            'font-mono text-sm font-semibold',
-                            countdown <= 60
-                              ? 'text-orange-500'
-                              : countdown <= 300
-                                ? 'text-yellow-500'
-                                : 'text-foreground'
+                    >
+                      <div className='flex items-start justify-between'>
+                        <div className='flex items-center gap-2'>
+                          {job.enabled ? (
+                            <Play className='h-3.5 w-3.5 text-green-500' />
+                          ) : (
+                            <Pause className='text-muted-foreground h-3.5 w-3.5' />
                           )}
-                        >
-                          {formatCountdown(countdown)}
-                        </span>
+                          <span className='text-sm font-medium'>
+                            {job.name}
+                          </span>
+                        </div>
                       </div>
-                    ) : (
-                      <span className='text-muted-foreground text-xs'>
-                        {job.enabled ? 'Waiting...' : 'Disabled'}
-                      </span>
-                    )}
 
-                    <div className='text-muted-foreground text-xs'>
-                      Interval: {job.interval_minutes} min
-                      {job.interval_minutes >= 60 &&
-                        ` (${(job.interval_minutes / 60).toFixed(1)}h)`}
+                      <div className='mt-2 space-y-1'>
+                        {isActive ? (
+                          <div className='flex items-center gap-2'>
+                            <span className='text-muted-foreground text-xs'>
+                              Next run in:
+                            </span>
+                            <span
+                              className={cn(
+                                'font-mono text-sm font-semibold',
+                                countdown <= 60
+                                  ? 'text-orange-500'
+                                  : countdown <= 300
+                                    ? 'text-yellow-500'
+                                    : 'text-foreground'
+                              )}
+                            >
+                              {formatCountdown(countdown)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className='text-muted-foreground text-xs'>
+                            {job.enabled ? 'Waiting...' : 'Disabled'}
+                          </span>
+                        )}
+
+                        <div className='text-muted-foreground text-xs'>
+                          Interval: {job.interval_minutes} min
+                          {job.interval_minutes >= 60 &&
+                            ` (${(job.interval_minutes / 60).toFixed(1)}h)`}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
 
-            {jobs.length === 0 && !loading && (
-              <div className='text-muted-foreground py-4 text-center text-sm'>
-                No scheduled jobs found
+                {jobs.length === 0 && !loading && (
+                  <div className='text-muted-foreground py-4 text-center text-sm'>
+                    No scheduled jobs found
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* Footer */}
-      <div className='text-muted-foreground border-t px-4 py-2 text-center text-xs'>
-        Auto-refreshes every 30s
-      </div>
+          {/* Footer */}
+          <div className='text-muted-foreground border-t px-4 py-2 text-center text-xs'>
+            Auto-refreshes every 30s
+          </div>
+        </div>
+      )}
     </div>
   );
 }
