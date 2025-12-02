@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 3f3275796e4fb8dcfb9f010eb822f5d19de0a32d
+ * Backend Commit: 7233c2d42bd8f140c08a2a8ccd144b26f8e0fe81
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -1304,6 +1304,34 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/wallets/{wallet_address}/nametag": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Nametag
+     * @description Get the nametag (display name) for a wallet
+     */
+    get: operations["get_wallet_nametag_wallets__wallet_address__nametag_get"];
+    /**
+     * Set Wallet Nametag
+     * @description Set or update the nametag (display name) for a wallet
+     */
+    put: operations["set_wallet_nametag_wallets__wallet_address__nametag_put"];
+    post?: never;
+    /**
+     * Delete Wallet Nametag
+     * @description Remove the nametag (display name) from a wallet
+     */
+    delete: operations["delete_wallet_nametag_wallets__wallet_address__nametag_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/webhooks/create": {
     parameters: {
       query?: never;
@@ -2473,6 +2501,8 @@ export interface components {
     CodexWallet: {
       /** Wallet Address */
       wallet_address: string;
+      /** Nametag */
+      nametag?: string | null;
       /** Tags */
       tags: components["schemas"]["WalletTag"][];
       /** Token Count */
@@ -2948,6 +2978,13 @@ export interface components {
       /** Wallets */
       wallets: components["schemas"]["MultiTokenWallet"][];
     };
+    /** NametagResponse */
+    NametagResponse: {
+      /** Wallet Address */
+      wallet_address: string;
+      /** Nametag */
+      nametag?: string | null;
+    };
     /**
      * OperationCostsResponse
      * @description Response model for operation cost estimates.
@@ -3343,6 +3380,11 @@ export interface components {
       errors: string[];
       /** Message */
       message?: string | null;
+    };
+    /** SetNametagRequest */
+    SetNametagRequest: {
+      /** Nametag */
+      nametag: string;
     };
     /**
      * StopTrackingRequest
@@ -5605,6 +5647,103 @@ export interface operations {
         };
         content: {
           "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_wallet_nametag_wallets__wallet_address__nametag_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NametagResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  set_wallet_nametag_wallets__wallet_address__nametag_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetNametagRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MessageResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_wallet_nametag_wallets__wallet_address__nametag_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        wallet_address: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MessageResponse"];
         };
       };
       /** @description Validation Error */

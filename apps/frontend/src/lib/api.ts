@@ -10,7 +10,7 @@ import { components } from './generated/api-types';
 export const API_BASE_URL = 'http://localhost:5003';
 
 // ============================================================================
-// Fetch with Timeout Utility
+// Fetch with Timeout and Retry Utilities
 // ============================================================================
 
 /**
@@ -44,6 +44,65 @@ export async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Retry configuration for resilient fetches
+ */
+interface RetryConfig {
+  maxRetries?: number; // Max retry attempts (default: 2)
+  timeoutMs?: number; // Per-request timeout (default: 12000ms)
+  backoffMs?: number; // Initial backoff delay (default: 1000ms)
+  backoffMultiplier?: number; // Backoff multiplier (default: 2)
+}
+
+/**
+ * Fetch with timeout and exponential backoff retry.
+ * Provides resilient fetching during backend load.
+ *
+ * @param url - The URL to fetch
+ * @param options - Fetch options
+ * @param config - Retry configuration
+ * @returns Promise that resolves to Response or rejects after all retries exhausted
+ */
+export async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  config: RetryConfig = {}
+): Promise<Response> {
+  const {
+    maxRetries = 2,
+    timeoutMs = 12000,
+    backoffMs = 1000,
+    backoffMultiplier = 2
+  } = config;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, options, timeoutMs);
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on non-timeout errors (4xx, network down, etc.)
+      if (
+        !lastError.message.includes('timeout') &&
+        !lastError.message.includes('fetch')
+      ) {
+        throw lastError;
+      }
+
+      // If we have retries left, wait with exponential backoff
+      if (attempt < maxRetries) {
+        const delay = backoffMs * Math.pow(backoffMultiplier, attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error('Request failed after retries');
 }
 
 // ============================================================================
@@ -324,6 +383,27 @@ export async function removeWalletTag(
 }
 
 /**
+ * Set or update a wallet's nametag (display name)
+ */
+export async function setWalletNametag(
+  walletAddress: string,
+  nametag: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/wallets/${walletAddress}/nametag`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ nametag })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to update nametag');
+  }
+}
+
+/**
  * Get all unique tags
  */
 export async function getAllTags(): Promise<string[]> {
@@ -341,11 +421,14 @@ export async function getAllTags(): Promise<string[]> {
 
 /**
  * Get all wallets in the Codex (wallets that have tags)
+ * Uses timeout to prevent hanging during long-running backend operations
  */
 export async function getCodexWallets(): Promise<CodexResponse> {
-  const res = await fetch(`${API_BASE_URL}/codex`, {
-    cache: 'no-store'
-  });
+  const res = await fetchWithRetry(
+    `${API_BASE_URL}/codex`,
+    { cache: 'no-store' },
+    { timeoutMs: 12000, maxRetries: 2 }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to fetch Codex');
@@ -883,11 +966,14 @@ export interface ScheduledJobsResponse {
 
 /**
  * Get all scheduled background jobs with next run times
+ * Uses timeout to prevent hanging during long-running backend operations
  */
 export async function getScheduledJobs(): Promise<ScheduledJobsResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/stats/scheduler/jobs`, {
-    cache: 'no-store'
-  });
+  const res = await fetchWithRetry(
+    `${API_BASE_URL}/api/stats/scheduler/jobs`,
+    { cache: 'no-store' },
+    { timeoutMs: 12000, maxRetries: 2 }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to fetch scheduled jobs');
@@ -1387,11 +1473,14 @@ export interface IngestRunResult {
 
 /**
  * Get ingest pipeline settings
+ * Uses timeout to prevent hanging during long-running backend operations
  */
 export async function getIngestSettings(): Promise<IngestSettings> {
-  const res = await fetch(`${API_BASE_URL}/api/ingest/settings`, {
-    cache: 'no-store'
-  });
+  const res = await fetchWithRetry(
+    `${API_BASE_URL}/api/ingest/settings`,
+    { cache: 'no-store' },
+    { timeoutMs: 12000, maxRetries: 2 }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to fetch ingest settings');
@@ -1421,6 +1510,7 @@ export async function updateIngestSettings(
 
 /**
  * Get ingest queue entries
+ * Uses timeout to prevent hanging during long-running backend operations
  */
 export async function getIngestQueue(params?: {
   tier?: string;
@@ -1438,7 +1528,11 @@ export async function getIngestQueue(params?: {
     ? `${API_BASE_URL}/api/ingest/queue?${searchParams}`
     : `${API_BASE_URL}/api/ingest/queue`;
 
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await fetchWithRetry(
+    url,
+    { cache: 'no-store' },
+    { timeoutMs: 12000, maxRetries: 2 }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to fetch ingest queue');
@@ -1449,11 +1543,14 @@ export async function getIngestQueue(params?: {
 
 /**
  * Get ingest queue statistics
+ * Uses timeout to prevent hanging during long-running backend operations
  */
 export async function getIngestQueueStats(): Promise<IngestQueueStats> {
-  const res = await fetch(`${API_BASE_URL}/api/ingest/queue/stats`, {
-    cache: 'no-store'
-  });
+  const res = await fetchWithRetry(
+    `${API_BASE_URL}/api/ingest/queue/stats`,
+    { cache: 'no-store' },
+    { timeoutMs: 12000, maxRetries: 2 }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to fetch ingest queue stats');

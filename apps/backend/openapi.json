@@ -2345,6 +2345,141 @@
         }
       }
     },
+    "/wallets/{wallet_address}/nametag": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "summary": "Get Wallet Nametag",
+        "description": "Get the nametag (display name) for a wallet",
+        "operationId": "get_wallet_nametag_wallets__wallet_address__nametag_get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NametagResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tags"
+        ],
+        "summary": "Set Wallet Nametag",
+        "description": "Set or update the nametag (display name) for a wallet",
+        "operationId": "set_wallet_nametag_wallets__wallet_address__nametag_put",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetNametagRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tags"
+        ],
+        "summary": "Delete Wallet Nametag",
+        "description": "Remove the nametag (display name) from a wallet",
+        "operationId": "delete_wallet_nametag_wallets__wallet_address__nametag_delete",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/webhooks/create": {
       "post": {
         "tags": [
@@ -4585,6 +4720,17 @@
             "type": "string",
             "title": "Wallet Address"
           },
+          "nametag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nametag"
+          },
           "tags": {
             "items": {
               "$ref": "#/components/schemas/WalletTag"
@@ -5887,6 +6033,30 @@
         ],
         "title": "MultiTokenWalletsResponse"
       },
+      "NametagResponse": {
+        "properties": {
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address"
+          },
+          "nametag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nametag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_address"
+        ],
+        "title": "NametagResponse"
+      },
       "OperationCostsResponse": {
         "properties": {
           "costs": {
@@ -7029,6 +7199,19 @@
         ],
         "title": "ScoreTokensResponse",
         "description": "Response model for token scoring."
+      },
+      "SetNametagRequest": {
+        "properties": {
+          "nametag": {
+            "type": "string",
+            "title": "Nametag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nametag"
+        ],
+        "title": "SetNametagRequest"
       },
       "StopTrackingRequest": {
         "properties": {

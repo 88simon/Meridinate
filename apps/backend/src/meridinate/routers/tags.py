@@ -15,7 +15,9 @@ from meridinate.utils.models import (
     BatchTagsRequest,
     CodexResponse,
     MessageResponse,
+    NametagResponse,
     RemoveTagRequest,
+    SetNametagRequest,
     TagsResponse,
     WalletTagsResponse,
 )
@@ -108,7 +110,7 @@ async def get_codex():
         for row in rows:
             wallet_addr = row[0]
             if wallet_addr not in wallets_dict:
-                wallets_dict[wallet_addr] = {"wallet_address": wallet_addr, "tags": [], "token_count": 0}
+                wallets_dict[wallet_addr] = {"wallet_address": wallet_addr, "nametag": None, "tags": [], "token_count": 0}
             wallets_dict[wallet_addr]["tags"].append({"tag": row[1], "is_kol": bool(row[2])})
 
         # Get token counts for each wallet
@@ -132,6 +134,21 @@ async def get_codex():
                 token_count = row[1]
                 if wallet_addr in wallets_dict:
                     wallets_dict[wallet_addr]["token_count"] = token_count
+
+            # Get nametags for each wallet
+            nametag_query = f"""
+                SELECT wallet_address, nametag
+                FROM wallet_nametags
+                WHERE wallet_address IN ({placeholders})
+            """
+            cursor = await conn.execute(nametag_query, wallet_addresses)
+            nametag_rows = await cursor.fetchall()
+
+            for row in nametag_rows:
+                wallet_addr = row[0]
+                nametag = row[1]
+                if wallet_addr in wallets_dict:
+                    wallets_dict[wallet_addr]["nametag"] = nametag
 
         result = {"wallets": list(wallets_dict.values())}
         cache.set(cache_key, result)
@@ -159,3 +176,49 @@ async def get_wallets_by_tag(tag: str):
     except Exception as exc:
         log_error(f"Failed to get wallets by tag: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/wallets/{wallet_address}/nametag", response_model=NametagResponse)
+async def get_wallet_nametag(wallet_address: str):
+    """Get the nametag (display name) for a wallet"""
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        cursor = await conn.execute(
+            "SELECT nametag FROM wallet_nametags WHERE wallet_address = ?",
+            (wallet_address,)
+        )
+        row = await cursor.fetchone()
+        return {"wallet_address": wallet_address, "nametag": row[0] if row else None}
+
+
+@router.put("/wallets/{wallet_address}/nametag", response_model=MessageResponse)
+async def set_wallet_nametag(wallet_address: str, request: SetNametagRequest):
+    """Set or update the nametag (display name) for a wallet"""
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        await conn.execute(
+            """
+            INSERT INTO wallet_nametags (wallet_address, nametag, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(wallet_address) DO UPDATE SET
+                nametag = excluded.nametag,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (wallet_address, request.nametag)
+        )
+        await conn.commit()
+
+    cache.invalidate("codex")
+    return {"message": "Nametag updated successfully"}
+
+
+@router.delete("/wallets/{wallet_address}/nametag", response_model=MessageResponse)
+async def delete_wallet_nametag(wallet_address: str):
+    """Remove the nametag (display name) from a wallet"""
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        await conn.execute(
+            "DELETE FROM wallet_nametags WHERE wallet_address = ?",
+            (wallet_address,)
+        )
+        await conn.commit()
+
+    cache.invalidate("codex")
+    return {"message": "Nametag removed successfully"}

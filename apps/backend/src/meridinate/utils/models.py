@@ -192,6 +192,7 @@ class TagsResponse(BaseModel):
 
 class CodexWallet(BaseModel):
     wallet_address: str
+    nametag: Optional[str] = None
     tags: List[WalletTag]
     token_count: int
 
@@ -252,6 +253,15 @@ class BatchTagsRequest(BaseModel):
 class WalletTagRequest(BaseModel):
     tag: str
     is_kol: Optional[bool] = False
+
+
+class SetNametagRequest(BaseModel):
+    nametag: str
+
+
+class NametagResponse(BaseModel):
+    wallet_address: str
+    nametag: Optional[str] = None
 
 
 # ============================================================================

@@ -298,8 +298,9 @@ async def get_wallet_top_holder_tokens(request: Request, wallet_address: str):
             "tokens": top_holder_tokens
         }
 
-        # Cache for 5 minutes
-        cache.set(cache_key, result, ttl=300)
+        # Cache with default TTL (30s) - must match batch-top-holder-counts TTL
+        # to prevent badge/modal desync when top_holders_json is updated
+        cache.set(cache_key, result)
         return result
 
 

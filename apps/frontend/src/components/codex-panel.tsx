@@ -5,7 +5,8 @@ import {
   getCodexWallets,
   CodexWallet,
   addWalletTag,
-  removeWalletTag
+  removeWalletTag,
+  setWalletNametag
 } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,12 +36,9 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
   const [addingWallet, setAddingWallet] = useState(false);
   const kolToggleRef = useRef<HTMLDivElement>(null);
 
-  // Edit wallet state
+  // Edit nametag state
   const [editingWallet, setEditingWallet] = useState<string | null>(null);
-  const [editTagName, setEditTagName] = useState('');
-  const [editTagKol, setEditTagKol] = useState(false);
-  const [editStep, setEditStep] = useState<'tag' | 'kol'>('tag');
-  const editKolToggleRef = useRef<HTMLDivElement>(null);
+  const [editNametag, setEditNametag] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -170,51 +168,27 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
   };
 
   const handleEditWallet = (wallet: CodexWallet) => {
-    // Start editing with the first tag
-    if (wallet.tags.length > 0) {
-      const firstTag = wallet.tags[0];
-      setEditingWallet(wallet.wallet_address);
-      setEditTagName(firstTag.tag);
-      setEditTagKol(firstTag.is_kol);
-      setEditStep('tag');
-    }
+    setEditingWallet(wallet.wallet_address);
+    setEditNametag(wallet.nametag || '');
   };
 
-  const handleEditTagSubmit = () => {
-    if (!editTagName.trim()) {
-      toast.error('Please enter a tag name');
+  const handleSaveNametag = async () => {
+    if (!editingWallet) return;
+
+    if (!editNametag.trim()) {
+      toast.error('Please enter a name');
       return;
     }
-    setEditStep('kol');
-  };
-
-  const handleEditKolSubmit = async (isKol: boolean) => {
-    if (!editingWallet) return;
 
     setLoading(true);
     try {
-      const wallet = wallets.find((w) => w.wallet_address === editingWallet);
-      if (!wallet) return;
-
-      // Remove old tag
-      const oldTag = wallet.tags[0];
-      await removeWalletTag(editingWallet, oldTag.tag);
-
-      // Add new tag
-      await addWalletTag(editingWallet, editTagName.trim(), isKol);
-
-      toast.success('Tag updated');
-
-      // Reset edit state
+      await setWalletNametag(editingWallet, editNametag.trim());
+      toast.success('Name updated');
       setEditingWallet(null);
-      setEditTagName('');
-      setEditTagKol(false);
-      setEditStep('tag');
-
-      // Reload wallets
+      setEditNametag('');
       await loadWallets();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update tag');
+      toast.error(error.message || 'Failed to update name');
     } finally {
       setLoading(false);
     }
@@ -222,17 +196,8 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
 
   const cancelEdit = () => {
     setEditingWallet(null);
-    setEditTagName('');
-    setEditTagKol(false);
-    setEditStep('tag');
+    setEditNametag('');
   };
-
-  // Auto-focus edit KOL toggle when step changes
-  useEffect(() => {
-    if (editStep === 'kol' && editKolToggleRef.current) {
-      editKolToggleRef.current.focus();
-    }
-  }, [editStep]);
 
   return (
     <div
@@ -463,10 +428,10 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
                   className='hover:bg-muted/50 rounded-lg border p-2 transition-colors'
                 >
                   {editingWallet === wallet.wallet_address ? (
-                    // Edit mode
+                    // Edit nametag mode
                     <div className='space-y-2'>
                       <div className='mb-1.5 flex items-center justify-between'>
-                        <div className='text-xs font-semibold'>Edit Tag</div>
+                        <div className='text-xs font-semibold'>Edit Name</div>
                         <Button
                           variant='ghost'
                           size='sm'
@@ -479,120 +444,47 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
                       <div className='text-muted-foreground font-mono text-xs break-all'>
                         {wallet.wallet_address.slice(0, 16)}...
                       </div>
-
-                      {editStep === 'tag' && (
-                        <div className='space-y-2'>
-                          <Input
-                            placeholder='Tag name...'
-                            value={editTagName}
-                            onChange={(e) => setEditTagName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleEditTagSubmit();
-                              if (e.key === 'Escape') cancelEdit();
-                            }}
-                            className='text-xs'
-                            autoFocus
-                            disabled={loading}
-                          />
-                          <div className='flex gap-2'>
-                            <Button
-                              variant='outline'
-                              size='sm'
-                              onClick={cancelEdit}
-                              disabled={loading}
-                              className='w-full'
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size='sm'
-                              onClick={handleEditTagSubmit}
-                              disabled={loading}
-                              className='w-full'
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {editStep === 'kol' && (
-                        <div className='space-y-2'>
-                          <div className='text-xs'>
-                            Tag:{' '}
-                            <span className='font-semibold'>{editTagName}</span>
-                          </div>
-                          <div
-                            ref={editKolToggleRef}
-                            className='border-input bg-background flex items-center gap-2 rounded border p-2'
-                            onKeyDown={(e) => {
-                              if (e.key === 'y' || e.key === 'Y') {
-                                handleEditKolSubmit(true);
-                              } else if (e.key === 'n' || e.key === 'N') {
-                                handleEditKolSubmit(false);
-                              } else if (e.key === 'Escape') {
-                                cancelEdit();
-                              } else if (e.key === 'ArrowLeft') {
-                                setEditTagKol(true);
-                              } else if (e.key === 'ArrowRight') {
-                                setEditTagKol(false);
-                              }
-                            }}
-                            tabIndex={0}
-                          >
-                            <span className='text-muted-foreground flex-1 text-xs'>
-                              Is KOL?
-                            </span>
-                            <button
-                              type='button'
-                              className={`rounded px-3 py-1 text-xs transition-colors ${
-                                editTagKol
-                                  ? 'bg-green-500/20 font-semibold text-green-700 dark:text-green-400'
-                                  : 'text-muted-foreground hover:bg-muted'
-                              }`}
-                              onClick={() => setEditTagKol(true)}
-                              disabled={loading}
-                            >
-                              Y
-                            </button>
-                            <button
-                              type='button'
-                              className={`rounded px-3 py-1 text-xs transition-colors ${
-                                !editTagKol
-                                  ? 'bg-red-500/20 font-semibold text-red-700 dark:text-red-400'
-                                  : 'text-muted-foreground hover:bg-muted'
-                              }`}
-                              onClick={() => setEditTagKol(false)}
-                              disabled={loading}
-                            >
-                              N
-                            </button>
-                          </div>
-                          <div className='flex gap-2'>
-                            <Button
-                              variant='outline'
-                              size='sm'
-                              onClick={() => setEditStep('tag')}
-                              disabled={loading}
-                              className='w-full'
-                            >
-                              Back
-                            </Button>
-                            <Button
-                              size='sm'
-                              onClick={() => handleEditKolSubmit(editTagKol)}
-                              disabled={loading}
-                              className='w-full'
-                            >
-                              Save
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                      <Input
+                        placeholder='Display name for this wallet...'
+                        value={editNametag}
+                        onChange={(e) => setEditNametag(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveNametag();
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        className='text-xs'
+                        autoFocus
+                        disabled={loading}
+                      />
+                      <div className='flex gap-2'>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={cancelEdit}
+                          disabled={loading}
+                          className='w-full'
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size='sm'
+                          onClick={handleSaveNametag}
+                          disabled={loading}
+                          className='w-full'
+                        >
+                          Save
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     // View mode
                     <>
+                      {/* Nametag (display name) */}
+                      {wallet.nametag && (
+                        <div className='mb-1 text-sm font-semibold'>
+                          {wallet.nametag}
+                        </div>
+                      )}
                       <div className='mb-1.5 flex items-center justify-between gap-2'>
                         <div
                           className='flex-1 cursor-pointer font-mono text-xs break-all'
@@ -606,7 +498,7 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
                             size='sm'
                             className='hover:bg-muted h-6 w-6 p-0'
                             onClick={() => handleEditWallet(wallet)}
-                            title='Edit tag'
+                            title='Edit name'
                           >
                             <Pencil className='h-3 w-3' />
                           </Button>

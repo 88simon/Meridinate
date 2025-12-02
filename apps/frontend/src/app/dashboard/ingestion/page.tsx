@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getIngestSettings,
   updateIngestSettings,
   getIngestQueue,
   getIngestQueueStats,
+  getScheduledJobs,
   runTier0Ingestion,
   runTier1Enrichment,
   promoteTokens,
@@ -127,6 +128,7 @@ export default function IngestionPage() {
     new Set()
   );
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [runningTier0, setRunningTier0] = useState(false);
   const [runningTier1, setRunningTier1] = useState(false);
   const [promoting, setPromoting] = useState(false);
@@ -136,36 +138,107 @@ export default function IngestionPage() {
   );
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Track running jobs for completion detection
+  const prevRunningJobsRef = useRef<Set<string>>(new Set());
+
   // Status bar data with live credit tracking
   const statusBarData = useStatusBarData({
     tokensScanned: stats?.by_tier?.analyzed ?? 0,
     pollInterval: 30000
   });
 
-  // Fetch data
+  // Fetch data independently - partial success still shows available data
+  // Preserves stale data on failure so UI remains functional
   const fetchData = useCallback(async () => {
-    try {
-      const [settingsData, statsData, queueData] = await Promise.all([
-        getIngestSettings(),
-        getIngestQueueStats(),
-        getIngestQueue({
-          tier: selectedTier === 'all' ? undefined : selectedTier,
-          limit: 200
-        })
-      ]);
-      setSettings(settingsData);
-      setStats(statsData);
-      setEntries(queueData.entries);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      toast.error('Failed to load ingestion data');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedTier]);
+    setLoadError(null);
+    let hasAnyError = false;
+    const errors: string[] = [];
+
+    // Fetch settings (independent)
+    getIngestSettings()
+      .then((data) => setSettings(data))
+      .catch((err) => {
+        console.error('Failed to fetch settings:', err);
+        errors.push('settings');
+        hasAnyError = true;
+      });
+
+    // Fetch stats (independent)
+    getIngestQueueStats()
+      .then((data) => setStats(data))
+      .catch((err) => {
+        console.error('Failed to fetch stats:', err);
+        errors.push('stats');
+        hasAnyError = true;
+      });
+
+    // Fetch queue entries (independent)
+    getIngestQueue({
+      tier: selectedTier === 'all' ? undefined : selectedTier,
+      limit: 200
+    })
+      .then((data) => {
+        setEntries(data.entries);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch queue:', err);
+        errors.push('queue');
+        hasAnyError = true;
+        setLoading(false);
+        // Only show error if no stale data available
+        if (entries.length === 0) {
+          const errorMessage =
+            err instanceof Error ? err.message : 'Failed to load data';
+          if (errorMessage.includes('timeout')) {
+            setLoadError(
+              'Backend is busy. Stale data shown if available. Click Refresh to retry.'
+            );
+          } else {
+            setLoadError(errorMessage);
+          }
+        }
+      });
+  }, [selectedTier, entries.length]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Poll for job completion and show toast when ingestion finishes
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const jobsData = await getScheduledJobs();
+        const currentRunningIds = new Set(
+          (jobsData.running_jobs || []).map((j) => j.id)
+        );
+
+        // Check if any previously running jobs have completed
+        const prevIds = Array.from(prevRunningJobsRef.current);
+        for (const prevId of prevIds) {
+          if (!currentRunningIds.has(prevId)) {
+            // Job completed - show toast
+            toast.success('Ingestion finished — refresh to see changes', {
+              duration: 5000,
+              action: {
+                label: 'Refresh',
+                onClick: () => fetchData()
+              }
+            });
+            break; // Only show one toast per poll cycle
+          }
+        }
+
+        // Update ref for next poll
+        prevRunningJobsRef.current = currentRunningIds;
+      } catch (err) {
+        // Silently ignore polling errors - this is background monitoring
+        console.debug('Job status poll failed:', err);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
   }, [fetchData]);
 
   // Handle tier filter change
@@ -335,14 +408,7 @@ export default function IngestionPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className='flex h-[50vh] items-center justify-center'>
-        <Loader2 className='text-muted-foreground h-8 w-8 animate-spin' />
-      </div>
-    );
-  }
-
+  // Render UI immediately - data sections show inline loading states
   return (
     <TooltipProvider>
       <div className='container mx-auto space-y-6 p-6'>
@@ -369,7 +435,13 @@ export default function IngestionPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className='text-2xl font-bold'>{stats?.total || 0}</div>
+              <div className='text-2xl font-bold'>
+                {loading ? (
+                  <span className='text-muted-foreground'>--</span>
+                ) : (
+                  stats?.total || 0
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -387,7 +459,11 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {stats?.by_tier?.ingested || 0}
+                {loading ? (
+                  <span className='text-muted-foreground'>--</span>
+                ) : (
+                  stats?.by_tier?.ingested || 0
+                )}
               </div>
             </CardContent>
           </Card>
@@ -406,7 +482,11 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {stats?.by_tier?.enriched || 0}
+                {loading ? (
+                  <span className='text-muted-foreground'>--</span>
+                ) : (
+                  stats?.by_tier?.enriched || 0
+                )}
               </div>
             </CardContent>
           </Card>
@@ -425,7 +505,11 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {stats?.by_tier?.analyzed || 0}
+                {loading ? (
+                  <span className='text-muted-foreground'>--</span>
+                ) : (
+                  stats?.by_tier?.analyzed || 0
+                )}
               </div>
             </CardContent>
           </Card>
@@ -446,7 +530,11 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {stats?.by_tier?.discarded || 0}
+                {loading ? (
+                  <span className='text-muted-foreground'>--</span>
+                ) : (
+                  stats?.by_tier?.discarded || 0
+                )}
               </div>
             </CardContent>
           </Card>
@@ -595,7 +683,37 @@ export default function IngestionPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={11}
+                        className='text-muted-foreground py-8 text-center'
+                      >
+                        <div className='flex items-center justify-center gap-2'>
+                          <Loader2 className='h-4 w-4 animate-spin' />
+                          Loading queue...
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : loadError ? (
+                    <TableRow>
+                      <TableCell colSpan={11} className='py-8 text-center'>
+                        <div className='flex flex-col items-center gap-3'>
+                          <div className='text-muted-foreground'>
+                            {loadError}
+                          </div>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            onClick={fetchData}
+                          >
+                            <RefreshCw className='mr-2 h-4 w-4' />
+                            Retry
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : entries.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={11}

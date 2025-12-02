@@ -262,7 +262,7 @@ C:\Meridinate\                                    # PROJECT ROOT
 | `apps/backend/config.json` | API keys (Helius) | **NEVER commit** - contains sensitive data |
 | `apps/backend/data/db/analyzed_tokens.db` | SQLite database | Main data store, 24 columns (added top_holders_json, top_holders_updated_at) |
 | `apps/backend/src/meridinate/routers/wallets.py` | Wallet endpoints | Handles balance refresh, now tracks prev/current and timestamps |
-| `apps/frontend/src/lib/api.ts` | API client | All backend API calls go through this |
+| `apps/frontend/src/lib/api.ts` | API client | All backend API calls; includes `fetchWithRetry` utility (12s timeout, 2 retries, exponential backoff) |
 | `apps/frontend/src/lib/generated/api-types.ts` | TypeScript types | Auto-generated from OpenAPI, DO NOT edit manually |
 | `apps/frontend/src/app/dashboard/tokens/page.tsx` | Main token dashboard | Where Simon spends most time |
 | `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` | Token table component | Memoized rows, virtualized rendering for performance |
@@ -551,7 +551,7 @@ When Simon says...  →  Technical term & Implementation
   - `tasks/ingest_tasks.py` - Tier-0/Tier-1/promotion logic
   - `services/dexscreener_service.py` - DexScreener API client
   - `scheduler.py` - Feature-flagged scheduler jobs
-- **Location (Frontend):** `app/dashboard/ingestion/page.tsx` - Queue management UI with stats, filters, manual triggers
+- **Location (Frontend):** `app/dashboard/ingestion/page.tsx` - Queue management UI with stats, filters, manual triggers. Non-blocking rendering with independent parallel fetches, stale data preservation, job completion polling with toast notification.
 - **Database:** `token_ingest_queue` table (address, name, symbol, tier, status, MC/volume snapshots, timestamps)
 - **Settings:** `ingest_settings.json` - thresholds, batch sizes, credit budgets, feature flags (`ingest_enabled`, `enrich_enabled`, `auto_promote_enabled`, `hot_refresh_enabled`)
 - **API Endpoints:**
@@ -1096,6 +1096,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.6
-**Last Updated:** December 1, 2025 (Scheduler Panel, ToS Column, Filter Persistence)
+**Document Version:** 2.7
+**Last Updated:** December 2, 2025 (Resilient fetching with retry/backoff, non-blocking ingestion page)
 **Next Review:** After production deployment

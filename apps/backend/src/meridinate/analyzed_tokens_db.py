@@ -394,6 +394,18 @@ def init_database():
         """
         )
 
+        # Wallet nametags table (unique display name per wallet)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS wallet_nametags (
+                wallet_address TEXT PRIMARY KEY,
+                nametag TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
         # Token tags table (for GEM/DUD and other token classifications)
         cursor.execute(
             """

@@ -129,6 +129,8 @@ apps/frontend/
 
 The frontend uses a type-safe API client (`lib/api.ts`) that connects to the FastAPI backend on port 5003.
 
+**Resilient Fetching:** API calls use `fetchWithRetry` utility with 12s timeout, 2 retries, and exponential backoff (1s, 2s delays). This prevents UI blocking when the backend is busy with long-running operations like ingestion jobs.
+
 ### API Types Synchronization
 
 Frontend TypeScript types are **auto-generated** from the backend OpenAPI schema:
