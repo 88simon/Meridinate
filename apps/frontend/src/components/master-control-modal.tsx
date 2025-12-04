@@ -13,8 +13,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Settings2 } from 'lucide-react';
 import {
   ScanningTab,
-  IngestionTab,
-  SwabTab,
+  SchedulerTab,
   WebhooksTab,
   SystemTab,
   ApiSettings
@@ -52,16 +51,13 @@ export function MasterControlModal({
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue='ingestion' className='flex-1'>
-            <TabsList className='grid w-full grid-cols-5'>
-              <TabsTrigger value='ingestion' className='text-xs'>
-                Ingestion
+          <Tabs defaultValue='scheduler' className='flex-1'>
+            <TabsList className='grid w-full grid-cols-4'>
+              <TabsTrigger value='scheduler' className='text-xs'>
+                Scheduler
               </TabsTrigger>
               <TabsTrigger value='scanning' className='text-xs'>
                 Scanning
-              </TabsTrigger>
-              <TabsTrigger value='swab' className='text-xs'>
-                SWAB
               </TabsTrigger>
               <TabsTrigger value='webhooks' className='text-xs'>
                 Webhooks
@@ -72,8 +68,8 @@ export function MasterControlModal({
             </TabsList>
 
             <div className='mt-4 h-[55vh] overflow-y-auto pr-2'>
-              <TabsContent value='ingestion'>
-                <IngestionTab
+              <TabsContent value='scheduler'>
+                <SchedulerTab
                   bypassLimits={apiSettings.bypassLimits ?? false}
                 />
               </TabsContent>
@@ -84,10 +80,6 @@ export function MasterControlModal({
                   setApiSettings={setApiSettings}
                   defaultApiSettings={defaultApiSettings}
                 />
-              </TabsContent>
-
-              <TabsContent value='swab'>
-                <SwabTab bypassLimits={apiSettings.bypassLimits ?? false} />
               </TabsContent>
 
               <TabsContent value='webhooks'>

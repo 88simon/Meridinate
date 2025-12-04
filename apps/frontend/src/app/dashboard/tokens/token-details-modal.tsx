@@ -418,7 +418,7 @@ export function TokenDetailsModal({
             </DialogHeader>
 
             {/* Token Info Grid */}
-            <div className='mt-3 grid grid-cols-4 gap-3'>
+            <div className='mt-3 grid grid-cols-5 gap-3'>
               <div className='rounded-lg border p-2'>
                 <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
                   Token Address
@@ -460,6 +460,15 @@ export function TokenDetailsModal({
                   Wallets Found
                 </div>
                 <div className='text-lg font-bold'>{token.wallets_found}</div>
+              </div>
+
+              <div className='rounded-lg border p-2'>
+                <div className='text-muted-foreground mb-1 text-[11px] font-medium'>
+                  First Filtered Buy
+                </div>
+                <div className='text-xs'>
+                  {formatTimestamp(token.first_buy_timestamp)}
+                </div>
               </div>
 
               <div className='rounded-lg border p-2'>

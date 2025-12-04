@@ -7,8 +7,7 @@ import {
   getIngestQueue,
   getIngestQueueStats,
   getScheduledJobs,
-  runTier0Ingestion,
-  runTier1Enrichment,
+  runDiscovery,
   promoteTokens,
   discardTokens,
   IngestSettings,
@@ -54,6 +53,38 @@ import {
   Info
 } from 'lucide-react';
 
+// Session storage cache keys and helpers
+const CACHE_KEY_SETTINGS = 'ingestion_page_settings';
+const CACHE_KEY_STATS = 'ingestion_page_stats';
+const CACHE_KEY_ENTRIES = 'ingestion_page_entries';
+
+interface CachedData<T> {
+  data: T;
+  cached_at: number;
+}
+
+function getFromCache<T>(key: string): T | null {
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached) as CachedData<T>;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function setInCache<T>(key: string, data: T): void {
+  try {
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({ data, cached_at: Date.now() })
+    );
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 // Format USD values
 function formatUsd(value: number | null): string {
   if (value === null || value === undefined) return '-';
@@ -71,22 +102,23 @@ function formatAge(hours: number | null): string {
 }
 
 // Tier display configuration with labels, colors, and tooltips
+// Simplified flow: Discovery Queue → Analyzed (Live)
 const tierConfig: Record<
   string,
   { label: string; color: string; tooltip: string; statusNote: string }
 > = {
   ingested: {
-    label: 'Discovered',
+    label: 'Discovery Queue',
     color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    tooltip: 'DexScreener snapshot only; no Helius calls yet.',
-    statusNote: 'Not yet in dashboard'
+    tooltip: 'DexScreener snapshot; ready for promotion to full analysis.',
+    statusNote: 'Ready to promote'
   },
   enriched: {
-    label: 'Pre-Analyzed',
-    color: 'bg-green-500/20 text-green-400 border-green-500/30',
-    tooltip:
-      'Light Helius enrichment (holders/metadata); not in main dashboard yet.',
-    statusNote: 'Needs promotion'
+    // Legacy tier - kept for backward compatibility
+    label: 'Discovery Queue',
+    color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    tooltip: 'Ready for promotion to full analysis.',
+    statusNote: 'Ready to promote'
   },
   analyzed: {
     label: 'Analyzed (Live)',
@@ -120,23 +152,43 @@ const statusColors: Record<string, string> = {
 };
 
 export default function IngestionPage() {
-  const [settings, setSettings] = useState<IngestSettings | null>(null);
-  const [stats, setStats] = useState<IngestQueueStats | null>(null);
-  const [entries, setEntries] = useState<IngestQueueEntry[]>([]);
+  // Initialize from cache for instant render
+  const cachedSettings = useRef(
+    getFromCache<IngestSettings>(CACHE_KEY_SETTINGS)
+  );
+  const cachedStats = useRef(getFromCache<IngestQueueStats>(CACHE_KEY_STATS));
+  const cachedEntries = useRef(
+    getFromCache<IngestQueueEntry[]>(CACHE_KEY_ENTRIES)
+  );
+
+  const [settings, setSettings] = useState<IngestSettings | null>(
+    cachedSettings.current
+  );
+  const [stats, setStats] = useState<IngestQueueStats | null>(
+    cachedStats.current
+  );
+  const [entries, setEntries] = useState<IngestQueueEntry[]>(
+    cachedEntries.current || []
+  );
   const [selectedTier, setSelectedTier] = useState<string>('all');
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(
     new Set()
   );
-  const [loading, setLoading] = useState(true);
+  // Only show loading spinner if we have no cached data
+  const [loading, setLoading] = useState(!cachedEntries.current);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [runningTier0, setRunningTier0] = useState(false);
-  const [runningTier1, setRunningTier1] = useState(false);
+  const [runningDiscovery, setRunningDiscovery] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [processingAddresses, setProcessingAddresses] = useState<Set<string>>(
     new Set()
   );
-  const [savingSettings, setSavingSettings] = useState(false);
+  // Tracks settings save state (not currently displayed in UI)
+  const [, setSavingSettings] = useState(false);
+
+  // Track if we have data to show (for graceful degradation)
+  const hasData = entries.length > 0;
 
   // Track running jobs for completion detection
   const prevRunningJobsRef = useRef<Set<string>>(new Set());
@@ -151,25 +203,32 @@ export default function IngestionPage() {
   // Preserves stale data on failure so UI remains functional
   const fetchData = useCallback(async () => {
     setLoadError(null);
-    let hasAnyError = false;
-    const errors: string[] = [];
+
+    // If we have cached data, show refreshing indicator instead of full loading
+    if (hasData) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
     // Fetch settings (independent)
     getIngestSettings()
-      .then((data) => setSettings(data))
+      .then((data) => {
+        setSettings(data);
+        setInCache(CACHE_KEY_SETTINGS, data);
+      })
       .catch((err) => {
         console.error('Failed to fetch settings:', err);
-        errors.push('settings');
-        hasAnyError = true;
       });
 
     // Fetch stats (independent)
     getIngestQueueStats()
-      .then((data) => setStats(data))
+      .then((data) => {
+        setStats(data);
+        setInCache(CACHE_KEY_STATS, data);
+      })
       .catch((err) => {
         console.error('Failed to fetch stats:', err);
-        errors.push('stats');
-        hasAnyError = true;
       });
 
     // Fetch queue entries (independent)
@@ -179,15 +238,16 @@ export default function IngestionPage() {
     })
       .then((data) => {
         setEntries(data.entries);
+        setInCache(CACHE_KEY_ENTRIES, data.entries);
         setLoading(false);
+        setRefreshing(false);
       })
       .catch((err) => {
         console.error('Failed to fetch queue:', err);
-        errors.push('queue');
-        hasAnyError = true;
         setLoading(false);
+        setRefreshing(false);
         // Only show error if no stale data available
-        if (entries.length === 0) {
+        if (!hasData) {
           const errorMessage =
             err instanceof Error ? err.message : 'Failed to load data';
           if (errorMessage.includes('timeout')) {
@@ -199,7 +259,7 @@ export default function IngestionPage() {
           }
         }
       });
-  }, [selectedTier, entries.length]);
+  }, [selectedTier, hasData]);
 
   useEffect(() => {
     fetchData();
@@ -267,64 +327,35 @@ export default function IngestionPage() {
     }
   };
 
-  // Run Tier-0 ingestion
-  const handleRunTier0 = async () => {
-    setRunningTier0(true);
+  // Run Discovery ingestion
+  const handleRunDiscovery = async () => {
+    setRunningDiscovery(true);
 
-    // Mark all 'ingested' tier tokens as processing (Tier-0 fetches new tokens)
-    const ingestedAddresses = new Set(
-      entries.filter((e) => e.tier === 'ingested').map((e) => e.token_address)
+    // Mark all queued tokens as processing (Discovery fetches new tokens)
+    const queuedAddresses = new Set(
+      entries
+        .filter((e) => e.tier === 'ingested' || e.tier === 'enriched')
+        .map((e) => e.token_address)
     );
-    setProcessingAddresses(ingestedAddresses);
+    setProcessingAddresses(queuedAddresses);
 
     // Show background-safe toast immediately
     toast.info(
-      'Tier-0 ingestion is running in the background. You can leave this page safely.',
+      'Discovery is running in the background. You can leave this page safely.',
       { duration: 5000 }
     );
 
     try {
-      const response = await runTier0Ingestion();
+      const response = await runDiscovery();
       const result = response.result;
       toast.success(
-        `Tier-0 complete: ${result.tokens_new} new, ${result.tokens_updated} updated`
+        `Discovery complete: ${result.tokens_new} new, ${result.tokens_updated} updated`
       );
       fetchData();
     } catch (error) {
-      toast.error('Tier-0 ingestion failed');
+      toast.error('Discovery failed');
     } finally {
-      setRunningTier0(false);
-      setProcessingAddresses(new Set());
-    }
-  };
-
-  // Run Tier-1 enrichment
-  const handleRunTier1 = async () => {
-    setRunningTier1(true);
-
-    // Mark all 'ingested' tier tokens as processing (Tier-1 enriches ingested tokens)
-    const ingestedAddresses = new Set(
-      entries.filter((e) => e.tier === 'ingested').map((e) => e.token_address)
-    );
-    setProcessingAddresses(ingestedAddresses);
-
-    // Show background-safe toast immediately
-    toast.info(
-      'Tier-1 enrichment is running in the background. You can leave this page safely.',
-      { duration: 5000 }
-    );
-
-    try {
-      const response = await runTier1Enrichment();
-      const result = response.result;
-      toast.success(
-        `Tier-1 complete: ${result.tokens_enriched} enriched, ${result.credits_used} credits`
-      );
-      fetchData();
-    } catch (error) {
-      toast.error('Tier-1 enrichment failed');
-    } finally {
-      setRunningTier1(false);
+      setRunningDiscovery(false);
       setProcessingAddresses(new Set());
     }
   };
@@ -414,20 +445,32 @@ export default function IngestionPage() {
       <div className='container mx-auto space-y-6 p-6'>
         {/* Header */}
         <div className='flex items-center justify-between'>
-          <div>
-            <h1 className='text-2xl font-bold'>Token Ingestion Pipeline</h1>
-            <p className='text-muted-foreground'>
-              Discover and enrich tokens from DexScreener before full analysis
-            </p>
+          <div className='flex items-center gap-3'>
+            <div>
+              <h1 className='text-2xl font-bold'>Token Discovery</h1>
+              <p className='text-muted-foreground'>
+                Discover tokens from DexScreener and promote to full analysis
+              </p>
+            </div>
+            {refreshing && (
+              <Loader2 className='text-muted-foreground h-4 w-4 animate-spin' />
+            )}
           </div>
-          <Button variant='outline' size='sm' onClick={fetchData}>
-            <RefreshCw className='mr-2 h-4 w-4' />
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={fetchData}
+            disabled={loading || refreshing}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className='grid gap-4 md:grid-cols-5'>
+        {/* Stats Cards - Simplified flow: Discovery Queue → Analyzed */}
+        <div className='grid gap-4 md:grid-cols-4'>
           <Card>
             <CardHeader className='pb-2'>
               <CardTitle className='text-muted-foreground text-sm font-medium'>
@@ -436,7 +479,7 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {loading ? (
+                {loading && !stats ? (
                   <span className='text-muted-foreground'>--</span>
                 ) : (
                   stats?.total || 0
@@ -448,44 +491,24 @@ export default function IngestionPage() {
           <Card>
             <CardHeader className='pb-2'>
               <CardTitle className='flex items-center gap-1 text-sm font-medium text-blue-400'>
-                {tierConfig.ingested.label}
+                Discovery Queue
                 <Tooltip>
                   <TooltipTrigger>
                     <Info className='h-3 w-3 text-blue-400/60' />
                   </TooltipTrigger>
-                  <TooltipContent>{tierConfig.ingested.tooltip}</TooltipContent>
+                  <TooltipContent>
+                    Tokens discovered from DexScreener, ready for promotion
+                  </TooltipContent>
                 </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {loading ? (
+                {loading && !stats ? (
                   <span className='text-muted-foreground'>--</span>
                 ) : (
-                  stats?.by_tier?.ingested || 0
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className='pb-2'>
-              <CardTitle className='flex items-center gap-1 text-sm font-medium text-green-400'>
-                {tierConfig.enriched.label}
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className='h-3 w-3 text-green-400/60' />
-                  </TooltipTrigger>
-                  <TooltipContent>{tierConfig.enriched.tooltip}</TooltipContent>
-                </Tooltip>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className='text-2xl font-bold'>
-                {loading ? (
-                  <span className='text-muted-foreground'>--</span>
-                ) : (
-                  stats?.by_tier?.enriched || 0
+                  (stats?.by_tier?.ingested || 0) +
+                  (stats?.by_tier?.enriched || 0)
                 )}
               </div>
             </CardContent>
@@ -505,7 +528,7 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {loading ? (
+                {loading && !stats ? (
                   <span className='text-muted-foreground'>--</span>
                 ) : (
                   stats?.by_tier?.analyzed || 0
@@ -530,7 +553,7 @@ export default function IngestionPage() {
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {loading ? (
+                {loading && !stats ? (
                   <span className='text-muted-foreground'>--</span>
                 ) : (
                   stats?.by_tier?.discarded || 0
@@ -551,29 +574,16 @@ export default function IngestionPage() {
             {/* Action Buttons */}
             <div className='flex flex-wrap items-center gap-2'>
               <Button
-                onClick={handleRunTier0}
-                disabled={runningTier0}
+                onClick={handleRunDiscovery}
+                disabled={runningDiscovery}
                 variant='outline'
               >
-                {runningTier0 ? (
+                {runningDiscovery ? (
                   <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 ) : (
                   <Play className='mr-2 h-4 w-4' />
                 )}
-                Run Tier-0 (DexScreener)
-              </Button>
-
-              <Button
-                onClick={handleRunTier1}
-                disabled={runningTier1}
-                variant='outline'
-              >
-                {runningTier1 ? (
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                ) : (
-                  <Play className='mr-2 h-4 w-4' />
-                )}
-                Run Tier-1 (Helius)
+                Run Discovery
               </Button>
 
               <div className='bg-border mx-2 h-6 w-px' />
@@ -607,53 +617,72 @@ export default function IngestionPage() {
               </Button>
 
               <div className='text-muted-foreground ml-auto flex items-center gap-2 text-sm'>
-                {stats?.last_tier0_run_at && (
+                {(stats?.last_discovery_run_at || stats?.last_tier0_run_at) && (
                   <span>
-                    Last Tier-0: {formatTimestamp(stats.last_tier0_run_at)}
+                    Last Discovery:{' '}
+                    {formatTimestamp(
+                      stats.last_discovery_run_at ??
+                        stats.last_tier0_run_at ??
+                        null
+                    )}
                   </span>
-                )}
-                {stats?.last_tier1_run_at && (
-                  <>
-                    <span className='mx-1'>|</span>
-                    <span>
-                      Last Tier-1: {formatTimestamp(stats.last_tier1_run_at)}
-                    </span>
-                  </>
                 )}
               </div>
             </div>
 
-            {/* Tier Filter */}
+            {/* Tier Filter - Simplified: All, Queue, Analyzed, Discarded */}
             <div className='flex gap-2'>
-              {['all', 'ingested', 'enriched', 'analyzed', 'discarded'].map(
-                (tier) => {
-                  const config = getTierDisplay(tier);
-                  return (
-                    <Tooltip key={tier}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={
-                            selectedTier === tier ? 'default' : 'outline'
-                          }
-                          size='sm'
-                          onClick={() => handleTierChange(tier)}
-                        >
-                          {tier === 'all' ? 'All' : config.label}
-                          {tier !== 'all' &&
-                            stats?.by_tier?.[tier] !== undefined && (
-                              <Badge variant='secondary' className='ml-2'>
-                                {stats.by_tier[tier]}
-                              </Badge>
-                            )}
-                        </Button>
-                      </TooltipTrigger>
-                      {tier !== 'all' && config.tooltip && (
-                        <TooltipContent>{config.tooltip}</TooltipContent>
-                      )}
-                    </Tooltip>
-                  );
+              {[
+                { key: 'all', label: 'All', tooltip: '' },
+                {
+                  key: 'queue',
+                  label: 'Discovery Queue',
+                  tooltip: 'Tokens ready for promotion'
+                },
+                {
+                  key: 'analyzed',
+                  label: 'Analyzed (Live)',
+                  tooltip: 'Fully analyzed and tracked'
+                },
+                {
+                  key: 'discarded',
+                  label: 'Discarded',
+                  tooltip: 'Excluded from processing'
                 }
-              )}
+              ].map(({ key, label, tooltip }) => {
+                // Calculate count for queue (combines ingested + enriched)
+                const getCount = () => {
+                  if (key === 'queue') {
+                    return (
+                      (stats?.by_tier?.ingested || 0) +
+                      (stats?.by_tier?.enriched || 0)
+                    );
+                  }
+                  return stats?.by_tier?.[key] || 0;
+                };
+
+                return (
+                  <Tooltip key={key}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={selectedTier === key ? 'default' : 'outline'}
+                        size='sm'
+                        onClick={() =>
+                          handleTierChange(key === 'queue' ? 'ingested' : key)
+                        }
+                      >
+                        {label}
+                        {key !== 'all' && (
+                          <Badge variant='secondary' className='ml-2'>
+                            {getCount()}
+                          </Badge>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    {tooltip && <TooltipContent>{tooltip}</TooltipContent>}
+                  </Tooltip>
+                );
+              })}
             </div>
 
             {/* Queue Table */}
@@ -683,7 +712,7 @@ export default function IngestionPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
+                  {loading && !hasData ? (
                     <TableRow>
                       <TableCell
                         colSpan={11}
@@ -695,7 +724,7 @@ export default function IngestionPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : loadError ? (
+                  ) : loadError && !hasData ? (
                     <TableRow>
                       <TableCell colSpan={11} className='py-8 text-center'>
                         <div className='flex flex-col items-center gap-3'>
@@ -802,9 +831,8 @@ export default function IngestionPage() {
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  {entry.tier === 'enriched'
-                                    ? 'Promote to run full analysis and add to Tokens dashboard'
-                                    : 'Run Tier-1 enrichment to prepare for promotion'}
+                                  Promote to run full analysis and add to Tokens
+                                  dashboard
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -863,30 +891,17 @@ export default function IngestionPage() {
                   <CardContent className='space-y-4'>
                     <div className='flex items-center justify-between'>
                       <div>
-                        <Label>Tier-0 Ingestion (Scheduled)</Label>
+                        <Label>Discovery (Scheduled)</Label>
                         <p className='text-muted-foreground text-sm'>
-                          Auto-fetch tokens from DexScreener hourly
+                          Auto-fetch tokens from DexScreener
                         </p>
                       </div>
                       <Switch
-                        checked={settings.ingest_enabled}
-                        onCheckedChange={(v) =>
-                          handleSettingChange('ingest_enabled', v)
+                        checked={
+                          settings.discovery_enabled ?? settings.ingest_enabled
                         }
-                      />
-                    </div>
-
-                    <div className='flex items-center justify-between'>
-                      <div>
-                        <Label>Tier-1 Enrichment (Scheduled)</Label>
-                        <p className='text-muted-foreground text-sm'>
-                          Auto-enrich with Helius every 4 hours
-                        </p>
-                      </div>
-                      <Switch
-                        checked={settings.enrich_enabled}
                         onCheckedChange={(v) =>
-                          handleSettingChange('enrich_enabled', v)
+                          handleSettingChange('discovery_enabled', v)
                         }
                       />
                     </div>
@@ -895,7 +910,8 @@ export default function IngestionPage() {
                       <div>
                         <Label>Auto-Promote</Label>
                         <p className='text-muted-foreground text-sm'>
-                          Automatically promote enriched tokens to full analysis
+                          Automatically promote discovered tokens to full
+                          analysis
                         </p>
                       </div>
                       <Switch
@@ -969,20 +985,23 @@ export default function IngestionPage() {
                   </CardContent>
                 </Card>
 
-                {/* Batch & Budget */}
+                {/* Discovery Settings */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Batch & Budget Limits</CardTitle>
+                    <CardTitle>Discovery Settings</CardTitle>
                   </CardHeader>
-                  <CardContent className='grid gap-4 md:grid-cols-3'>
+                  <CardContent className='grid gap-4 md:grid-cols-2'>
                     <div className='space-y-2'>
-                      <Label>Tier-0 Max Tokens/Run</Label>
+                      <Label>Max Tokens per Run</Label>
                       <Input
                         type='number'
-                        value={settings.tier0_max_tokens_per_run}
+                        value={
+                          settings.discovery_max_per_run ??
+                          settings.tier0_max_tokens_per_run
+                        }
                         onChange={(e) =>
                           handleSettingChange(
-                            'tier0_max_tokens_per_run',
+                            'discovery_max_per_run',
                             Number(e.target.value)
                           )
                         }
@@ -990,27 +1009,13 @@ export default function IngestionPage() {
                     </div>
 
                     <div className='space-y-2'>
-                      <Label>Tier-1 Batch Size</Label>
+                      <Label>Auto-Promote Max per Run</Label>
                       <Input
                         type='number'
-                        value={settings.tier1_batch_size}
+                        value={settings.auto_promote_max_per_run}
                         onChange={(e) =>
                           handleSettingChange(
-                            'tier1_batch_size',
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className='space-y-2'>
-                      <Label>Tier-1 Credit Budget/Run</Label>
-                      <Input
-                        type='number'
-                        value={settings.tier1_credit_budget_per_run}
-                        onChange={(e) =>
-                          handleSettingChange(
-                            'tier1_credit_budget_per_run',
+                            'auto_promote_max_per_run',
                             Number(e.target.value)
                           )
                         }
@@ -1020,29 +1025,23 @@ export default function IngestionPage() {
                 </Card>
 
                 {/* Last Run Info */}
-                {(settings.last_tier0_run_at || settings.last_tier1_run_at) && (
+                {(settings.last_discovery_run_at ||
+                  settings.last_tier0_run_at) && (
                   <Card>
                     <CardHeader>
                       <CardTitle>Last Run Info</CardTitle>
                     </CardHeader>
                     <CardContent className='space-y-2 text-sm'>
-                      {settings.last_tier0_run_at && (
-                        <p>
-                          <span className='text-muted-foreground'>
-                            Last Tier-0:
-                          </span>{' '}
-                          {formatTimestamp(settings.last_tier0_run_at)}
-                        </p>
-                      )}
-                      {settings.last_tier1_run_at && (
-                        <p>
-                          <span className='text-muted-foreground'>
-                            Last Tier-1:
-                          </span>{' '}
-                          {formatTimestamp(settings.last_tier1_run_at)} (
-                          {settings.last_tier1_credits_used} credits)
-                        </p>
-                      )}
+                      <p>
+                        <span className='text-muted-foreground'>
+                          Last Discovery:
+                        </span>{' '}
+                        {formatTimestamp(
+                          settings.last_discovery_run_at ??
+                            settings.last_tier0_run_at ??
+                            null
+                        )}
+                      </p>
                     </CardContent>
                   </Card>
                 )}

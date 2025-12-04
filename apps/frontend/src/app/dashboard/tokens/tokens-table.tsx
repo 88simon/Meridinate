@@ -10,7 +10,6 @@ import {
 } from '@tanstack/react-table';
 import type { Row } from '@tanstack/react-table';
 import {
-  Token,
   formatTimestamp,
   downloadAxiomJson,
   getTokenById,
@@ -21,6 +20,12 @@ import {
   addTokenTag,
   removeTokenTag
 } from '@/lib/api';
+import type { Token } from '@/types/token';
+import {
+  getLabelDisplayName,
+  getLabelVariant,
+  isAutoLabel
+} from '@/types/token';
 import { Button } from '@/components/ui/button';
 import {
   Download,
@@ -31,7 +36,12 @@ import {
   RefreshCw,
   Twitter,
   Users,
-  Settings
+  Settings,
+  Activity,
+  Radio,
+  Tag,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -421,6 +431,65 @@ const MarketCapCell = memo(
             DUD
           </button>
         </div>
+
+        {/* MC Refresh Schedule Indicator (SWAB-prioritized) */}
+        {token.next_refresh_at && (
+          <div className='mt-1 flex items-center gap-1'>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className={cn(
+                      'flex cursor-help items-center gap-1 rounded px-1.5 py-0.5',
+                      isCompact ? 'text-[9px]' : 'text-[10px]',
+                      token.is_fast_lane
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    )}
+                  >
+                    <RefreshCw className='h-2.5 w-2.5' />
+                    <span className='font-medium'>
+                      {token.is_fast_lane ? 'Fast' : 'Slow'}
+                    </span>
+                    <span className='text-muted-foreground'>
+                      {(() => {
+                        const nextRefresh = new Date(token.next_refresh_at);
+                        const now = new Date();
+                        const diffMs = nextRefresh.getTime() - now.getTime();
+                        if (diffMs <= 0) return 'due';
+                        const diffMins = Math.floor(diffMs / 60000);
+                        if (diffMins < 60) return `${diffMins}m`;
+                        const diffHours = Math.floor(diffMins / 60);
+                        return `${diffHours}h`;
+                      })()}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className='max-w-[300px]'>
+                  <div className='space-y-1 text-xs'>
+                    <p className='font-semibold'>
+                      {token.is_fast_lane
+                        ? 'MC Fast-Lane (30m)'
+                        : 'MC Slow-Lane (4h)'}
+                    </p>
+                    <p className='text-muted-foreground'>
+                      {token.is_fast_lane
+                        ? 'SWAB exposure or MC ≥ $100k triggers faster MC updates'
+                        : 'Standard MC refresh interval for lower-priority tokens'}
+                    </p>
+                    <p className='text-muted-foreground'>
+                      Next MC refresh:{' '}
+                      {new Date(token.next_refresh_at).toLocaleString()}
+                    </p>
+                    <p className='text-muted-foreground italic'>
+                      (Separate from SWAB Position Check job)
+                    </p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
     );
   },
@@ -433,6 +502,8 @@ const MarketCapCell = memo(
     prev.token.market_cap_ath === next.token.market_cap_ath &&
     prev.token.market_cap_ath_timestamp ===
       next.token.market_cap_ath_timestamp &&
+    prev.token.next_refresh_at === next.token.next_refresh_at &&
+    prev.token.is_fast_lane === next.token.is_fast_lane &&
     JSON.stringify(prev.token.tags) === JSON.stringify(next.token.tags) &&
     prev.isRefreshing === next.isRefreshing &&
     prev.isCompact === next.isCompact
@@ -694,14 +765,87 @@ const createColumns = (
     )
   },
   {
-    accessorKey: 'performance_score',
-    header: 'Score',
+    accessorKey: 'swab_open_positions',
+    header: () => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className='flex cursor-help items-center gap-1'>
+              <Activity className='h-3 w-3' />
+              <span>Exposure</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className='max-w-[200px]'>
+            <p className='text-xs'>
+              Number of SWAB-tracked wallets with open positions in this token
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ),
     cell: ({ row }) => {
-      const score = row.original.performance_score;
-      const bucket = row.original.performance_bucket;
-      const isControlCohort = row.original.is_control_cohort;
+      const openPositions = row.original.swab_open_positions ?? 0;
+      const hasExposure = openPositions > 0;
 
-      if (score === null || score === undefined) {
+      return (
+        <div className='text-center'>
+          <Badge
+            variant={hasExposure ? 'default' : 'outline'}
+            className={cn(
+              'font-medium',
+              isCompact ? 'px-1.5 py-0 text-[10px]' : 'px-2 py-0.5 text-xs',
+              hasExposure && 'bg-blue-500 hover:bg-blue-600'
+            )}
+          >
+            {openPositions}
+          </Badge>
+        </div>
+      );
+    }
+  },
+  {
+    id: 'swab_pnl',
+    header: () => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className='flex cursor-help items-center gap-1'>
+              <TrendingUp className='h-3 w-3' />
+              <span>PnL</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className='max-w-[250px]'>
+            <div className='space-y-1 text-xs'>
+              <p className='font-semibold'>Open / Realized PnL</p>
+              <p>
+                <span className='text-blue-400'>Open</span> = Unrealized profit
+                from current positions
+              </p>
+              <p>
+                <span className='text-green-400'>Realized</span> = Profit from
+                closed positions
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ),
+    cell: ({ row }) => {
+      const openPnl = row.original.swab_open_pnl_usd;
+      const realizedPnl = row.original.swab_realized_pnl_usd;
+
+      const formatPnl = (value: number | null | undefined): string => {
+        if (value === null || value === undefined) return '—';
+        const sign = value >= 0 ? '+' : '';
+        if (Math.abs(value) >= 1000) {
+          return `${sign}$${(value / 1000).toFixed(1)}k`;
+        }
+        return `${sign}$${value.toFixed(0)}`;
+      };
+
+      const hasAnyPnl = openPnl !== null || realizedPnl !== null;
+
+      if (!hasAnyPnl) {
         return (
           <span
             className={cn(
@@ -714,43 +858,222 @@ const createColumns = (
         );
       }
 
-      // Color based on bucket
-      const bucketColors: Record<string, string> = {
-        prime: 'text-green-600 dark:text-green-400',
-        monitor: 'text-yellow-600 dark:text-yellow-400',
-        cull: 'text-red-600 dark:text-red-400',
-        excluded: 'text-gray-500'
-      };
-
-      const colorClass = bucket ? bucketColors[bucket] || '' : '';
-
       return (
-        <div className='flex items-center gap-1'>
-          <span
-            className={cn(
-              'font-medium',
-              isCompact ? 'text-xs' : 'text-sm',
-              colorClass
-            )}
-          >
-            {score.toFixed(0)}
-          </span>
-          {isControlCohort && (
-            <span className='rounded bg-purple-500 px-1 py-0.5 text-[8px] font-bold text-white uppercase'>
-              CTL
-            </span>
+        <div className='flex flex-col gap-0.5'>
+          {openPnl != null && (
+            <div className='flex items-center gap-1'>
+              <span
+                className={cn(
+                  'text-muted-foreground',
+                  isCompact ? 'text-[9px]' : 'text-[10px]'
+                )}
+              >
+                Open:
+              </span>
+              <span
+                className={cn(
+                  'font-medium tabular-nums',
+                  isCompact ? 'text-[10px]' : 'text-xs',
+                  (openPnl ?? 0) > 0
+                    ? 'text-green-600'
+                    : (openPnl ?? 0) < 0
+                      ? 'text-red-600'
+                      : 'text-muted-foreground'
+                )}
+              >
+                {formatPnl(openPnl)}
+              </span>
+            </div>
+          )}
+          {realizedPnl != null && realizedPnl !== 0 && (
+            <div className='flex items-center gap-1'>
+              <span
+                className={cn(
+                  'text-muted-foreground',
+                  isCompact ? 'text-[9px]' : 'text-[10px]'
+                )}
+              >
+                Real:
+              </span>
+              <span
+                className={cn(
+                  'font-medium tabular-nums',
+                  isCompact ? 'text-[10px]' : 'text-xs',
+                  (realizedPnl ?? 0) > 0
+                    ? 'text-green-600'
+                    : (realizedPnl ?? 0) < 0
+                      ? 'text-red-600'
+                      : 'text-muted-foreground'
+                )}
+              >
+                {formatPnl(realizedPnl)}
+              </span>
+            </div>
           )}
         </div>
       );
     }
   },
   {
-    accessorKey: 'performance_bucket',
-    header: 'Bucket',
+    accessorKey: 'swab_last_check_at',
+    header: () => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className='flex cursor-help items-center gap-1'>
+              <RefreshCw className='h-3 w-3' />
+              <span>SWAB Check</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className='max-w-[280px]'>
+            <div className='space-y-1 text-xs'>
+              <p className='font-semibold'>SWAB Position Check</p>
+              <p className='text-muted-foreground'>
+                Verifies if tracked wallets still hold positions in this token.
+                Updates open/realized PnL and triggers fast-lane refresh for
+                tokens with active SWAB exposure.
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ),
     cell: ({ row }) => {
-      const bucket = row.original.performance_bucket;
+      const lastCheck = row.original.swab_last_check_at;
+      const openPositions = row.original.swab_open_positions ?? 0;
 
-      if (!bucket) {
+      if (!lastCheck) {
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    'text-muted-foreground cursor-help',
+                    isCompact ? 'text-[10px]' : 'text-xs'
+                  )}
+                >
+                  —
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className='text-xs'>
+                  No SWAB positions tracked for this token
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+
+      // Parse timestamp - SQLite CURRENT_TIMESTAMP stores UTC
+      // Append 'Z' to indicate UTC so JS converts to local timezone
+      const isoTimestamp = lastCheck.replace(' ', 'T') + 'Z';
+      const lastCheckDate = new Date(isoTimestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - lastCheckDate.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      // Format relative time (e.g., "5m ago", "2h ago", "3d ago")
+      let relativeTime = '';
+      if (diffDays > 0) {
+        relativeTime = `${diffDays}d ago`;
+      } else if (diffHours > 0) {
+        relativeTime = `${diffHours}h ${diffMins % 60}m ago`;
+      } else {
+        relativeTime = `${diffMins}m ago`;
+      }
+
+      const isStale = diffHours > 24;
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  'cursor-help',
+                  isCompact ? 'text-[10px]' : 'text-xs',
+                  isStale
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-muted-foreground'
+                )}
+              >
+                {relativeTime}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className='max-w-[250px]'>
+              <div className='space-y-1 text-xs'>
+                <p>
+                  <span className='font-medium'>Last checked:</span>{' '}
+                  {lastCheckDate.toLocaleString()}
+                </p>
+                <p>
+                  <span className='font-medium'>Open positions:</span>{' '}
+                  {openPositions}
+                </p>
+                {isStale && (
+                  <p className='text-yellow-600'>
+                    Position data may be stale (&gt;24h old)
+                  </p>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+  },
+  {
+    accessorKey: 'swab_webhook_active',
+    header: () => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className='flex cursor-help items-center gap-1'>
+              <Radio className='h-3 w-3' />
+              <span>Webhook</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className='text-xs'>
+              Real-time Helius webhook tracking active for this token
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ),
+    cell: ({ row }) => {
+      const isActive = row.original.swab_webhook_active;
+
+      return (
+        <Badge
+          variant={isActive ? 'default' : 'outline'}
+          className={cn(
+            'font-medium',
+            isCompact ? 'px-1 py-0 text-[9px]' : 'px-1.5 py-0.5 text-[10px]',
+            isActive && 'bg-green-500 hover:bg-green-600'
+          )}
+        >
+          {isActive ? 'Active' : 'Off'}
+        </Badge>
+      );
+    }
+  },
+  {
+    accessorKey: 'labels',
+    header: () => (
+      <div className='flex items-center gap-1'>
+        <Tag className='h-3 w-3' />
+        <span>Labels</span>
+      </div>
+    ),
+    cell: ({ row }) => {
+      const labels = row.original.labels ?? [];
+
+      if (labels.length === 0) {
         return (
           <span
             className={cn(
@@ -763,45 +1086,60 @@ const createColumns = (
         );
       }
 
-      const bucketStyles: Record<
-        string,
-        { bg: string; text: string; label: string }
-      > = {
-        prime: {
-          bg: 'bg-green-100 dark:bg-green-900/30',
-          text: 'text-green-700 dark:text-green-300',
-          label: 'Prime'
-        },
-        monitor: {
-          bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-          text: 'text-yellow-700 dark:text-yellow-300',
-          label: 'Monitor'
-        },
-        cull: {
-          bg: 'bg-red-100 dark:bg-red-900/30',
-          text: 'text-red-700 dark:text-red-300',
-          label: 'Cull'
-        },
-        excluded: {
-          bg: 'bg-gray-100 dark:bg-gray-800',
-          text: 'text-gray-600 dark:text-gray-400',
-          label: 'Excluded'
-        }
-      };
-
-      const style = bucketStyles[bucket] || bucketStyles.excluded;
+      // Show first 2 labels, rest in tooltip
+      const visibleLabels = labels.slice(0, 2);
+      const hiddenLabels = labels.slice(2);
 
       return (
-        <span
-          className={cn(
-            'inline-flex items-center rounded-full px-2 py-0.5 font-medium',
-            style.bg,
-            style.text,
-            isCompact ? 'text-[9px]' : 'text-[10px]'
+        <div className='flex flex-wrap gap-0.5'>
+          {visibleLabels.map((label) => {
+            const variant = getLabelVariant(label);
+            const displayName = getLabelDisplayName(label);
+            const isAuto = isAutoLabel(label);
+
+            return (
+              <Badge
+                key={label}
+                variant={variant}
+                className={cn(
+                  'font-medium',
+                  isCompact ? 'px-1 py-0 text-[8px]' : 'px-1.5 py-0 text-[9px]',
+                  isAuto && 'opacity-80'
+                )}
+              >
+                {displayName}
+              </Badge>
+            );
+          })}
+          {hiddenLabels.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant='outline'
+                    className={cn(
+                      'cursor-help font-medium',
+                      isCompact
+                        ? 'px-1 py-0 text-[8px]'
+                        : 'px-1.5 py-0 text-[9px]'
+                    )}
+                  >
+                    +{hiddenLabels.length}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className='flex flex-wrap gap-1'>
+                    {hiddenLabels.map((label) => (
+                      <span key={label} className='text-xs'>
+                        {getLabelDisplayName(label)}
+                      </span>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
-        >
-          {style.label}
-        </span>
+        </div>
       );
     }
   },
@@ -955,83 +1293,6 @@ const createColumns = (
     )
   },
   {
-    accessorKey: 'first_buy_timestamp',
-    header: 'First Filtered Buy',
-    cell: ({ row }) => {
-      const timestamp = row.getValue('first_buy_timestamp') as string;
-      return (
-        <div
-          className={cn(
-            'text-muted-foreground',
-            isCompact ? 'text-[10px]' : 'text-xs'
-          )}
-        >
-          {formatTimestamp(timestamp)}
-        </div>
-      );
-    }
-  },
-  {
-    accessorKey: 'ingest_source',
-    header: () => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className='flex cursor-help items-center gap-1'>
-              <span>ToS</span>
-              <Info className='text-muted-foreground h-3 w-3' />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className='max-w-[250px]'>
-            <div className='space-y-1 text-xs'>
-              <p className='font-semibold'>Type of Scan</p>
-              <p>
-                <span className='font-medium text-blue-400'>Manual</span> =
-                Token was scanned manually via the Scanning page
-              </p>
-              <p>
-                <span className='font-medium text-purple-400'>TIP</span> = Token
-                was ingested via the automated Ingestion Pipeline (DexScreener)
-              </p>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-    cell: ({ row }) => {
-      const source = row.original.ingest_source;
-      const isManual = source === 'manual';
-      const isTip = source === 'dexscreener' || source === 'ingest_queue';
-
-      if (!source) {
-        return (
-          <span
-            className={cn(
-              'text-muted-foreground',
-              isCompact ? 'text-[10px]' : 'text-xs'
-            )}
-          >
-            —
-          </span>
-        );
-      }
-
-      return (
-        <Badge
-          variant='outline'
-          className={cn(
-            'font-medium',
-            isCompact ? 'px-1 py-0 text-[9px]' : 'px-1.5 py-0.5 text-[10px]',
-            isManual && 'border-blue-500/50 bg-blue-500/10 text-blue-500',
-            isTip && 'border-purple-500/50 bg-purple-500/10 text-purple-500'
-          )}
-        >
-          {isManual ? 'Manual' : isTip ? 'TIP' : source}
-        </Badge>
-      );
-    }
-  },
-  {
     accessorKey: 'last_analysis_credits',
     header: isCompact ? 'Latest Credits' : 'Credits Used For Latest Report',
     cell: ({ row }) => (
@@ -1074,12 +1335,12 @@ const FILTERS_STORAGE_KEY = 'tokens-table-filters';
 
 interface PersistedFilters {
   globalFilter: string;
-  bucketFilter: string;
+  labelFilter: string;
 }
 
 function loadPersistedFilters(): PersistedFilters {
   if (typeof window === 'undefined') {
-    return { globalFilter: '', bucketFilter: 'all' };
+    return { globalFilter: '', labelFilter: 'all' };
   }
   try {
     const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
@@ -1087,13 +1348,13 @@ function loadPersistedFilters(): PersistedFilters {
       const parsed = JSON.parse(stored);
       return {
         globalFilter: parsed.globalFilter ?? '',
-        bucketFilter: parsed.bucketFilter ?? 'all'
+        labelFilter: parsed.labelFilter ?? 'all'
       };
     }
   } catch {
     // Ignore parse errors
   }
-  return { globalFilter: '', bucketFilter: 'all' };
+  return { globalFilter: '', labelFilter: 'all' };
 }
 
 function savePersistedFilters(filters: PersistedFilters): void {
@@ -1120,9 +1381,9 @@ export function TokensTable({
     const persisted = loadPersistedFilters();
     return persisted.globalFilter;
   });
-  const [bucketFilter, setBucketFilter] = useState<string>(() => {
+  const [labelFilter, setLabelFilter] = useState<string>(() => {
     const persisted = loadPersistedFilters();
-    return persisted.bucketFilter;
+    return persisted.labelFilter;
   });
   const [isCompactMode, setIsCompactMode] = useState(isCodexOpen);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<number>>(
@@ -1191,8 +1452,8 @@ export function TokensTable({
 
   // Persist filters to localStorage when they change
   useEffect(() => {
-    savePersistedFilters({ globalFilter, bucketFilter });
-  }, [globalFilter, bucketFilter]);
+    savePersistedFilters({ globalFilter, labelFilter });
+  }, [globalFilter, labelFilter]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -1618,19 +1879,17 @@ export function TokensTable({
       return updatedToken;
     });
 
-    // Then filter by bucket if needed
-    if (bucketFilter === 'all') {
-      return mappedTokens;
+    // Filter by label
+    let filtered = mappedTokens;
+    if (labelFilter !== 'all') {
+      filtered = filtered.filter((token) => {
+        const labels = token.labels ?? [];
+        return labels.includes(labelFilter);
+      });
     }
-    if (bucketFilter === 'unscored') {
-      return mappedTokens.filter(
-        (token) => !token.performance_bucket && token.performance_score === null
-      );
-    }
-    return mappedTokens.filter(
-      (token) => token.performance_bucket === bucketFilter
-    );
-  }, [tokens, marketCapUpdates, gemStatusUpdates, bucketFilter]);
+
+    return filtered;
+  }, [tokens, marketCapUpdates, gemStatusUpdates, labelFilter]);
 
   const columns = useMemo(
     () =>
@@ -1695,6 +1954,19 @@ export function TokensTable({
   const rows = table.getRowModel().rows;
   const totalRows = rows.length;
   const baseRowHeight = isCompactMode ? 52 : 72;
+
+  // Compute refresh lane statistics for the global banner
+  const refreshStats = useMemo(() => {
+    const fastLane = tokensWithUpdates.filter((t) => t.is_fast_lane).length;
+    const slowLane = tokensWithUpdates.filter(
+      (t) => !t.is_fast_lane && t.next_refresh_at
+    ).length;
+    const overdue = tokensWithUpdates.filter((t) => {
+      if (!t.next_refresh_at) return false;
+      return new Date(t.next_refresh_at).getTime() < Date.now();
+    }).length;
+    return { fastLane, slowLane, overdue, total: tokensWithUpdates.length };
+  }, [tokensWithUpdates]);
   const overscan = 6;
   const visibleCount =
     viewportHeight > 0
@@ -1717,6 +1989,103 @@ export function TokensTable({
   return (
     <>
       <div className='space-y-4'>
+        {/* Global MC Refresh Status Banner */}
+        {refreshStats.total > 0 && (
+          <div className='bg-muted/30 flex items-center justify-between rounded-lg border px-4 py-2'>
+            <div className='flex items-center gap-4'>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className='flex cursor-help items-center gap-1.5'>
+                      <RefreshCw className='h-4 w-4 text-blue-500' />
+                      <span className='text-sm font-medium'>
+                        MC Refresh Schedule
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className='max-w-[320px]'>
+                    <div className='space-y-1.5 text-xs'>
+                      <p className='font-semibold'>
+                        Market Cap Refresh (SWAB-Prioritized)
+                      </p>
+                      <p className='text-muted-foreground'>
+                        Market cap data is refreshed via DexScreener. Tokens
+                        with SWAB exposure (open positions) or high MC get
+                        faster updates. This is separate from the SWAB Position
+                        Check job which verifies wallet holdings.
+                      </p>
+                      <p className='text-muted-foreground'>
+                        <span className='font-medium'>Fast:</span> 30m
+                        (positions or MC ≥ $100k) •{' '}
+                        <span className='font-medium'>Slow:</span> 4h
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <div className='bg-border h-4 w-px' />
+              <div className='flex items-center gap-3 text-xs'>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className='flex cursor-help items-center gap-1'>
+                        <span className='h-2 w-2 rounded-full bg-blue-500' />
+                        <span className='text-muted-foreground'>Fast:</span>
+                        <span className='font-medium'>
+                          {refreshStats.fastLane}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='text-xs'>
+                        MC refresh every 30m (SWAB exposure or MC ≥ $100k)
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className='flex cursor-help items-center gap-1'>
+                        <span className='h-2 w-2 rounded-full bg-gray-400' />
+                        <span className='text-muted-foreground'>Slow:</span>
+                        <span className='font-medium'>
+                          {refreshStats.slowLane}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='text-xs'>
+                        MC refresh every 4h (lower-priority tokens)
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {refreshStats.overdue > 0 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className='flex cursor-help items-center gap-1'>
+                          <span className='h-2 w-2 rounded-full bg-yellow-500' />
+                          <span className='text-yellow-600'>Overdue:</span>
+                          <span className='font-medium text-yellow-600'>
+                            {refreshStats.overdue}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='text-xs'>
+                          Tokens past their scheduled MC refresh time
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search Input and Filters */}
         <div className='flex items-center gap-2'>
           <div className='relative flex-1'>
@@ -1728,34 +2097,40 @@ export function TokensTable({
               className='pl-10'
             />
           </div>
-          <Select value={bucketFilter} onValueChange={setBucketFilter}>
-            <SelectTrigger className='w-[140px]'>
-              <SelectValue placeholder='All Buckets' />
+          <Select value={labelFilter} onValueChange={setLabelFilter}>
+            <SelectTrigger className='w-[160px]'>
+              <SelectValue placeholder='All Labels' />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>All Buckets</SelectItem>
-              <SelectItem value='prime'>
+              <SelectItem value='all'>All Labels</SelectItem>
+              <SelectItem value='auto:SWAB-Tracked'>
                 <span className='flex items-center gap-1'>
-                  <span className='h-2 w-2 rounded-full bg-green-500' />
-                  Prime
+                  <Activity className='h-3 w-3 text-blue-500' />
+                  SWAB-Tracked
                 </span>
               </SelectItem>
-              <SelectItem value='monitor'>
+              <SelectItem value='auto:MC>100k'>
                 <span className='flex items-center gap-1'>
-                  <span className='h-2 w-2 rounded-full bg-yellow-500' />
-                  Monitor
+                  <TrendingUp className='h-3 w-3 text-green-500' />
+                  MC&gt;100k
                 </span>
               </SelectItem>
-              <SelectItem value='cull'>
+              <SelectItem value='auto:Low-Liquidity'>
                 <span className='flex items-center gap-1'>
-                  <span className='h-2 w-2 rounded-full bg-red-500' />
-                  Cull
+                  <TrendingDown className='h-3 w-3 text-red-500' />
+                  Low-Liquidity
                 </span>
               </SelectItem>
-              <SelectItem value='unscored'>
+              <SelectItem value='auto:Dormant'>
                 <span className='flex items-center gap-1'>
                   <span className='h-2 w-2 rounded-full bg-gray-400' />
-                  Unscored
+                  Dormant
+                </span>
+              </SelectItem>
+              <SelectItem value='auto:Discarded'>
+                <span className='flex items-center gap-1'>
+                  <Trash2 className='h-3 w-3 text-gray-500' />
+                  Discarded
                 </span>
               </SelectItem>
             </SelectContent>

@@ -83,15 +83,19 @@ C:\Meridinate\
 - ✅ **Wallet Top Holders Feature** - Clickable "TOP HOLDER" tag with notification badge in Multi-Token Early Wallets table, tabbed modal showing all tokens where wallet is a top holder, Chrome-style tabs with rank badges, wallet highlighted in holder list, cached lookups for performance
 - ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
 - ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
-- ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated tiered token discovery: Tier-0 (DexScreener, free), Tier-1 (Helius enrichment, budgeted), promotion to full analysis. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
-- ✅ **Settings Modal (Nov 2025)** - 5-tab hub: Scanning (manual scan + Solscan/Action Wheel), Ingestion (TIP thresholds/budgets/flags), SWAB (settings/stats/reconciliation), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar. Includes 8-second fetch timeouts with automatic retry (2 retries, exponential backoff) to prevent indefinite loading when backend is busy with ingestion operations.
+- ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated token discovery: Discovery (DexScreener, free) with direct promotion to full analysis. Tier-1 enrichment deprecated. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
+- ✅ **Settings Modal (Nov 2025, updated Dec 2025)** - 4-tab hub: Scheduler (Token Discovery + Token Health Check subsections), Scanning (manual scan + Solscan/Action Wheel), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar. Uses stale-while-revalidate pattern with session storage caching for instant render on subsequent opens.
 - ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent operations. Status bar displayed on both Scanned Tokens and Ingestion pages.
-- ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Tier-0/Tier-1, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
+- ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Discovery, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
 - ✅ **Sidebar Navigation Reorder (Nov 2025)** - New order: Ingestion, Scanned Tokens, Codex, Trash, Settings. Renamed "Analyzed Tokens" to "Scanned Tokens" and "Master Control" to "Settings" throughout UI.
-- ✅ **Performance Scoring (Nov 2025)** - Rule-based token categorization system. Scores 0-100 based on MC momentum, liquidity, volume, holder quality, age, and PnL. Buckets: Prime (>=65), Monitor (40-64), Cull (<40). Control cohort tracking for validation. Score/Bucket columns in tokens table with filter dropdown. Settings in Ingestion tab.
-- ✅ **Scheduler Panel (Dec 2025)** - Sidebar toggle opens slide-out panel showing all scheduled jobs (SWAB, Tier-0, Tier-1, Hot Refresh) with live countdowns. Running jobs display with elapsed time. Panel shifts content like Codex (not overlay). Auto-refresh: 5s when jobs running, 30s otherwise.
-- ✅ **ToS Column (Dec 2025)** - "Type of Scan" column in Scanned Tokens table. Shows Manual (blue badge) for tokens scanned via Scanning page, TIP (purple badge) for tokens ingested via DexScreener pipeline. Tooltip explains each type.
-- ✅ **Filter Persistence (Dec 2025)** - Scanned Tokens table filters (search text, bucket filter) persist to localStorage. Filters restore on return navigation without page reload.
+- ✅ **Performance Scoring (Nov 2025, deprecated Dec 2025)** - Rule-based token categorization system. Scores 0-100 based on MC momentum, liquidity, volume, holder quality, age, and PnL. Buckets: Prime (>=65), Monitor (40-64), Cull (<40). Note: Performance Scoring settings removed from UI Dec 2025 in favor of label-based filtering.
+- ✅ **Scheduler Panel (Dec 2025)** - Sidebar toggle opens slide-out panel showing all scheduled jobs (SWAB Position Check, Discovery, Hot Refresh) with live countdowns. Running jobs display with elapsed time. Panel shifts content like Codex (not overlay). Auto-refresh: 5s when jobs running, 30s otherwise.
+- ~~✅ **ToS Column (Dec 2025, removed)**~~ - "Type of Scan" column removed from Scanned Tokens table Dec 2025. Source information now conveyed through Labels column (auto:Manual, auto:TIP).
+- ✅ **Filter Persistence (Dec 2025)** - Scanned Tokens table filters (search text, label filter) persist to localStorage. Filters restore on return navigation without page reload.
+- ✅ **SWAB-Driven MC Refresh (Dec 2025)** - Market cap refresh prioritized by SWAB exposure. Fast-lane (30m): tokens with open SWAB positions, active webhooks, or MC >= $100k. Slow-lane (4h): lower-priority tokens. Per-row Fast/Slow badge with countdown to next refresh. Global MC Refresh Schedule banner shows lane statistics. Separate from SWAB Position Check job (5m interval).
+- ✅ **Token Labels System (Dec 2025)** - Auto-generated labels (auto:SWAB-Tracked, auto:No-Positions, auto:MC>100k, auto:Dormant, auto:Exited) plus manual tags (tag:*). Labels column with filter dropdown in Scanned Tokens table.
+- ✅ **Scheduler Tab Consolidation (Dec 2025)** - Unified Scheduler tab replaces separate Ingestion and Tracking tabs in Settings modal. Two subsections: Token Discovery Scheduler (discovery thresholds, interval, auto-promote) and Token Health Check Scheduler (MC refresh settings, drop conditions, SWAB position check). Performance Scoring settings removed from UI. First Filtered Buy column removed from table; now shown in View Details modal info grid. ToS column removed (Labels column conveys source).
+- ✅ **Frontend SWR Caching (Dec 2025)** - Stale-while-revalidate pattern across panels: Ingestion page, Scheduler tab, Scheduled Jobs panel, Codex panel. Session storage caching for instant render on subsequent opens. Background refresh with small spinner instead of full-page loading splash. Shorter timeouts (4s/1 retry) for faster feedback. Graceful degradation shows cached data during fetch failures.
 
 ---
 
@@ -186,10 +190,11 @@ C:\Meridinate\                                    # PROJECT ROOT
 │       │   │   ├── ui/                           # shadcn/ui components
 │       │   │   ├── master-control/               # Split settings modal components
 │       │   │   │   ├── scanning-tab.tsx          # Scanning settings tab
-│       │   │   │   ├── ingestion-tab.tsx         # TIP settings tab
-│       │   │   │   ├── swab-tab.tsx              # SWAB settings tab
+│       │   │   │   ├── scheduler-tab.tsx         # Unified Scheduler tab (Discovery + Health Check)
 │       │   │   │   ├── webhooks-tab.tsx          # Webhooks management tab
 │       │   │   │   ├── system-tab.tsx            # Feature flags tab
+│       │   │   │   ├── ingestion-tab.tsx         # Legacy (kept for reference)
+│       │   │   │   ├── swab-tab.tsx              # Legacy (kept for reference)
 │       │   │   │   └── NumericStepper.tsx        # Shared numeric input component
 │       │   │   ├── wallet-tags.tsx               # Wallet tagging UI
 │       │   │   ├── additional-tags.tsx           # Additional tag components (bot, whale, insider, gunslinger, gambler)
@@ -541,25 +546,25 @@ When Simon says...  →  Technical term & Implementation
 - **Settings:** `score_enabled`, `performance_prime_threshold`, `performance_monitor_threshold`, `control_cohort_daily_quota`, `score_weights`
 
 #### **"Token Ingestion Pipeline" (Nov 2025)**
-- **What it is:** Automated tiered token discovery system that ingests tokens from DexScreener, enriches with Helius data, and promotes to full analysis.
-- **Architecture:** Three tiers with feature flags and credit budgets:
-  - **Tier-0 (free):** Hourly DexScreener fetch of recently migrated tokens, stores MC/volume/liquidity snapshots in `token_ingest_queue` table.
-  - **Tier-1 (budgeted):** Every 4 hours, enriches tokens passing thresholds (MC, volume, liquidity, age) with Helius metadata/holders, respects credit budget.
-  - **Promotion:** Manual or auto-promote enriched tokens to full analysis (early bidder detection, MTEW positions, SWAB webhooks).
+- **What it is:** Automated token discovery system that ingests tokens from DexScreener and promotes directly to full analysis.
+- **Architecture:** Simplified two-step flow (Discovery → Analysis):
+    - **Discovery (free):** Configurable-interval DexScreener fetch of recently migrated tokens, stores MC/volume/liquidity snapshots in `token_ingest_queue` table.
+    - **Tier-1 (deprecated):** Enrichment step removed; tokens promote directly from Discovery to Analysis.
+    - **Promotion:** Manual or auto-promote discovered tokens to full analysis (early bidder detection, MTEW positions, SWAB webhooks).
 - **Location (Backend):**
   - `routers/ingest.py` - 8 REST endpoints for settings, queue, triggers
-  - `tasks/ingest_tasks.py` - Tier-0/Tier-1/promotion logic
+  - `tasks/ingest_tasks.py` - Discovery/promotion logic
   - `services/dexscreener_service.py` - DexScreener API client
   - `scheduler.py` - Feature-flagged scheduler jobs
-- **Location (Frontend):** `app/dashboard/ingestion/page.tsx` - Queue management UI with stats, filters, manual triggers. Non-blocking rendering with independent parallel fetches, stale data preservation, job completion polling with toast notification.
+- **Location (Frontend):** `app/dashboard/ingestion/page.tsx` - Queue management UI with stats, filters, manual triggers. SWR caching for instant render, independent parallel fetches, stale data preservation, job completion polling with toast notification.
 - **Database:** `token_ingest_queue` table (address, name, symbol, tier, status, MC/volume snapshots, timestamps)
-- **Settings:** `ingest_settings.json` - thresholds, batch sizes, credit budgets, feature flags (`ingest_enabled`, `enrich_enabled`, `auto_promote_enabled`, `hot_refresh_enabled`)
+- **Settings:** `ingest_settings.json` - thresholds, batch sizes, credit budgets, feature flags (`discovery_enabled`, `auto_promote_enabled`, `hot_refresh_enabled`)
 - **API Endpoints:**
   - `GET/POST /api/ingest/settings` - View/update settings
   - `GET /api/ingest/queue` - List queue with filters
   - `GET /api/ingest/queue/stats` - Queue statistics
-  - `POST /api/ingest/run-tier0` - Trigger Tier-0 ingestion
-  - `POST /api/ingest/run-tier1` - Trigger Tier-1 enrichment
+  - `POST /api/ingest/run-discovery` - Trigger Discovery ingestion (alias: `/run-tier0`)
+  - `POST /api/ingest/run-tier1` - Deprecated (no-op)
   - `POST /api/ingest/promote` - Promote tokens to full analysis
   - `POST /api/ingest/discard` - Mark tokens discarded
   - `POST /api/ingest/refresh-hot` - Refresh MC/volume for recent tokens
@@ -639,9 +644,16 @@ When Simon says...  →  Technical term & Implementation
   - `market_cap_usd_current` - Latest refreshed value
   - `market_cap_ath` - All-time high
   - `market_cap_ath_timestamp` - When ATH occurred
-- **Refresh mechanism:** Manual only - no background job
-- **API:** `POST /api/tokens/refresh-market-caps` (user-triggered via "Refresh all visible market caps" button)
-- **How it works:** User clicks refresh button, frontend sends token IDs to endpoint, backend fetches latest prices from Helius DAS API
+  - `market_cap_updated_at` - Last refresh timestamp
+  - `next_refresh_at` - Computed next refresh time (based on lane)
+  - `is_fast_lane` - Whether token qualifies for fast refresh
+- **Refresh mechanism:** SWAB-driven automatic + manual
+  - **Fast-lane (30m):** Tokens with SWAB open positions, active webhooks, or MC >= $100k
+  - **Slow-lane (4h):** Lower-priority tokens without SWAB exposure
+  - **Manual:** User-triggered via "Refresh all visible market caps" button
+- **API:** `POST /api/tokens/refresh-market-caps` (manual), background scheduler for automatic
+- **Data source:** DexScreener API (free, no Helius credits)
+- **UI:** Per-row Fast/Slow badge with countdown, global MC Refresh Schedule banner with lane statistics
 
 #### **"Watchlist"**
 - **Technical Term:** Wallet Watchlist Service
@@ -1086,6 +1098,8 @@ C:\Meridinate\
 6. Real-time WebSocket notifications
 7. Persisted operation log (Recent Operations survives restarts)
 8. Settings modal (5-tab hub for scanning, ingestion, SWAB, webhooks, system)
+9. SWAB-driven MC refresh (fast-lane 30m, slow-lane 4h based on exposure)
+10. Auto-generated token labels with filter support
 
 **CI/CD:** `.github/workflows/monorepo-ci.yml` - Backend tests, frontend lint/format/typecheck, API types sync, production builds
 
@@ -1096,6 +1110,6 @@ C:\Meridinate\
 
 ---
 
-**Document Version:** 2.7
-**Last Updated:** December 2, 2025 (Resilient fetching with retry/backoff, non-blocking ingestion page)
+**Document Version:** 2.10
+**Last Updated:** December 4, 2025 (Frontend SWR caching pattern)
 **Next Review:** After production deployment

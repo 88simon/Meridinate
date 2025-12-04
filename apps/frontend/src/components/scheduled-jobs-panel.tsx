@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getScheduledJobs, ScheduledJob, RunningJob } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,9 +14,43 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Session storage cache key
+const CACHE_KEY_JOBS = 'scheduler_panel_jobs';
+
+interface CachedJobsData {
+  jobs: ScheduledJob[];
+  running_jobs: RunningJob[];
+  scheduler_running: boolean;
+  cached_at: number;
+}
+
 interface ScheduledJobsPanelProps {
   open: boolean;
   onClose: () => void;
+}
+
+// Cache helpers
+function getFromCache(): CachedJobsData | null {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY_JOBS);
+    if (!cached) return null;
+    const data = JSON.parse(cached) as CachedJobsData;
+    // Consider cache stale after 5 minutes, but still usable
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setInCache(data: Omit<CachedJobsData, 'cached_at'>): void {
+  try {
+    sessionStorage.setItem(
+      CACHE_KEY_JOBS,
+      JSON.stringify({ ...data, cached_at: Date.now() })
+    );
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 /**
@@ -46,47 +80,95 @@ function getSecondsUntil(isoTimestamp: string | null): number {
 }
 
 export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
-  const [jobs, setJobs] = useState<ScheduledJob[]>([]);
-  const [runningJobs, setRunningJobs] = useState<RunningJob[]>([]);
-  const [schedulerRunning, setSchedulerRunning] = useState(false);
+  // Initialize from cache
+  const cachedData = useRef(getFromCache());
+
+  const [jobs, setJobs] = useState<ScheduledJob[]>(
+    cachedData.current?.jobs || []
+  );
+  const [runningJobs, setRunningJobs] = useState<RunningJob[]>(
+    cachedData.current?.running_jobs || []
+  );
+  const [schedulerRunning, setSchedulerRunning] = useState(
+    cachedData.current?.scheduler_running ?? false
+  );
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdowns, setCountdowns] = useState<Record<string, number>>({});
   const [elapsedTimes, setElapsedTimes] = useState<Record<string, number>>({});
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getScheduledJobs();
-      setJobs(data.jobs);
-      setRunningJobs(data.running_jobs || []);
-      setSchedulerRunning(data.scheduler_running);
+  // Track if we have any data to show
+  const hasData = jobs.length > 0 || runningJobs.length > 0;
 
-      // Initialize countdowns
-      const initialCountdowns: Record<string, number> = {};
-      for (const job of data.jobs) {
-        initialCountdowns[job.id] = getSecondsUntil(job.next_run_at);
+  const loadJobs = useCallback(
+    async (showLoader = true) => {
+      if (showLoader && !hasData) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
       }
-      setCountdowns(initialCountdowns);
+      setError(null);
 
-      // Initialize elapsed times for running jobs
-      const initialElapsed: Record<string, number> = {};
-      for (const rj of data.running_jobs || []) {
-        initialElapsed[rj.id] = rj.elapsed_seconds;
+      try {
+        const data = await getScheduledJobs();
+        setJobs(data.jobs);
+        setRunningJobs(data.running_jobs || []);
+        setSchedulerRunning(data.scheduler_running);
+
+        // Cache the data
+        setInCache({
+          jobs: data.jobs,
+          running_jobs: data.running_jobs || [],
+          scheduler_running: data.scheduler_running
+        });
+
+        // Initialize countdowns
+        const initialCountdowns: Record<string, number> = {};
+        for (const job of data.jobs) {
+          initialCountdowns[job.id] = getSecondsUntil(job.next_run_at);
+        }
+        setCountdowns(initialCountdowns);
+
+        // Initialize elapsed times for running jobs
+        const initialElapsed: Record<string, number> = {};
+        for (const rj of data.running_jobs || []) {
+          initialElapsed[rj.id] = rj.elapsed_seconds;
+        }
+        setElapsedTimes(initialElapsed);
+      } catch (err) {
+        // Only show error if we have no cached data
+        if (!hasData) {
+          setError(err instanceof Error ? err.message : 'Failed to load jobs');
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-      setElapsedTimes(initialElapsed);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load jobs');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [hasData]
+  );
 
-  // Load jobs when panel opens
+  // Load jobs when panel opens - show cached immediately, refresh in background
   useEffect(() => {
     if (open) {
-      loadJobs();
+      // If we have cached data, initialize countdowns immediately
+      if (cachedData.current?.jobs) {
+        const initialCountdowns: Record<string, number> = {};
+        for (const job of cachedData.current.jobs) {
+          initialCountdowns[job.id] = getSecondsUntil(job.next_run_at);
+        }
+        setCountdowns(initialCountdowns);
+
+        const initialElapsed: Record<string, number> = {};
+        for (const rj of cachedData.current.running_jobs || []) {
+          initialElapsed[rj.id] = rj.elapsed_seconds;
+        }
+        setElapsedTimes(initialElapsed);
+      }
+
+      // Always refresh data (background if we have cache)
+      loadJobs(!cachedData.current);
     }
   }, [open, loadJobs]);
 
@@ -124,7 +206,7 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
 
     const refreshMs = runningJobs.length > 0 ? 5000 : 30000;
     const refreshInterval = setInterval(() => {
-      loadJobs();
+      loadJobs(false); // Background refresh
     }, refreshMs);
 
     return () => clearInterval(refreshInterval);
@@ -144,17 +226,23 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
             <div className='flex items-center gap-2'>
               <Clock className='h-4 w-4' />
               <span className='font-semibold'>Scheduled Jobs</span>
+              {refreshing && (
+                <Loader2 className='text-muted-foreground h-3 w-3 animate-spin' />
+              )}
             </div>
             <div className='flex items-center gap-1'>
               <Button
                 variant='ghost'
                 size='icon'
                 className='h-7 w-7'
-                onClick={loadJobs}
-                disabled={loading}
+                onClick={() => loadJobs(false)}
+                disabled={loading || refreshing}
               >
                 <RefreshCw
-                  className={cn('h-4 w-4', loading && 'animate-spin')}
+                  className={cn(
+                    'h-4 w-4',
+                    (loading || refreshing) && 'animate-spin'
+                  )}
                 />
               </Button>
               <Button
@@ -185,13 +273,23 @@ export function ScheduledJobsPanel({ open, onClose }: ScheduledJobsPanelProps) {
 
           {/* Jobs List */}
           <div className='flex-1 overflow-y-auto p-4'>
-            {loading && jobs.length === 0 ? (
+            {loading && !hasData ? (
               <div className='flex items-center justify-center py-8'>
                 <Loader2 className='h-5 w-5 animate-spin' />
               </div>
-            ) : error ? (
-              <div className='text-destructive py-4 text-center text-sm'>
-                {error}
+            ) : error && !hasData ? (
+              <div className='flex flex-col items-center gap-3 py-4'>
+                <div className='text-destructive text-center text-sm'>
+                  {error}
+                </div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => loadJobs(true)}
+                >
+                  <RefreshCw className='mr-2 h-3 w-3' />
+                  Retry
+                </Button>
               </div>
             ) : (
               <div className='space-y-4'>

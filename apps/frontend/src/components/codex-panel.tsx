@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getCodexWallets,
   CodexWallet,
@@ -10,9 +10,26 @@ import {
 } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Tag, X, Plus, Trash2, Pencil, Twitter } from 'lucide-react';
+import {
+  Search,
+  Tag,
+  X,
+  Plus,
+  Trash2,
+  Pencil,
+  Twitter,
+  Loader2
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+// Session storage cache key
+const CACHE_KEY_CODEX = 'codex_panel_wallets';
+
+interface CachedCodexData {
+  wallets: CodexWallet[];
+  cached_at: number;
+}
 
 interface CodexPanelProps {
   open: boolean;
@@ -21,11 +38,47 @@ interface CodexPanelProps {
 
 type AddWalletStep = 'address' | 'tag' | 'kol';
 
+// Cache helpers
+function getFromCache(): CachedCodexData | null {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY_CODEX);
+    if (!cached) return null;
+    return JSON.parse(cached) as CachedCodexData;
+  } catch {
+    return null;
+  }
+}
+
+function setInCache(wallets: CodexWallet[]): void {
+  try {
+    sessionStorage.setItem(
+      CACHE_KEY_CODEX,
+      JSON.stringify({ wallets, cached_at: Date.now() })
+    );
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function CodexPanel({ open, onClose }: CodexPanelProps) {
-  const [wallets, setWallets] = useState<CodexWallet[]>([]);
-  const [filteredWallets, setFilteredWallets] = useState<CodexWallet[]>([]);
+  // Initialize from cache
+  const cachedData = useRef(getFromCache());
+
+  const [wallets, setWallets] = useState<CodexWallet[]>(
+    cachedData.current?.wallets || []
+  );
+  const [filteredWallets, setFilteredWallets] = useState<CodexWallet[]>(
+    cachedData.current?.wallets || []
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Track if we have any data to show
+  const hasData = wallets.length > 0;
+
+  // Track initial cache state (only on mount)
+  const initialHadCache = useRef(cachedData.current !== null);
 
   // Add wallet state
   const [newWalletAddress, setNewWalletAddress] = useState('');
@@ -40,11 +93,40 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
   const [editingWallet, setEditingWallet] = useState<string | null>(null);
   const [editNametag, setEditNametag] = useState('');
 
+  const loadWallets = useCallback(
+    async (showLoader = true) => {
+      if (showLoader && !hasData) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
+      try {
+        const data = await getCodexWallets();
+        setWallets(data.wallets);
+        setFilteredWallets(data.wallets);
+        setInCache(data.wallets);
+      } catch (error: unknown) {
+        // Only show error if we have no cached data
+        if (!hasData) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to load Codex';
+          toast.error(message);
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [hasData]
+  );
+
   useEffect(() => {
     if (open) {
-      loadWallets();
+      // If we have cached data, show it immediately and refresh in background
+      loadWallets(!initialHadCache.current);
     }
-  }, [open]);
+  }, [open, loadWallets]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -62,19 +144,6 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
     });
     setFilteredWallets(filtered);
   }, [searchQuery, wallets]);
-
-  const loadWallets = async () => {
-    setLoading(true);
-    try {
-      const data = await getCodexWallets();
-      setWallets(data.wallets);
-      setFilteredWallets(data.wallets);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to load Codex');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -124,9 +193,11 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
       setShowAddWallet(false);
 
       // Reload wallets
-      await loadWallets();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to add wallet');
+      await loadWallets(false);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to add wallet';
+      toast.error(message);
     } finally {
       setAddingWallet(false);
     }
@@ -159,9 +230,11 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
       toast.success('Wallet removed from Codex');
 
       // Reload wallets
-      await loadWallets();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to remove wallet');
+      await loadWallets(false);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to remove wallet';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -186,9 +259,11 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
       toast.success('Name updated');
       setEditingWallet(null);
       setEditNametag('');
-      await loadWallets();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update name');
+      await loadWallets(false);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update name';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -210,11 +285,16 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
         <div className='flex h-full flex-col overflow-hidden'>
           {/* Header */}
           <div className='flex items-center justify-between border-b p-3'>
-            <div>
-              <h2 className='text-base font-semibold'>Codex</h2>
-              <p className='text-muted-foreground text-xs'>
-                View all tagged wallets. Click to copy address.
-              </p>
+            <div className='flex items-center gap-2'>
+              <div>
+                <h2 className='text-base font-semibold'>Codex</h2>
+                <p className='text-muted-foreground text-xs'>
+                  View all tagged wallets. Click to copy address.
+                </p>
+              </div>
+              {refreshing && (
+                <Loader2 className='text-muted-foreground h-3 w-3 animate-spin' />
+              )}
             </div>
             <button
               onClick={onClose}
@@ -411,8 +491,9 @@ export function CodexPanel({ open, onClose }: CodexPanelProps) {
 
           {/* Wallet List */}
           <div className='flex-1 space-y-1.5 overflow-y-auto px-3 py-2'>
-            {loading ? (
-              <div className='text-muted-foreground py-8 text-center'>
+            {loading && !hasData ? (
+              <div className='text-muted-foreground flex items-center justify-center gap-2 py-8'>
+                <Loader2 className='h-4 w-4 animate-spin' />
                 Loading...
               </div>
             ) : filteredWallets.length === 0 ? (
