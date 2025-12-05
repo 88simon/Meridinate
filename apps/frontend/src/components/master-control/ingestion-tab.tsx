@@ -88,12 +88,12 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
 
   return (
     <div className='space-y-6'>
-      {/* Thresholds */}
+      {/* Discovery Thresholds */}
       <div>
         <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
-          Tier-0 Thresholds
+          Discovery Thresholds
           <InfoTooltip>
-            Minimum values for tokens to pass DexScreener ingestion
+            Minimum values for tokens to pass DexScreener discovery
           </InfoTooltip>
         </h4>
         <div className='grid grid-cols-2 gap-4'>
@@ -103,7 +103,7 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
             onChange={(v) => updateSetting({ mc_min: v })}
             min={0}
             step={5000}
-            tooltip='Minimum market cap to pass Tier-0'
+            tooltip='Minimum market cap to pass discovery'
             bypassLimits={bypassLimits}
           />
           <NumericStepper
@@ -130,25 +130,29 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
             onChange={(v) => updateSetting({ age_max_hours: v })}
             min={1}
             step={6}
-            tooltip='Maximum token age for ingestion'
+            tooltip='Maximum token age for discovery'
             bypassLimits={bypassLimits}
           />
         </div>
       </div>
 
-      {/* Scheduler Intervals */}
+      {/* Discovery Scheduler */}
       <div className='border-t pt-4'>
         <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
-          Scheduler Intervals
-          <InfoTooltip>Control how often scheduled jobs run</InfoTooltip>
+          Discovery Scheduler
+          <InfoTooltip>Control how often discovery runs</InfoTooltip>
         </h4>
         <div className='grid grid-cols-2 gap-4'>
           <div className='space-y-2'>
-            <Label className='text-xs'>Tier-0 Interval</Label>
+            <Label className='text-xs'>Discovery Interval</Label>
             <Select
-              value={String(settings.tier0_interval_minutes ?? 60)}
+              value={String(
+                settings.discovery_interval_minutes ??
+                  settings.tier0_interval_minutes ??
+                  60
+              )}
               onValueChange={(v) =>
-                updateSetting({ tier0_interval_minutes: parseInt(v, 10) })
+                updateSetting({ discovery_interval_minutes: parseInt(v, 10) })
               }
             >
               <SelectTrigger className='w-full'>
@@ -162,95 +166,39 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
               </SelectContent>
             </Select>
             <p className='text-muted-foreground text-xs'>
-              How often Tier-0 (DexScreener) ingestion runs
+              How often Discovery (DexScreener) runs
             </p>
           </div>
         </div>
       </div>
 
-      {/* Batch/Budget Settings */}
+      {/* Discovery Settings */}
       <div className='border-t pt-4'>
         <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
-          Batch & Budget Settings
-          <InfoTooltip>Control batch sizes and credit limits</InfoTooltip>
+          Discovery Settings
+          <InfoTooltip>Control batch sizes for discovery</InfoTooltip>
         </h4>
         <div className='grid grid-cols-2 gap-4'>
           <NumericStepper
-            label='Tier-0 Max Tokens'
-            value={settings.tier0_max_tokens_per_run}
-            onChange={(v) => updateSetting({ tier0_max_tokens_per_run: v })}
+            label='Max Tokens per Run'
+            value={
+              (settings.discovery_max_per_run ??
+                settings.tier0_max_tokens_per_run ??
+                50) as number
+            }
+            onChange={(v) => updateSetting({ discovery_max_per_run: v })}
             min={1}
             step={10}
-            tooltip='Max tokens per Tier-0 run'
-            bypassLimits={bypassLimits}
-          />
-          <NumericStepper
-            label='Tier-1 Batch Size'
-            value={settings.tier1_batch_size}
-            onChange={(v) => updateSetting({ tier1_batch_size: v })}
-            min={1}
-            step={5}
-            tooltip='Tokens to enrich per Tier-1 run'
-            bypassLimits={bypassLimits}
-          />
-          <NumericStepper
-            label='Tier-1 Credit Budget'
-            value={settings.tier1_credit_budget_per_run}
-            onChange={(v) => updateSetting({ tier1_credit_budget_per_run: v })}
-            min={10}
-            step={50}
-            tooltip='Max credits per Tier-1 run'
+            tooltip='Max tokens per discovery run'
             bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Auto-Promote Max'
-            value={settings.auto_promote_max_per_run}
+            value={(settings.auto_promote_max_per_run ?? 5) as number}
             onChange={(v) => updateSetting({ auto_promote_max_per_run: v })}
             min={1}
             step={1}
             tooltip='Max tokens to auto-promote per run'
-            bypassLimits={bypassLimits}
-          />
-        </div>
-      </div>
-
-      {/* Hot Refresh Settings */}
-      <div className='border-t pt-4'>
-        <h4 className='text-muted-foreground mb-3 flex items-center text-xs font-semibold uppercase'>
-          Hot Refresh
-          <InfoTooltip>
-            Periodically refresh MC/volume for recent tokens
-          </InfoTooltip>
-        </h4>
-        <div className='mb-4 flex items-center justify-between rounded-lg border p-3'>
-          <div>
-            <Label className='text-sm'>Enable Hot Refresh</Label>
-            <p className='text-muted-foreground text-xs'>
-              Refresh MC/volume for recent ingested tokens
-            </p>
-          </div>
-          <Switch
-            checked={settings.hot_refresh_enabled}
-            onCheckedChange={(v) => updateSetting({ hot_refresh_enabled: v })}
-          />
-        </div>
-        <div className='grid grid-cols-2 gap-4'>
-          <NumericStepper
-            label='Hot Refresh Age (hours)'
-            value={settings.hot_refresh_age_hours}
-            onChange={(v) => updateSetting({ hot_refresh_age_hours: v })}
-            min={1}
-            step={6}
-            tooltip='Max age for hot tokens'
-            bypassLimits={bypassLimits}
-          />
-          <NumericStepper
-            label='Hot Refresh Max Tokens'
-            value={settings.hot_refresh_max_tokens}
-            onChange={(v) => updateSetting({ hot_refresh_max_tokens: v })}
-            min={10}
-            step={50}
-            tooltip='Max tokens per hot refresh run'
             bypassLimits={bypassLimits}
           />
         </div>
@@ -279,7 +227,7 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
         <div className='grid grid-cols-2 gap-4'>
           <NumericStepper
             label='Prime Threshold'
-            value={settings.performance_prime_threshold ?? 65}
+            value={(settings.performance_prime_threshold ?? 65) as number}
             onChange={(v) => updateSetting({ performance_prime_threshold: v })}
             min={50}
             max={100}
@@ -289,19 +237,19 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
           />
           <NumericStepper
             label='Monitor Threshold'
-            value={settings.performance_monitor_threshold ?? 40}
+            value={(settings.performance_monitor_threshold ?? 40) as number}
             onChange={(v) =>
               updateSetting({ performance_monitor_threshold: v })
             }
             min={20}
-            max={(settings.performance_prime_threshold ?? 65) - 5}
+            max={((settings.performance_prime_threshold ?? 65) as number) - 5}
             step={5}
             tooltip='Score >= this (but < Prime) = Monitor'
             bypassLimits={bypassLimits}
           />
           <NumericStepper
             label='Control Cohort Quota'
-            value={settings.control_cohort_daily_quota ?? 5}
+            value={(settings.control_cohort_daily_quota ?? 5) as number}
             onChange={(v) => updateSetting({ control_cohort_daily_quota: v })}
             min={0}
             max={20}
@@ -324,20 +272,18 @@ export function IngestionTab({ bypassLimits = false }: IngestionTabProps) {
         </h4>
         <div className='bg-muted/30 space-y-2 rounded-lg border p-4 text-xs'>
           <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Last Tier-0:</span>
-            <span>{formatTimestamp(settings.last_tier0_run_at)}</span>
+            <span className='text-muted-foreground'>Last Discovery:</span>
+            <span>
+              {formatTimestamp(
+                (settings.last_discovery_run_at ??
+                  settings.last_tier0_run_at ??
+                  null) as string | null
+              )}
+            </span>
           </div>
           <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Last Tier-1:</span>
-            <span>{formatTimestamp(settings.last_tier1_run_at)}</span>
-          </div>
-          <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Last Tier-1 Credits:</span>
-            <span>{settings.last_tier1_credits_used}</span>
-          </div>
-          <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Last Hot Refresh:</span>
-            <span>{formatTimestamp(settings.last_hot_refresh_at)}</span>
+            <span className='text-muted-foreground'>Last Score Run:</span>
+            <span>{formatTimestamp(settings.last_score_run_at ?? null)}</span>
           </div>
         </div>
       </div>
