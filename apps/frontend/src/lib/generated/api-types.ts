@@ -1,6 +1,6 @@
 /**
  * Auto-generated TypeScript types from Backend OpenAPI schema
- * Backend Commit: 7233c2d42bd8f140c08a2a8ccd144b26f8e0fe81
+ * Backend Commit: d9add3566f28ed3bfc179695755551ff81585cce
  * DO NOT EDIT - This file is auto-generated
  */
 
@@ -1953,6 +1953,35 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ingest/run-discovery": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run Discovery
+     * @description Trigger Discovery ingestion (DexScreener, free).
+     *
+     *     Fetches recently migrated/listed tokens from DexScreener, dedupes against
+     *     existing tokens, and stores snapshots in the ingest queue.
+     *
+     *     Args:
+     *         payload: Optional overrides for ingestion parameters
+     *
+     *     Returns:
+     *         Ingestion results including tokens fetched, new, updated, skipped
+     */
+    post: operations["run_discovery_api_ingest_run_discovery_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ingest/run-tier0": {
     parameters: {
       query?: never;
@@ -1964,10 +1993,9 @@ export interface paths {
     put?: never;
     /**
      * Run Tier0
-     * @description Trigger Tier-0 ingestion (DexScreener, free).
+     * @description Legacy endpoint: Alias for /run-discovery.
      *
-     *     Fetches recently migrated/listed tokens from DexScreener, dedupes against
-     *     existing tokens, and stores snapshots in the ingest queue.
+     *     Trigger Discovery ingestion (DexScreener, free).
      *
      *     Args:
      *         payload: Optional overrides for ingestion parameters
@@ -1993,16 +2021,14 @@ export interface paths {
     put?: never;
     /**
      * Run Tier1
-     * @description Trigger Tier-1 enrichment (Helius, budgeted).
+     * @description Deprecated: Tier-1 enrichment has been removed.
      *
-     *     Selects tokens from queue that pass thresholds, enriches with Helius data
-     *     (metadata + top holders), respects credit budget.
-     *
-     *     Args:
-     *         payload: Optional overrides for enrichment parameters
+     *     The simplified Discovery → Queue → Analysis flow no longer uses
+     *     a separate enrichment step. Discovered tokens can be directly
+     *     promoted to full analysis.
      *
      *     Returns:
-     *         Enrichment results including tokens processed, enriched, failed, credits used
+     *         Deprecation notice
      */
     post: operations["run_tier1_api_ingest_run_tier1_post"];
     delete?: never;
@@ -2022,10 +2048,10 @@ export interface paths {
     put?: never;
     /**
      * Promote Tokens
-     * @description Promote tokens from enriched tier to full analysis.
+     * @description Promote tokens from Discovery Queue to full analysis.
      *
      *     Marks tokens for full analysis (MTEW detection, SWAB tracking).
-     *     Only tokens in 'enriched' tier can be promoted.
+     *     Tokens in 'ingested' or 'enriched' tier can be promoted.
      *     Optionally registers SWAB webhooks for tracking (default: True).
      *
      *     Args:
@@ -2584,6 +2610,37 @@ export interface components {
        */
       reason: string;
     };
+    /**
+     * DiscoveryRunRequest
+     * @description Optional overrides for Discovery ingestion
+     */
+    DiscoveryRunRequest: {
+      /**
+       * Max Tokens
+       * @description Override max tokens to fetch
+       */
+      max_tokens?: number | null;
+      /**
+       * Mc Min
+       * @description Override minimum market cap
+       */
+      mc_min?: number | null;
+      /**
+       * Volume Min
+       * @description Override minimum volume
+       */
+      volume_min?: number | null;
+      /**
+       * Liquidity Min
+       * @description Override minimum liquidity
+       */
+      liquidity_min?: number | null;
+      /**
+       * Age Max Hours
+       * @description Override maximum age in hours
+       */
+      age_max_hours?: number | null;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -2707,6 +2764,10 @@ export interface components {
       by_status: {
         [key: string]: number;
       };
+      /** Last Discovery Run At */
+      last_discovery_run_at?: string | null;
+      /** Last Refresh Run At */
+      last_refresh_run_at?: string | null;
       /** Last Tier0 Run At */
       last_tier0_run_at?: string | null;
       /** Last Tier1 Run At */
@@ -2721,7 +2782,7 @@ export interface components {
     };
     /**
      * IngestSettings
-     * @description Settings for the tiered token ingestion pipeline
+     * @description Settings for the Discovery → Queue → Analysis pipeline
      */
     IngestSettings: {
       /**
@@ -2749,59 +2810,29 @@ export interface components {
        */
       age_max_hours: number;
       /**
-       * Tier0 Interval Minutes
-       * @description Tier-0 scheduler interval in minutes
+       * Discovery Enabled
+       * @description Enable Discovery (DexScreener) ingestion
+       * @default false
+       */
+      discovery_enabled: boolean;
+      /**
+       * Discovery Interval Minutes
+       * @description Discovery scheduler interval (min)
        * @default 60
        */
-      tier0_interval_minutes: number;
+      discovery_interval_minutes: number;
       /**
-       * Tier0 Max Tokens Per Run
-       * @description Max tokens per Tier-0 run
+       * Discovery Max Per Run
+       * @description Max tokens to discover per run
        * @default 50
        */
-      tier0_max_tokens_per_run: number;
-      /**
-       * Tier1 Batch Size
-       * @description Max tokens per Tier-1 run
-       * @default 10
-       */
-      tier1_batch_size: number;
-      /**
-       * Tier1 Credit Budget Per Run
-       * @description Max Helius credits per Tier-1 run
-       * @default 100
-       */
-      tier1_credit_budget_per_run: number;
-      /**
-       * Ingest Enabled
-       * @description Enable Tier-0 ingestion
-       * @default false
-       */
-      ingest_enabled: boolean;
-      /**
-       * Enrich Enabled
-       * @description Enable Tier-1 enrichment
-       * @default false
-       */
-      enrich_enabled: boolean;
+      discovery_max_per_run: number;
       /**
        * Auto Promote Enabled
-       * @description Auto-promote enriched tokens
+       * @description Auto-promote discovered tokens to analysis
        * @default false
        */
       auto_promote_enabled: boolean;
-      /**
-       * Hot Refresh Enabled
-       * @description Enable hot token MC/volume refresh
-       * @default false
-       */
-      hot_refresh_enabled: boolean;
-      /**
-       * Bypass Limits
-       * @description Bypass UI/backend validation caps
-       * @default false
-       */
-      bypass_limits: boolean;
       /**
        * Auto Promote Max Per Run
        * @description Max tokens to auto-promote per run
@@ -2809,17 +2840,71 @@ export interface components {
        */
       auto_promote_max_per_run: number;
       /**
-       * Hot Refresh Age Hours
-       * @description Max age for hot tokens (hours)
-       * @default 48
+       * Bypass Limits
+       * @description Bypass UI/backend validation caps
+       * @default false
        */
-      hot_refresh_age_hours: number;
+      bypass_limits: boolean;
       /**
-       * Hot Refresh Max Tokens
-       * @description Max tokens to refresh per run
-       * @default 100
+       * Tracking Mc Threshold
+       * @description MC threshold for fast-lane refresh (USD)
+       * @default 100000
        */
-      hot_refresh_max_tokens: number;
+      tracking_mc_threshold: number;
+      /**
+       * Fast Lane Interval Minutes
+       * @description Refresh interval for fast-lane tokens (min)
+       * @default 30
+       */
+      fast_lane_interval_minutes: number;
+      /**
+       * Slow Lane Interval Minutes
+       * @description Refresh interval for slow-lane tokens (min)
+       * @default 240
+       */
+      slow_lane_interval_minutes: number;
+      /**
+       * Slow Lane Enabled
+       * @description Enable slow-lane refresh
+       * @default true
+       */
+      slow_lane_enabled: boolean;
+      /**
+       * Drop If Mc Below Threshold
+       * @description Drop from refresh if MC < threshold
+       * @default false
+       */
+      drop_if_mc_below_threshold: boolean;
+      /**
+       * Drop If No Swab Positions
+       * @description Drop from refresh if no SWAB positions
+       * @default false
+       */
+      drop_if_no_swab_positions: boolean;
+      /**
+       * Drop Condition Mode
+       * @description Drop condition mode: AND or OR
+       * @default AND
+       */
+      drop_condition_mode: string;
+      /**
+       * Stale Threshold Hours
+       * @description Data stale if last refresh > this (hours)
+       * @default 4
+       */
+      stale_threshold_hours: number;
+      /**
+       * Dormant Threshold Hours
+       * @description No activity threshold for Dormant label (hours)
+       * @default 72
+       */
+      dormant_threshold_hours: number;
+      /**
+       * Low Liquidity Threshold
+       * @description Liquidity threshold for Low-Liquidity label (USD)
+       * @default 20000
+       */
+      low_liquidity_threshold: number;
       /**
        * Score Enabled
        * @description Enable performance scoring
@@ -2851,21 +2936,72 @@ export interface components {
       score_weights?: {
         [key: string]: unknown;
       } | null;
+      /** Last Discovery Run At */
+      last_discovery_run_at?: string | null;
+      /** Last Refresh Run At */
+      last_refresh_run_at?: string | null;
       /** Last Score Run At */
       last_score_run_at?: string | null;
+      /** Last Control Cohort Run At */
+      last_control_cohort_run_at?: string | null;
+      /**
+       * Ingest Enabled
+       * @description Deprecated: use discovery_enabled
+       */
+      ingest_enabled?: boolean | null;
+      /**
+       * Tier0 Interval Minutes
+       * @description Deprecated: use discovery_interval_minutes
+       */
+      tier0_interval_minutes?: number | null;
+      /**
+       * Tier0 Max Tokens Per Run
+       * @description Deprecated: use discovery_max_per_run
+       */
+      tier0_max_tokens_per_run?: number | null;
+      /**
+       * Enrich Enabled
+       * @description Deprecated: tier-1 removed
+       */
+      enrich_enabled?: boolean | null;
+      /**
+       * Tier1 Batch Size
+       * @description Deprecated: tier-1 removed
+       */
+      tier1_batch_size?: number | null;
+      /**
+       * Tier1 Credit Budget Per Run
+       * @description Deprecated: tier-1 removed
+       */
+      tier1_credit_budget_per_run?: number | null;
+      /**
+       * Hot Refresh Enabled
+       * @description Deprecated: use tracking settings
+       */
+      hot_refresh_enabled?: boolean | null;
+      /**
+       * Hot Refresh Age Hours
+       * @description Deprecated
+       */
+      hot_refresh_age_hours?: number | null;
+      /**
+       * Hot Refresh Max Tokens
+       * @description Deprecated
+       */
+      hot_refresh_max_tokens?: number | null;
+      /**
+       * Fast Lane Mc Threshold
+       * @description Deprecated: use tracking_mc_threshold
+       */
+      fast_lane_mc_threshold?: number | null;
       /** Last Tier0 Run At */
       last_tier0_run_at?: string | null;
       /** Last Tier1 Run At */
       last_tier1_run_at?: string | null;
-      /**
-       * Last Tier1 Credits Used
-       * @default 0
-       */
-      last_tier1_credits_used: number;
+      /** Last Tier1 Credits Used */
+      last_tier1_credits_used?: number | null;
       /** Last Hot Refresh At */
       last_hot_refresh_at?: string | null;
-      /** Last Control Cohort Run At */
-      last_control_cohort_run_at?: string | null;
     };
     /**
      * IngestSettingsUpdate
@@ -2880,30 +3016,38 @@ export interface components {
       liquidity_min?: number | null;
       /** Age Max Hours */
       age_max_hours?: number | null;
-      /** Tier0 Interval Minutes */
-      tier0_interval_minutes?: number | null;
-      /** Tier0 Max Tokens Per Run */
-      tier0_max_tokens_per_run?: number | null;
-      /** Tier1 Batch Size */
-      tier1_batch_size?: number | null;
-      /** Tier1 Credit Budget Per Run */
-      tier1_credit_budget_per_run?: number | null;
-      /** Ingest Enabled */
-      ingest_enabled?: boolean | null;
-      /** Enrich Enabled */
-      enrich_enabled?: boolean | null;
+      /** Discovery Enabled */
+      discovery_enabled?: boolean | null;
+      /** Discovery Interval Minutes */
+      discovery_interval_minutes?: number | null;
+      /** Discovery Max Per Run */
+      discovery_max_per_run?: number | null;
       /** Auto Promote Enabled */
       auto_promote_enabled?: boolean | null;
-      /** Hot Refresh Enabled */
-      hot_refresh_enabled?: boolean | null;
-      /** Bypass Limits */
-      bypass_limits?: boolean | null;
       /** Auto Promote Max Per Run */
       auto_promote_max_per_run?: number | null;
-      /** Hot Refresh Age Hours */
-      hot_refresh_age_hours?: number | null;
-      /** Hot Refresh Max Tokens */
-      hot_refresh_max_tokens?: number | null;
+      /** Bypass Limits */
+      bypass_limits?: boolean | null;
+      /** Tracking Mc Threshold */
+      tracking_mc_threshold?: number | null;
+      /** Fast Lane Interval Minutes */
+      fast_lane_interval_minutes?: number | null;
+      /** Slow Lane Interval Minutes */
+      slow_lane_interval_minutes?: number | null;
+      /** Slow Lane Enabled */
+      slow_lane_enabled?: boolean | null;
+      /** Drop If Mc Below Threshold */
+      drop_if_mc_below_threshold?: boolean | null;
+      /** Drop If No Swab Positions */
+      drop_if_no_swab_positions?: boolean | null;
+      /** Drop Condition Mode */
+      drop_condition_mode?: string | null;
+      /** Stale Threshold Hours */
+      stale_threshold_hours?: number | null;
+      /** Dormant Threshold Hours */
+      dormant_threshold_hours?: number | null;
+      /** Low Liquidity Threshold */
+      low_liquidity_threshold?: number | null;
       /** Score Enabled */
       score_enabled?: boolean | null;
       /** Performance Prime Threshold */
@@ -2916,6 +3060,26 @@ export interface components {
       score_weights?: {
         [key: string]: unknown;
       } | null;
+      /** Ingest Enabled */
+      ingest_enabled?: boolean | null;
+      /** Tier0 Interval Minutes */
+      tier0_interval_minutes?: number | null;
+      /** Tier0 Max Tokens Per Run */
+      tier0_max_tokens_per_run?: number | null;
+      /** Enrich Enabled */
+      enrich_enabled?: boolean | null;
+      /** Tier1 Batch Size */
+      tier1_batch_size?: number | null;
+      /** Tier1 Credit Budget Per Run */
+      tier1_credit_budget_per_run?: number | null;
+      /** Hot Refresh Enabled */
+      hot_refresh_enabled?: boolean | null;
+      /** Hot Refresh Age Hours */
+      hot_refresh_age_hours?: number | null;
+      /** Hot Refresh Max Tokens */
+      hot_refresh_max_tokens?: number | null;
+      /** Fast Lane Mc Threshold */
+      fast_lane_mc_threshold?: number | null;
     };
     /**
      * LatestTokenResponse
@@ -3477,69 +3641,38 @@ export interface components {
       tags: string[];
     };
     /**
-     * Tier0RunRequest
-     * @description Optional overrides for Tier-0 ingestion
-     */
-    Tier0RunRequest: {
-      /**
-       * Max Tokens
-       * @description Override max tokens to fetch
-       */
-      max_tokens?: number | null;
-      /**
-       * Mc Min
-       * @description Override minimum market cap
-       */
-      mc_min?: number | null;
-      /**
-       * Volume Min
-       * @description Override minimum volume
-       */
-      volume_min?: number | null;
-      /**
-       * Liquidity Min
-       * @description Override minimum liquidity
-       */
-      liquidity_min?: number | null;
-      /**
-       * Age Max Hours
-       * @description Override maximum age in hours
-       */
-      age_max_hours?: number | null;
-    };
-    /**
      * Tier1RunRequest
-     * @description Optional overrides for Tier-1 enrichment
+     * @description Deprecated: Tier-1 enrichment has been removed
      */
     Tier1RunRequest: {
       /**
        * Batch Size
-       * @description Override batch size
+       * @description Deprecated
        */
       batch_size?: number | null;
       /**
        * Credit Budget
-       * @description Override credit budget
+       * @description Deprecated
        */
       credit_budget?: number | null;
       /**
        * Mc Min
-       * @description Override minimum market cap
+       * @description Deprecated
        */
       mc_min?: number | null;
       /**
        * Volume Min
-       * @description Override minimum volume
+       * @description Deprecated
        */
       volume_min?: number | null;
       /**
        * Liquidity Min
-       * @description Override minimum liquidity
+       * @description Deprecated
        */
       liquidity_min?: number | null;
       /**
        * Age Max Hours
-       * @description Override maximum age in hours
+       * @description Deprecated
        */
       age_max_hours?: number | null;
     };
@@ -3597,19 +3730,41 @@ export interface components {
       top_holders?: components["schemas"]["TopHolder"][] | null;
       /** Top Holders Updated At */
       top_holders_updated_at?: string | null;
-      /** Performance Score */
-      performance_score?: number | null;
-      /** Performance Bucket */
-      performance_bucket?: string | null;
-      /** Score Timestamp */
-      score_timestamp?: string | null;
-      /**
-       * Is Control Cohort
-       * @default false
-       */
-      is_control_cohort: boolean;
       /** Ingest Source */
       ingest_source?: string | null;
+      /**
+       * Swab Open Positions
+       * @default 0
+       */
+      swab_open_positions: number;
+      /** Swab Open Pnl Usd */
+      swab_open_pnl_usd?: number | null;
+      /** Swab Realized Pnl Usd */
+      swab_realized_pnl_usd?: number | null;
+      /** Swab Last Check At */
+      swab_last_check_at?: string | null;
+      /**
+       * Swab Webhook Active
+       * @default false
+       */
+      swab_webhook_active: boolean;
+      /**
+       * Labels
+       * @default []
+       */
+      labels: string[];
+      /** Next Refresh At */
+      next_refresh_at?: string | null;
+      /**
+       * Is Fast Lane
+       * @default false
+       */
+      is_fast_lane: boolean;
+      /**
+       * Tracking Dropped
+       * @default false
+       */
+      tracking_dropped: boolean;
     };
     /**
      * TokenDetail
@@ -3666,19 +3821,41 @@ export interface components {
       top_holders?: components["schemas"]["TopHolder"][] | null;
       /** Top Holders Updated At */
       top_holders_updated_at?: string | null;
-      /** Performance Score */
-      performance_score?: number | null;
-      /** Performance Bucket */
-      performance_bucket?: string | null;
-      /** Score Timestamp */
-      score_timestamp?: string | null;
-      /**
-       * Is Control Cohort
-       * @default false
-       */
-      is_control_cohort: boolean;
       /** Ingest Source */
       ingest_source?: string | null;
+      /**
+       * Swab Open Positions
+       * @default 0
+       */
+      swab_open_positions: number;
+      /** Swab Open Pnl Usd */
+      swab_open_pnl_usd?: number | null;
+      /** Swab Realized Pnl Usd */
+      swab_realized_pnl_usd?: number | null;
+      /** Swab Last Check At */
+      swab_last_check_at?: string | null;
+      /**
+       * Swab Webhook Active
+       * @default false
+       */
+      swab_webhook_active: boolean;
+      /**
+       * Labels
+       * @default []
+       */
+      labels: string[];
+      /** Next Refresh At */
+      next_refresh_at?: string | null;
+      /**
+       * Is Fast Lane
+       * @default false
+       */
+      is_fast_lane: boolean;
+      /**
+       * Tracking Dropped
+       * @default false
+       */
+      tracking_dropped: boolean;
       /** Wallets */
       wallets: components["schemas"]["Wallet"][];
       /** Axiom Json */
@@ -6536,6 +6713,39 @@ export interface operations {
       };
     };
   };
+  run_discovery_api_ingest_run_discovery_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["DiscoveryRunRequest"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   run_tier0_api_ingest_run_tier0_post: {
     parameters: {
       query?: never;
@@ -6545,7 +6755,7 @@ export interface operations {
     };
     requestBody?: {
       content: {
-        "application/json": components["schemas"]["Tier0RunRequest"] | null;
+        "application/json": components["schemas"]["DiscoveryRunRequest"] | null;
       };
     };
     responses: {

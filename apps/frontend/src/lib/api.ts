@@ -281,13 +281,14 @@ export function downloadAxiomJson(token: TokenDetail) {
 }
 
 /**
- * Format UTC timestamp to local time
+ * Format timestamp to local time display
  */
-export function formatTimestamp(timestamp: string): string {
+export function formatTimestamp(timestamp: string | null | undefined): string {
   if (!timestamp) return '-';
-  // SQLite returns UTC without 'Z', so we append it
-  const utcTimestamp = timestamp.replace(' ', 'T') + 'Z';
-  const date = new Date(utcTimestamp);
+  // SQLite CURRENT_TIMESTAMP stores UTC time in "YYYY-MM-DD HH:MM:SS" format
+  // Convert to ISO format but Append 'Z' to indicate UTC so JS converts to local timezone
+  const isoTimestamp = timestamp.replace(' ', 'T') + 'Z';
+  const date = new Date(isoTimestamp);
   return date.toLocaleString();
 }
 
@@ -296,8 +297,9 @@ export function formatTimestamp(timestamp: string): string {
  */
 export function formatShortDate(timestamp: string): string {
   if (!timestamp) return '-';
-  const utcTimestamp = timestamp.replace(' ', 'T') + 'Z';
-  const date = new Date(utcTimestamp);
+  // Backend stores UTC time, append Z for proper conversion
+  const isoTimestamp = timestamp.replace(' ', 'T') + 'Z';
+  const date = new Date(isoTimestamp);
   return date.toLocaleDateString();
 }
 
@@ -1390,34 +1392,65 @@ export async function reconcileAllPositions(params?: {
 // ============================================================================
 
 export interface IngestSettings {
+  // Threshold filters
   mc_min: number;
   volume_min: number;
   liquidity_min: number;
   age_max_hours: number;
-  tier0_interval_minutes: number;
-  tier0_max_tokens_per_run: number;
-  tier1_batch_size: number;
-  tier1_credit_budget_per_run: number;
-  ingest_enabled: boolean;
-  enrich_enabled: boolean;
+
+  // Discovery scheduler settings (new)
+  discovery_enabled: boolean;
+  discovery_interval_minutes: number;
+  discovery_max_per_run: number;
+
+  // Auto-promote settings
   auto_promote_enabled: boolean;
-  hot_refresh_enabled: boolean;
   auto_promote_max_per_run: number;
-  hot_refresh_age_hours: number;
-  hot_refresh_max_tokens: number;
+
+  // Tracking & Refresh settings (new)
+  tracking_mc_threshold: number;
+  fast_lane_interval_minutes: number;
+  slow_lane_interval_minutes: number;
+  slow_lane_enabled: boolean;
+
+  // Drop conditions (new)
+  drop_if_mc_below_threshold: boolean;
+  drop_if_no_swab_positions: boolean;
+  drop_condition_mode: 'AND' | 'OR';
+
+  // Stale/dormant thresholds
+  stale_threshold_hours: number;
+  dormant_threshold_hours: number;
+  low_liquidity_threshold: number;
+
   // Performance scoring settings
   score_enabled: boolean;
   performance_prime_threshold: number;
   performance_monitor_threshold: number;
   control_cohort_daily_quota: number;
   score_weights: Record<string, number>;
-  // Run tracking
-  last_tier0_run_at: string | null;
-  last_tier1_run_at: string | null;
-  last_tier1_credits_used: number;
-  last_hot_refresh_at: string | null;
+
+  // Run tracking (new)
+  last_discovery_run_at: string | null;
+  last_refresh_run_at: string | null;
   last_score_run_at: string | null;
   last_control_cohort_run_at: string | null;
+
+  // Legacy fields (backward compatibility)
+  tier0_interval_minutes?: number;
+  tier0_max_tokens_per_run?: number;
+  tier1_batch_size?: number;
+  tier1_credit_budget_per_run?: number;
+  ingest_enabled?: boolean;
+  enrich_enabled?: boolean;
+  hot_refresh_enabled?: boolean;
+  hot_refresh_age_hours?: number;
+  hot_refresh_max_tokens?: number;
+  fast_lane_mc_threshold?: number;
+  last_tier0_run_at?: string | null;
+  last_tier1_run_at?: string | null;
+  last_tier1_credits_used?: number;
+  last_hot_refresh_at?: string | null;
 }
 
 export interface IngestQueueEntry {
@@ -1451,9 +1484,14 @@ export interface IngestQueueStats {
   total: number;
   by_tier: Record<string, number>;
   by_status: Record<string, number>;
-  last_tier0_run_at: string | null;
-  last_tier1_run_at: string | null;
-  last_tier1_credits_used: number;
+  // New discovery-based naming
+  last_discovery_run_at?: string | null;
+  last_refresh_run_at?: string | null;
+  // Legacy fields (backward compatibility)
+  last_tier0_run_at?: string | null;
+  last_tier1_run_at?: string | null;
+  last_tier1_credits_used?: number;
+  last_hot_refresh_at?: string | null;
 }
 
 export interface IngestRunResult {
@@ -1560,7 +1598,31 @@ export async function getIngestQueueStats(): Promise<IngestQueueStats> {
 }
 
 /**
- * Trigger Tier-0 ingestion (DexScreener, free)
+ * Trigger Discovery ingestion (DexScreener, free)
+ */
+export async function runDiscovery(params?: {
+  max_tokens?: number;
+  mc_min?: number;
+  volume_min?: number;
+  liquidity_min?: number;
+  age_max_hours?: number;
+}): Promise<{ status: string; result: IngestRunResult }> {
+  const res = await fetch(`${API_BASE_URL}/api/ingest/run-discovery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: params ? JSON.stringify(params) : '{}'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to run Discovery ingestion');
+  }
+
+  return res.json();
+}
+
+/**
+ * Legacy alias for runDiscovery
+ * @deprecated Use runDiscovery instead
  */
 export async function runTier0Ingestion(params?: {
   max_tokens?: number;
@@ -1569,21 +1631,12 @@ export async function runTier0Ingestion(params?: {
   liquidity_min?: number;
   age_max_hours?: number;
 }): Promise<{ status: string; result: IngestRunResult }> {
-  const res = await fetch(`${API_BASE_URL}/api/ingest/run-tier0`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: params ? JSON.stringify(params) : '{}'
-  });
-
-  if (!res.ok) {
-    throw new Error('Failed to run Tier-0 ingestion');
-  }
-
-  return res.json();
+  return runDiscovery(params);
 }
 
 /**
- * Trigger Tier-1 enrichment (Helius, budgeted)
+ * Deprecated: Tier-1 enrichment has been removed
+ * @deprecated Tier-1 enrichment no longer exists; use promoteTokens instead
  */
 export async function runTier1Enrichment(params?: {
   batch_size?: number;
@@ -1600,14 +1653,14 @@ export async function runTier1Enrichment(params?: {
   });
 
   if (!res.ok) {
-    throw new Error('Failed to run Tier-1 enrichment');
+    throw new Error('Tier-1 enrichment is deprecated');
   }
 
   return res.json();
 }
 
 /**
- * Promote tokens from enriched tier to full analysis
+ * Promote tokens from Discovery Queue to full analysis
  */
 export async function promoteTokens(
   tokenAddresses: string[]

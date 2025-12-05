@@ -3658,6 +3658,54 @@
         }
       }
     },
+    "/api/ingest/run-discovery": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Run Discovery",
+        "description": "Trigger Discovery ingestion (DexScreener, free).\n\nFetches recently migrated/listed tokens from DexScreener, dedupes against\nexisting tokens, and stores snapshots in the ingest queue.\n\nArgs:\n    payload: Optional overrides for ingestion parameters\n\nReturns:\n    Ingestion results including tokens fetched, new, updated, skipped",
+        "operationId": "run_discovery_api_ingest_run_discovery_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DiscoveryRunRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ingest/run-tier0": {
       "post": {
         "tags": [
@@ -3665,7 +3713,7 @@
           "Ingest"
         ],
         "summary": "Run Tier0",
-        "description": "Trigger Tier-0 ingestion (DexScreener, free).\n\nFetches recently migrated/listed tokens from DexScreener, dedupes against\nexisting tokens, and stores snapshots in the ingest queue.\n\nArgs:\n    payload: Optional overrides for ingestion parameters\n\nReturns:\n    Ingestion results including tokens fetched, new, updated, skipped",
+        "description": "Legacy endpoint: Alias for /run-discovery.\n\nTrigger Discovery ingestion (DexScreener, free).\n\nArgs:\n    payload: Optional overrides for ingestion parameters\n\nReturns:\n    Ingestion results including tokens fetched, new, updated, skipped",
         "operationId": "run_tier0_api_ingest_run_tier0_post",
         "requestBody": {
           "content": {
@@ -3673,7 +3721,7 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/Tier0RunRequest"
+                    "$ref": "#/components/schemas/DiscoveryRunRequest"
                   },
                   {
                     "type": "null"
@@ -3713,7 +3761,7 @@
           "Ingest"
         ],
         "summary": "Run Tier1",
-        "description": "Trigger Tier-1 enrichment (Helius, budgeted).\n\nSelects tokens from queue that pass thresholds, enriches with Helius data\n(metadata + top holders), respects credit budget.\n\nArgs:\n    payload: Optional overrides for enrichment parameters\n\nReturns:\n    Enrichment results including tokens processed, enriched, failed, credits used",
+        "description": "Deprecated: Tier-1 enrichment has been removed.\n\nThe simplified Discovery \u2192 Queue \u2192 Analysis flow no longer uses\na separate enrichment step. Discovered tokens can be directly\npromoted to full analysis.\n\nReturns:\n    Deprecation notice",
         "operationId": "run_tier1_api_ingest_run_tier1_post",
         "requestBody": {
           "content": {
@@ -3761,7 +3809,7 @@
           "Ingest"
         ],
         "summary": "Promote Tokens",
-        "description": "Promote tokens from enriched tier to full analysis.\n\nMarks tokens for full analysis (MTEW detection, SWAB tracking).\nOnly tokens in 'enriched' tier can be promoted.\nOptionally registers SWAB webhooks for tracking (default: True).\n\nArgs:\n    payload: Token addresses to promote and webhook options\n\nReturns:\n    Promotion results including tokens promoted, failed, and webhooks registered",
+        "description": "Promote tokens from Discovery Queue to full analysis.\n\nMarks tokens for full analysis (MTEW detection, SWAB tracking).\nTokens in 'ingested' or 'enriched' tier can be promoted.\nOptionally registers SWAB webhooks for tracking (default: True).\n\nArgs:\n    payload: Token addresses to promote and webhook options\n\nReturns:\n    Promotion results including tokens promoted, failed, and webhooks registered",
         "operationId": "promote_tokens_api_ingest_promote_post",
         "requestBody": {
           "content": {
@@ -4937,6 +4985,79 @@
         "title": "DiscardRequest",
         "description": "Request to discard tokens from the queue"
       },
+      "DiscoveryRunRequest": {
+        "properties": {
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens",
+            "description": "Override max tokens to fetch"
+          },
+          "mc_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Min",
+            "description": "Override minimum market cap"
+          },
+          "volume_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Min",
+            "description": "Override minimum volume"
+          },
+          "liquidity_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Min",
+            "description": "Override minimum liquidity"
+          },
+          "age_max_hours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Max Hours",
+            "description": "Override maximum age in hours"
+          }
+        },
+        "type": "object",
+        "title": "DiscoveryRunRequest",
+        "description": "Optional overrides for Discovery ingestion"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -5299,6 +5420,28 @@
             "type": "object",
             "title": "By Status"
           },
+          "last_discovery_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Discovery Run At"
+          },
+          "last_refresh_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Refresh Run At"
+          },
           "last_tier0_run_at": {
             "anyOf": [
               {
@@ -5377,62 +5520,30 @@
             "description": "Maximum token age in hours",
             "default": 48
           },
-          "tier0_interval_minutes": {
+          "discovery_enabled": {
+            "type": "boolean",
+            "title": "Discovery Enabled",
+            "description": "Enable Discovery (DexScreener) ingestion",
+            "default": false
+          },
+          "discovery_interval_minutes": {
             "type": "integer",
             "minimum": 5.0,
-            "title": "Tier0 Interval Minutes",
-            "description": "Tier-0 scheduler interval in minutes",
+            "title": "Discovery Interval Minutes",
+            "description": "Discovery scheduler interval (min)",
             "default": 60
           },
-          "tier0_max_tokens_per_run": {
+          "discovery_max_per_run": {
             "type": "integer",
             "minimum": 1.0,
-            "title": "Tier0 Max Tokens Per Run",
-            "description": "Max tokens per Tier-0 run",
+            "title": "Discovery Max Per Run",
+            "description": "Max tokens to discover per run",
             "default": 50
-          },
-          "tier1_batch_size": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Tier1 Batch Size",
-            "description": "Max tokens per Tier-1 run",
-            "default": 10
-          },
-          "tier1_credit_budget_per_run": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Tier1 Credit Budget Per Run",
-            "description": "Max Helius credits per Tier-1 run",
-            "default": 100
-          },
-          "ingest_enabled": {
-            "type": "boolean",
-            "title": "Ingest Enabled",
-            "description": "Enable Tier-0 ingestion",
-            "default": false
-          },
-          "enrich_enabled": {
-            "type": "boolean",
-            "title": "Enrich Enabled",
-            "description": "Enable Tier-1 enrichment",
-            "default": false
           },
           "auto_promote_enabled": {
             "type": "boolean",
             "title": "Auto Promote Enabled",
-            "description": "Auto-promote enriched tokens",
-            "default": false
-          },
-          "hot_refresh_enabled": {
-            "type": "boolean",
-            "title": "Hot Refresh Enabled",
-            "description": "Enable hot token MC/volume refresh",
-            "default": false
-          },
-          "bypass_limits": {
-            "type": "boolean",
-            "title": "Bypass Limits",
-            "description": "Bypass UI/backend validation caps",
+            "description": "Auto-promote discovered tokens to analysis",
             "default": false
           },
           "auto_promote_max_per_run": {
@@ -5442,19 +5553,77 @@
             "description": "Max tokens to auto-promote per run",
             "default": 5
           },
-          "hot_refresh_age_hours": {
-            "type": "number",
-            "minimum": 1.0,
-            "title": "Hot Refresh Age Hours",
-            "description": "Max age for hot tokens (hours)",
-            "default": 48
+          "bypass_limits": {
+            "type": "boolean",
+            "title": "Bypass Limits",
+            "description": "Bypass UI/backend validation caps",
+            "default": false
           },
-          "hot_refresh_max_tokens": {
+          "tracking_mc_threshold": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tracking Mc Threshold",
+            "description": "MC threshold for fast-lane refresh (USD)",
+            "default": 100000
+          },
+          "fast_lane_interval_minutes": {
+            "type": "integer",
+            "minimum": 5.0,
+            "title": "Fast Lane Interval Minutes",
+            "description": "Refresh interval for fast-lane tokens (min)",
+            "default": 30
+          },
+          "slow_lane_interval_minutes": {
+            "type": "integer",
+            "minimum": 15.0,
+            "title": "Slow Lane Interval Minutes",
+            "description": "Refresh interval for slow-lane tokens (min)",
+            "default": 240
+          },
+          "slow_lane_enabled": {
+            "type": "boolean",
+            "title": "Slow Lane Enabled",
+            "description": "Enable slow-lane refresh",
+            "default": true
+          },
+          "drop_if_mc_below_threshold": {
+            "type": "boolean",
+            "title": "Drop If Mc Below Threshold",
+            "description": "Drop from refresh if MC < threshold",
+            "default": false
+          },
+          "drop_if_no_swab_positions": {
+            "type": "boolean",
+            "title": "Drop If No Swab Positions",
+            "description": "Drop from refresh if no SWAB positions",
+            "default": false
+          },
+          "drop_condition_mode": {
+            "type": "string",
+            "title": "Drop Condition Mode",
+            "description": "Drop condition mode: AND or OR",
+            "default": "AND"
+          },
+          "stale_threshold_hours": {
             "type": "integer",
             "minimum": 1.0,
-            "title": "Hot Refresh Max Tokens",
-            "description": "Max tokens to refresh per run",
-            "default": 100
+            "title": "Stale Threshold Hours",
+            "description": "Data stale if last refresh > this (hours)",
+            "default": 4
+          },
+          "dormant_threshold_hours": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Dormant Threshold Hours",
+            "description": "No activity threshold for Dormant label (hours)",
+            "default": 72
+          },
+          "low_liquidity_threshold": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Low Liquidity Threshold",
+            "description": "Liquidity threshold for Low-Liquidity label (USD)",
+            "default": 20000
           },
           "score_enabled": {
             "type": "boolean",
@@ -5498,6 +5667,28 @@
             "title": "Score Weights",
             "description": "Configurable score weights"
           },
+          "last_discovery_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Discovery Run At"
+          },
+          "last_refresh_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Refresh Run At"
+          },
           "last_score_run_at": {
             "anyOf": [
               {
@@ -5508,6 +5699,137 @@
               }
             ],
             "title": "Last Score Run At"
+          },
+          "last_control_cohort_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Control Cohort Run At"
+          },
+          "ingest_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Enabled",
+            "description": "Deprecated: use discovery_enabled"
+          },
+          "tier0_interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Interval Minutes",
+            "description": "Deprecated: use discovery_interval_minutes"
+          },
+          "tier0_max_tokens_per_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Max Tokens Per Run",
+            "description": "Deprecated: use discovery_max_per_run"
+          },
+          "enrich_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enrich Enabled",
+            "description": "Deprecated: tier-1 removed"
+          },
+          "tier1_batch_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier1 Batch Size",
+            "description": "Deprecated: tier-1 removed"
+          },
+          "tier1_credit_budget_per_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier1 Credit Budget Per Run",
+            "description": "Deprecated: tier-1 removed"
+          },
+          "hot_refresh_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Enabled",
+            "description": "Deprecated: use tracking settings"
+          },
+          "hot_refresh_age_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Age Hours",
+            "description": "Deprecated"
+          },
+          "hot_refresh_max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Max Tokens",
+            "description": "Deprecated"
+          },
+          "fast_lane_mc_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fast Lane Mc Threshold",
+            "description": "Deprecated: use tracking_mc_threshold"
           },
           "last_tier0_run_at": {
             "anyOf": [
@@ -5532,9 +5854,15 @@
             "title": "Last Tier1 Run At"
           },
           "last_tier1_credits_used": {
-            "type": "integer",
-            "title": "Last Tier1 Credits Used",
-            "default": 0
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Tier1 Credits Used"
           },
           "last_hot_refresh_at": {
             "anyOf": [
@@ -5546,22 +5874,11 @@
               }
             ],
             "title": "Last Hot Refresh At"
-          },
-          "last_control_cohort_run_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Control Cohort Run At"
           }
         },
         "type": "object",
         "title": "IngestSettings",
-        "description": "Settings for the tiered token ingestion pipeline"
+        "description": "Settings for the Discovery \u2192 Queue \u2192 Analysis pipeline"
       },
       "IngestSettingsUpdate": {
         "properties": {
@@ -5613,7 +5930,18 @@
             ],
             "title": "Age Max Hours"
           },
-          "tier0_interval_minutes": {
+          "discovery_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discovery Enabled"
+          },
+          "discovery_interval_minutes": {
             "anyOf": [
               {
                 "type": "integer",
@@ -5623,9 +5951,9 @@
                 "type": "null"
               }
             ],
-            "title": "Tier0 Interval Minutes"
+            "title": "Discovery Interval Minutes"
           },
-          "tier0_max_tokens_per_run": {
+          "discovery_max_per_run": {
             "anyOf": [
               {
                 "type": "integer",
@@ -5635,53 +5963,7 @@
                 "type": "null"
               }
             ],
-            "title": "Tier0 Max Tokens Per Run"
-          },
-          "tier1_batch_size": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Batch Size"
-          },
-          "tier1_credit_budget_per_run": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Credit Budget Per Run"
-          },
-          "ingest_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ingest Enabled"
-          },
-          "enrich_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Enrich Enabled"
+            "title": "Discovery Max Per Run"
           },
           "auto_promote_enabled": {
             "anyOf": [
@@ -5693,28 +5975,6 @@
               }
             ],
             "title": "Auto Promote Enabled"
-          },
-          "hot_refresh_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Enabled"
-          },
-          "bypass_limits": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bypass Limits"
           },
           "auto_promote_max_per_run": {
             "anyOf": [
@@ -5728,19 +5988,98 @@
             ],
             "title": "Auto Promote Max Per Run"
           },
-          "hot_refresh_age_hours": {
+          "bypass_limits": {
             "anyOf": [
               {
-                "type": "number",
-                "minimum": 1.0
+                "type": "boolean"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Hot Refresh Age Hours"
+            "title": "Bypass Limits"
           },
-          "hot_refresh_max_tokens": {
+          "tracking_mc_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Mc Threshold"
+          },
+          "fast_lane_interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fast Lane Interval Minutes"
+          },
+          "slow_lane_interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 15.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slow Lane Interval Minutes"
+          },
+          "slow_lane_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slow Lane Enabled"
+          },
+          "drop_if_mc_below_threshold": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drop If Mc Below Threshold"
+          },
+          "drop_if_no_swab_positions": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drop If No Swab Positions"
+          },
+          "drop_condition_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drop Condition Mode"
+          },
+          "stale_threshold_hours": {
             "anyOf": [
               {
                 "type": "integer",
@@ -5750,7 +6089,31 @@
                 "type": "null"
               }
             ],
-            "title": "Hot Refresh Max Tokens"
+            "title": "Stale Threshold Hours"
+          },
+          "dormant_threshold_hours": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dormant Threshold Hours"
+          },
+          "low_liquidity_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Liquidity Threshold"
           },
           "score_enabled": {
             "anyOf": [
@@ -5812,6 +6175,123 @@
               }
             ],
             "title": "Score Weights"
+          },
+          "ingest_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Enabled"
+          },
+          "tier0_interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Interval Minutes"
+          },
+          "tier0_max_tokens_per_run": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier0 Max Tokens Per Run"
+          },
+          "enrich_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enrich Enabled"
+          },
+          "tier1_batch_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier1 Batch Size"
+          },
+          "tier1_credit_budget_per_run": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier1 Credit Budget Per Run"
+          },
+          "hot_refresh_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Enabled"
+          },
+          "hot_refresh_age_hours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Age Hours"
+          },
+          "hot_refresh_max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Refresh Max Tokens"
+          },
+          "fast_lane_mc_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fast Lane Mc Threshold"
           }
         },
         "type": "object",
@@ -7474,79 +7954,6 @@
         ],
         "title": "TagsResponse"
       },
-      "Tier0RunRequest": {
-        "properties": {
-          "max_tokens": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 500.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Tokens",
-            "description": "Override max tokens to fetch"
-          },
-          "mc_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mc Min",
-            "description": "Override minimum market cap"
-          },
-          "volume_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Volume Min",
-            "description": "Override minimum volume"
-          },
-          "liquidity_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Liquidity Min",
-            "description": "Override minimum liquidity"
-          },
-          "age_max_hours": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age Max Hours",
-            "description": "Override maximum age in hours"
-          }
-        },
-        "type": "object",
-        "title": "Tier0RunRequest",
-        "description": "Optional overrides for Tier-0 ingestion"
-      },
       "Tier1RunRequest": {
         "properties": {
           "batch_size": {
@@ -7561,7 +7968,7 @@
               }
             ],
             "title": "Batch Size",
-            "description": "Override batch size"
+            "description": "Deprecated"
           },
           "credit_budget": {
             "anyOf": [
@@ -7575,7 +7982,7 @@
               }
             ],
             "title": "Credit Budget",
-            "description": "Override credit budget"
+            "description": "Deprecated"
           },
           "mc_min": {
             "anyOf": [
@@ -7588,7 +7995,7 @@
               }
             ],
             "title": "Mc Min",
-            "description": "Override minimum market cap"
+            "description": "Deprecated"
           },
           "volume_min": {
             "anyOf": [
@@ -7601,7 +8008,7 @@
               }
             ],
             "title": "Volume Min",
-            "description": "Override minimum volume"
+            "description": "Deprecated"
           },
           "liquidity_min": {
             "anyOf": [
@@ -7614,7 +8021,7 @@
               }
             ],
             "title": "Liquidity Min",
-            "description": "Override minimum liquidity"
+            "description": "Deprecated"
           },
           "age_max_hours": {
             "anyOf": [
@@ -7627,12 +8034,12 @@
               }
             ],
             "title": "Age Max Hours",
-            "description": "Override maximum age in hours"
+            "description": "Deprecated"
           }
         },
         "type": "object",
         "title": "Tier1RunRequest",
-        "description": "Optional overrides for Tier-1 enrichment"
+        "description": "Deprecated: Tier-1 enrichment has been removed"
       },
       "Token": {
         "properties": {
@@ -7851,44 +8258,6 @@
             ],
             "title": "Top Holders Updated At"
           },
-          "performance_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Performance Score"
-          },
-          "performance_bucket": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Performance Bucket"
-          },
-          "score_timestamp": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Timestamp"
-          },
-          "is_control_cohort": {
-            "type": "boolean",
-            "title": "Is Control Cohort",
-            "default": false
-          },
           "ingest_source": {
             "anyOf": [
               {
@@ -7899,6 +8268,78 @@
               }
             ],
             "title": "Ingest Source"
+          },
+          "swab_open_positions": {
+            "type": "integer",
+            "title": "Swab Open Positions",
+            "default": 0
+          },
+          "swab_open_pnl_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swab Open Pnl Usd"
+          },
+          "swab_realized_pnl_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swab Realized Pnl Usd"
+          },
+          "swab_last_check_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swab Last Check At"
+          },
+          "swab_webhook_active": {
+            "type": "boolean",
+            "title": "Swab Webhook Active",
+            "default": false
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels",
+            "default": []
+          },
+          "next_refresh_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refresh At"
+          },
+          "is_fast_lane": {
+            "type": "boolean",
+            "title": "Is Fast Lane",
+            "default": false
+          },
+          "tracking_dropped": {
+            "type": "boolean",
+            "title": "Tracking Dropped",
+            "default": false
           }
         },
         "type": "object",
@@ -8117,44 +8558,6 @@
             ],
             "title": "Top Holders Updated At"
           },
-          "performance_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Performance Score"
-          },
-          "performance_bucket": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Performance Bucket"
-          },
-          "score_timestamp": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Timestamp"
-          },
-          "is_control_cohort": {
-            "type": "boolean",
-            "title": "Is Control Cohort",
-            "default": false
-          },
           "ingest_source": {
             "anyOf": [
               {
@@ -8165,6 +8568,78 @@
               }
             ],
             "title": "Ingest Source"
+          },
+          "swab_open_positions": {
+            "type": "integer",
+            "title": "Swab Open Positions",
+            "default": 0
+          },
+          "swab_open_pnl_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swab Open Pnl Usd"
+          },
+          "swab_realized_pnl_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swab Realized Pnl Usd"
+          },
+          "swab_last_check_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swab Last Check At"
+          },
+          "swab_webhook_active": {
+            "type": "boolean",
+            "title": "Swab Webhook Active",
+            "default": false
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels",
+            "default": []
+          },
+          "next_refresh_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refresh At"
+          },
+          "is_fast_lane": {
+            "type": "boolean",
+            "title": "Is Fast Lane",
+            "default": false
+          },
+          "tracking_dropped": {
+            "type": "boolean",
+            "title": "Tracking Dropped",
+            "default": false
           },
           "wallets": {
             "items": {
