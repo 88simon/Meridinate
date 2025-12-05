@@ -161,3 +161,55 @@ async def notify_credits_updated(operation: str, credits: int, total_today: int)
     }
     await mgr.broadcast(message)
     logger.debug(f"[Notify] Credits updated: {operation} ({credits} credits, total: {total_today})")
+
+
+async def notify_swab_refresh_complete(
+    tokens_updated: int,
+    fast_lane_updated: int,
+    slow_lane_updated: int,
+    tokens_failed: int,
+):
+    """
+    Send SWAB-driven refresh completion notification to all connected clients.
+
+    Args:
+        tokens_updated: Total tokens successfully updated
+        fast_lane_updated: Fast-lane tokens updated (SWAB exposure or high MC)
+        slow_lane_updated: Slow-lane tokens updated
+        tokens_failed: Tokens that failed to update
+    """
+    mgr = get_connection_manager()
+    message = {
+        "event": "swab_refresh_complete",
+        "data": {
+            "tokens_updated": tokens_updated,
+            "fast_lane_updated": fast_lane_updated,
+            "slow_lane_updated": slow_lane_updated,
+            "tokens_failed": tokens_failed,
+        },
+    }
+    await mgr.broadcast(message)
+    logger.info(
+        f"[Notify] SWAB refresh complete: {tokens_updated} updated "
+        f"(fast={fast_lane_updated}, slow={slow_lane_updated}), {tokens_failed} failed"
+    )
+
+
+async def notify_swab_position_check_complete(positions_checked: int, positions_updated: int):
+    """
+    Send SWAB position check completion notification to all connected clients.
+
+    Args:
+        positions_checked: Number of positions checked
+        positions_updated: Number of positions with balance changes detected
+    """
+    mgr = get_connection_manager()
+    message = {
+        "event": "swab_position_check_complete",
+        "data": {
+            "positions_checked": positions_checked,
+            "positions_updated": positions_updated,
+        },
+    }
+    await mgr.broadcast(message)
+    logger.info(f"[Notify] SWAB position check complete: {positions_checked} checked, {positions_updated} updated")

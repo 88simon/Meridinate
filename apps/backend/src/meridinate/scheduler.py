@@ -3,7 +3,7 @@ Scheduler Module
 ================
 Handles background job scheduling for:
 - SWAB position checking
-- Ingest pipeline (Tier-0 ingestion, Tier-1 enrichment)
+- Ingest pipeline (Discovery ingestion, tracking refresh)
 
 Uses APScheduler with asyncio support.
 """
@@ -52,8 +52,8 @@ def get_running_jobs() -> list:
 
     job_names = {
         _check_job_id: "SWAB Position Check",
-        _tier0_job_id: "Tier-0 Ingestion",
-        _tier1_job_id: "Tier-1 Enrichment",
+        _tier0_job_id: "Discovery Ingestion",
+        _tier1_job_id: "Tier-1 Enrichment (Deprecated)",
         _hot_refresh_job_id: "Hot Token Refresh",
     }
 
@@ -210,19 +210,19 @@ def start_scheduler():
             ingest_tier0_job,
             trigger=IntervalTrigger(minutes=tier0_interval),
             id=_tier0_job_id,
-            name="Ingest Tier-0 (DexScreener)",
+            name="Discovery (DexScreener)",
             replace_existing=True,
         )
-        log_info(f"[Ingest] Tier-0 scheduler enabled: running every {tier0_interval} minutes")
+        log_info(f"[Ingest] Discovery scheduler enabled: running every {tier0_interval} minutes")
     else:
-        log_info("[Ingest] Tier-0 scheduler disabled at startup")
+        log_info("[Ingest] Discovery scheduler disabled at startup")
 
     if CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
         scheduler.add_job(
             ingest_tier1_job,
             trigger=IntervalTrigger(hours=4),
             id=_tier1_job_id,
-            name="Ingest Tier-1 (Helius Enrichment)",
+            name="Tier-1 Enrichment (Deprecated)",
             replace_existing=True,
         )
         log_info("[Ingest] Tier-1 scheduler enabled: running every 4 hours")
@@ -284,7 +284,7 @@ def get_scheduler_status() -> dict:
 
 async def ingest_tier0_job():
     """
-    Scheduled job for Tier-0 ingestion (DexScreener, free).
+    Scheduled job for Discovery ingestion (DexScreener, free).
 
     Respects ingest settings for:
     - ingest_enabled flag
@@ -297,28 +297,28 @@ async def ingest_tier0_job():
     try:
         # Check if ingestion is enabled
         if not CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
-            log_info("[Tier-0] Auto-ingestion disabled, skipping scheduled run")
+            log_info("[Discovery] Auto-ingestion disabled, skipping scheduled run")
             return
 
         mark_job_started(_tier0_job_id)
-        log_info("[Tier-0] Starting scheduled ingestion")
+        log_info("[Discovery] Starting scheduled ingestion")
 
         result = await run_tier0_ingestion()
 
         log_info(
-            f"[Tier-0] Scheduled run complete: "
+            f"[Discovery] Scheduled run complete: "
             f"{result['tokens_new']} new, {result['tokens_updated']} updated"
         )
 
     except Exception as e:
-        log_error(f"[Tier-0] Scheduled run failed: {e}")
+        log_error(f"[Discovery] Scheduled run failed: {e}")
     finally:
         mark_job_finished(_tier0_job_id)
 
 
 async def ingest_tier1_job():
     """
-    Scheduled job for Tier-1 enrichment (Helius, budgeted).
+    Scheduled job for tracking refresh (Helius, budgeted).
 
     Respects ingest settings for:
     - enrich_enabled flag
@@ -333,16 +333,16 @@ async def ingest_tier1_job():
     try:
         # Check if enrichment is enabled
         if not CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
-            log_info("[Tier-1] Auto-enrichment disabled, skipping scheduled run")
+            log_info("[Tier-1 Deprecated] Auto-enrichment disabled, skipping scheduled run")
             return
 
         mark_job_started(_tier1_job_id)
-        log_info("[Tier-1] Starting scheduled enrichment")
+        log_info("[Tier-1 Deprecated] Starting scheduled enrichment")
 
         result = await run_tier1_enrichment()
 
         log_info(
-            f"[Tier-1] Scheduled run complete: "
+            f"[Tier-1 Deprecated] Scheduled run complete: "
             f"{result['tokens_enriched']} enriched, {result['credits_used']} credits used"
         )
 
@@ -350,7 +350,7 @@ async def ingest_tier1_job():
         if "auto_promote" in result:
             ap = result["auto_promote"]
             log_info(
-                f"[Tier-1] Auto-promote results: "
+                f"[Tier-1 Deprecated] Auto-promote results: "
                 f"{ap.get('tokens_promoted', 0)} promoted, "
                 f"{ap.get('webhooks_registered', 0)} webhooks"
             )
@@ -368,7 +368,7 @@ async def ingest_tier1_job():
             )
 
     except Exception as e:
-        log_error(f"[Tier-1] Scheduled run failed: {e}")
+        log_error(f"[Tier-1 Deprecated] Scheduled run failed: {e}")
     finally:
         mark_job_finished(_tier1_job_id)
 
@@ -430,19 +430,19 @@ def update_ingest_scheduler():
     if _scheduler.get_job(_hot_refresh_job_id):
         _scheduler.remove_job(_hot_refresh_job_id)
 
-    # Add Tier-0 job if enabled (uses tier0_interval_minutes setting)
+    # Add Discovery job if enabled (uses tier0_interval_minutes setting)
     if CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
         tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
         _scheduler.add_job(
             ingest_tier0_job,
             trigger=IntervalTrigger(minutes=tier0_interval),
             id=_tier0_job_id,
-            name="Ingest Tier-0 (DexScreener)",
+            name="Discovery (DexScreener)",
             replace_existing=True,
         )
-        log_info(f"[Ingest] Tier-0 scheduler enabled: running every {tier0_interval} minutes")
+        log_info(f"[Ingest] Discovery scheduler enabled: running every {tier0_interval} minutes")
     else:
-        log_info("[Ingest] Tier-0 scheduler disabled")
+        log_info("[Ingest] Discovery scheduler disabled")
 
     # Add Tier-1 job if enabled (runs every 4 hours)
     if CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
@@ -450,7 +450,7 @@ def update_ingest_scheduler():
             ingest_tier1_job,
             trigger=IntervalTrigger(hours=4),
             id=_tier1_job_id,
-            name="Ingest Tier-1 (Helius Enrichment)",
+            name="Tier-1 Enrichment (Deprecated)",
             replace_existing=True,
         )
         log_info("[Ingest] Tier-1 scheduler enabled: running every 4 hours")
@@ -498,11 +498,11 @@ def get_all_scheduled_jobs() -> list:
             swab_job["next_run_at"] = job.next_run_time.isoformat()
     jobs.append(swab_job)
 
-    # Tier-0 Ingestion
+    # Discovery Ingestion
     tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
     tier0_job = {
         "id": _tier0_job_id,
-        "name": "Tier-0 Ingestion",
+        "name": "Discovery Ingestion",
         "enabled": CURRENT_INGEST_SETTINGS.get("ingest_enabled", False),
         "next_run_at": None,
         "interval_minutes": tier0_interval,
@@ -513,10 +513,10 @@ def get_all_scheduled_jobs() -> list:
             tier0_job["next_run_at"] = job.next_run_time.isoformat()
     jobs.append(tier0_job)
 
-    # Tier-1 Enrichment
+    # Tier-1 Enrichment (Deprecated)
     tier1_job = {
         "id": _tier1_job_id,
-        "name": "Tier-1 Enrichment",
+        "name": "Tier-1 Enrichment (Deprecated)",
         "enabled": CURRENT_INGEST_SETTINGS.get("enrich_enabled", False),
         "next_run_at": None,
         "interval_minutes": 240,  # 4 hours

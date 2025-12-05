@@ -5,7 +5,8 @@ Provides REST endpoints for token history, details, trash management, and export
 """
 
 import json
-from datetime import datetime
+import sqlite3
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import aiosqlite
@@ -17,6 +18,7 @@ from meridinate.observability import log_error, log_info
 
 from meridinate import analyzed_tokens_db as db
 from meridinate import settings
+from meridinate.settings import CURRENT_INGEST_SETTINGS
 from meridinate.cache import ResponseCache
 from meridinate.utils.models import (
     AnalysisHistory,
@@ -36,6 +38,20 @@ from meridinate.credit_tracker import credit_tracker, CreditOperation
 
 router = APIRouter()
 cache = ResponseCache(name="tokens_history")
+
+
+def _table_has_column(db_path: str, table: str, column: str) -> bool:
+    """Check once at startup whether a table has a specific column."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.execute(f"PRAGMA table_info({table})")
+            return any(row[1] == column for row in cursor.fetchall())
+    except Exception:
+        return False
+
+
+HAS_LIQUIDITY_USD_COLUMN = _table_has_column(settings.DATABASE_FILE, "analyzed_tokens", "liquidity_usd")
+LIQUIDITY_SELECT_EXPR = "t.liquidity_usd" if HAS_LIQUIDITY_USD_COLUMN else "NULL AS liquidity_usd"
 
 
 class LatestTokenResponse(BaseModel):
@@ -93,6 +109,143 @@ async def get_latest_token(request: Request):
         )
 
 
+def compute_token_labels(
+    token_dict: Dict[str, Any],
+    swab_data: Dict[str, Any],
+    manual_tags: List[str],
+) -> List[str]:
+    """
+    Compute auto labels for a token based on its data.
+
+    Auto labels are prefixed with 'auto:' and manual tags with 'tag:'.
+
+    Label categories:
+    - Source: auto:Manual, auto:TIP
+    - SWAB: auto:SWAB-Tracked, auto:No-Positions, auto:Exited
+    - Market: auto:MC>100k, auto:Low-Liquidity
+    - Status: auto:Dormant, auto:Discarded
+
+    Args:
+        token_dict: Token data from database
+        swab_data: SWAB aggregates for this token
+        manual_tags: List of manual tags from token_tags table
+
+    Returns:
+        Combined list of auto labels and manual tags
+    """
+    labels = []
+
+    # Get configurable thresholds from settings
+    ingest_settings = CURRENT_INGEST_SETTINGS
+    mc_threshold = ingest_settings.get("fast_lane_mc_threshold", 100000)
+    dormant_hours = ingest_settings.get("dormant_threshold_hours", 72)
+    low_liquidity_threshold = ingest_settings.get("low_liquidity_threshold", 20000)
+
+    # Source labels
+    ingest_source = token_dict.get("ingest_source")
+    if ingest_source == "manual":
+        labels.append("auto:Manual")
+    elif ingest_source == "dexscreener":
+        labels.append("auto:TIP")
+
+    # SWAB exposure labels
+    open_positions = swab_data.get("open_positions", 0)
+    webhook_active = bool(token_dict.get("webhook_id"))
+
+    if open_positions > 0 or webhook_active:
+        labels.append("auto:SWAB-Tracked")
+    elif swab_data.get("realized_pnl_usd") is not None and open_positions == 0:
+        # Had positions but all closed
+        labels.append("auto:Exited")
+    else:
+        labels.append("auto:No-Positions")
+
+    # Market cap label (using configurable threshold)
+    current_mc = token_dict.get("market_cap_usd_current") or token_dict.get("market_cap_usd")
+    if current_mc and current_mc > mc_threshold:
+        labels.append("auto:MC>100k")
+
+    # Low-Liquidity label (using configurable threshold)
+    liquidity = token_dict.get("liquidity_usd")
+    if liquidity is not None and liquidity < low_liquidity_threshold:
+        labels.append("auto:Low-Liquidity")
+
+    # Dormant label (using configurable threshold)
+    market_cap_updated_at = token_dict.get("market_cap_updated_at")
+    if market_cap_updated_at:
+        try:
+            updated = datetime.fromisoformat(market_cap_updated_at.replace("Z", "+00:00"))
+            now = datetime.now(updated.tzinfo) if updated.tzinfo else datetime.utcnow()
+            hours_since_update = (now - updated).total_seconds() / 3600
+            if hours_since_update > dormant_hours:
+                labels.append("auto:Dormant")
+        except (ValueError, TypeError):
+            pass
+
+    # Discarded label
+    if token_dict.get("deleted_at"):
+        labels.append("auto:Discarded")
+
+    # Add manual tags with prefix
+    for tag in manual_tags:
+        labels.append(f"tag:{tag}")
+
+    return labels
+
+
+def compute_refresh_schedule(
+    token_dict: Dict[str, Any],
+    swab_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Compute SWAB-driven refresh schedule fields for a token.
+
+    Returns dict with:
+    - is_fast_lane: bool - whether token gets fast-lane refresh
+    - next_refresh_at: str | None - ISO timestamp of next scheduled refresh
+
+    Fast-lane criteria (any of):
+    - Has open SWAB positions
+    - Has active webhook
+    - Market cap >= fast_lane_mc_threshold
+    """
+    ingest_settings = CURRENT_INGEST_SETTINGS
+    mc_threshold = ingest_settings.get("fast_lane_mc_threshold", 100000)
+    fast_interval = ingest_settings.get("fast_lane_interval_minutes", 30)
+    slow_interval = ingest_settings.get("slow_lane_interval_minutes", 240)
+
+    # Determine fast-lane eligibility
+    open_positions = swab_data.get("open_positions", 0)
+    webhook_active = bool(token_dict.get("webhook_id"))
+    current_mc = token_dict.get("market_cap_usd_current") or token_dict.get("market_cap_usd")
+    high_mc = current_mc is not None and current_mc >= mc_threshold
+
+    is_fast_lane = open_positions > 0 or webhook_active or high_mc
+
+    # Calculate next refresh time
+    next_refresh_at = None
+    market_cap_updated_at = token_dict.get("market_cap_updated_at")
+
+    if market_cap_updated_at:
+        try:
+            # Parse the last refresh timestamp
+            updated = datetime.fromisoformat(market_cap_updated_at.replace("Z", "+00:00"))
+            if updated.tzinfo is None:
+                updated = updated.replace(tzinfo=timezone.utc)
+
+            # Add appropriate interval
+            interval_minutes = fast_interval if is_fast_lane else slow_interval
+            next_refresh = updated + timedelta(minutes=interval_minutes)
+            next_refresh_at = next_refresh.isoformat()
+        except (ValueError, TypeError):
+            pass
+
+    return {
+        "is_fast_lane": is_fast_lane,
+        "next_refresh_at": next_refresh_at,
+    }
+
+
 @router.get("/api/tokens/history", response_model=TokensResponse)
 @conditional_rate_limit(READ_RATE_LIMIT)
 async def get_tokens_history(request: Request, response: Response):
@@ -113,7 +266,7 @@ async def get_tokens_history(request: Request, response: Response):
     async def fetch_tokens():
         async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
             conn.row_factory = aiosqlite.Row
-            query = """
+            query = f"""
                 SELECT
                     t.id,
                     t.token_address,
@@ -128,13 +281,15 @@ async def get_tokens_history(request: Request, response: Response):
                     t.market_cap_updated_at,
                     t.market_cap_ath,
                     t.market_cap_ath_timestamp,
+                    {LIQUIDITY_SELECT_EXPR},
                     COUNT(DISTINCT ebw.wallet_address) as wallets_found,
                     t.credits_used, t.last_analysis_credits,
                     t.gem_status,
                     COALESCE(t.state_version, 0) as state_version,
                     t.top_holders_json,
                     t.top_holders_updated_at,
-                    t.ingest_source
+                    t.ingest_source,
+                    t.webhook_id
                 FROM analyzed_tokens t
                 LEFT JOIN early_buyer_wallets ebw ON ebw.token_id = t.id
                 WHERE t.deleted_at IS NULL OR t.deleted_at = ''
@@ -163,15 +318,39 @@ async def get_tokens_history(request: Request, response: Response):
                     tags_by_token[token_id] = []
                 tags_by_token[token_id].append(tag)
 
+            # Get token IDs for SWAB aggregation
+            token_ids = [dict(row)["id"] for row in rows]
+
+            # Fetch SWAB aggregates for all tokens in one query
+            swab_aggregates = db.get_swab_aggregates_by_token(token_ids)
+
             tokens = []
             total_wallets = 0
             for row in rows:
                 token_dict = dict(row)
-                token_dict["tags"] = tags_by_token.get(token_dict["id"], [])
+                token_id = token_dict["id"]
+                manual_tags = tags_by_token.get(token_id, [])
+                token_dict["tags"] = manual_tags
 
                 # Parse top holders JSON
                 top_holders_json = token_dict.get("top_holders_json")
                 token_dict["top_holders"] = json.loads(top_holders_json) if top_holders_json else None
+
+                # Add SWAB aggregates
+                swab_data = swab_aggregates.get(token_id, {})
+                token_dict["swab_open_positions"] = swab_data.get("open_positions", 0)
+                token_dict["swab_open_pnl_usd"] = swab_data.get("open_pnl_usd")
+                token_dict["swab_realized_pnl_usd"] = swab_data.get("realized_pnl_usd")
+                token_dict["swab_last_check_at"] = swab_data.get("last_check_at")
+                token_dict["swab_webhook_active"] = bool(token_dict.get("webhook_id"))
+
+                # Compute auto labels
+                token_dict["labels"] = compute_token_labels(token_dict, swab_data, manual_tags)
+
+                # Compute refresh schedule (is_fast_lane, next_refresh_at)
+                refresh_schedule = compute_refresh_schedule(token_dict, swab_data)
+                token_dict["is_fast_lane"] = refresh_schedule["is_fast_lane"]
+                token_dict["next_refresh_at"] = refresh_schedule["next_refresh_at"]
 
                 tokens.append(token_dict)
                 total_wallets += token_dict.get("wallets_found", 0)
@@ -220,14 +399,36 @@ async def get_deleted_tokens(request: Request):
         else:
             tags_by_token = {}
 
+        # Get token IDs for SWAB aggregation
+        token_ids = [dict(row)["id"] for row in rows]
+        swab_aggregates = db.get_swab_aggregates_by_token(token_ids) if token_ids else {}
+
         tokens = []
         for row in rows:
             token_dict = dict(row)
-            token_dict["tags"] = tags_by_token.get(token_dict["id"], [])
+            token_id = token_dict["id"]
+            manual_tags = tags_by_token.get(token_id, [])
+            token_dict["tags"] = manual_tags
 
             # Parse top holders JSON
             top_holders_json = token_dict.get("top_holders_json")
             token_dict["top_holders"] = json.loads(top_holders_json) if top_holders_json else None
+
+            # Add SWAB aggregates
+            swab_data = swab_aggregates.get(token_id, {})
+            token_dict["swab_open_positions"] = swab_data.get("open_positions", 0)
+            token_dict["swab_open_pnl_usd"] = swab_data.get("open_pnl_usd")
+            token_dict["swab_realized_pnl_usd"] = swab_data.get("realized_pnl_usd")
+            token_dict["swab_last_check_at"] = swab_data.get("last_check_at")
+            token_dict["swab_webhook_active"] = bool(token_dict.get("webhook_id"))
+
+            # Compute auto labels
+            token_dict["labels"] = compute_token_labels(token_dict, swab_data, manual_tags)
+
+            # Compute refresh schedule (is_fast_lane, next_refresh_at)
+            refresh_schedule = compute_refresh_schedule(token_dict, swab_data)
+            token_dict["is_fast_lane"] = refresh_schedule["is_fast_lane"]
+            token_dict["next_refresh_at"] = refresh_schedule["next_refresh_at"]
 
             tokens.append(token_dict)
 
@@ -455,11 +656,29 @@ async def get_token_by_id(token_id: int):
         tags_query = "SELECT tag FROM token_tags WHERE token_id = ?"
         cursor = await conn.execute(tags_query, (token_id,))
         tag_rows = await cursor.fetchall()
-        token["tags"] = [row[0] for row in tag_rows]
+        manual_tags = [row[0] for row in tag_rows]
+        token["tags"] = manual_tags
 
         # Parse top holders JSON
         top_holders_json = token.get("top_holders_json")
         token["top_holders"] = json.loads(top_holders_json) if top_holders_json else None
+
+        # Add SWAB aggregates
+        swab_aggregates = db.get_swab_aggregates_by_token([token_id])
+        swab_data = swab_aggregates.get(token_id, {})
+        token["swab_open_positions"] = swab_data.get("open_positions", 0)
+        token["swab_open_pnl_usd"] = swab_data.get("open_pnl_usd")
+        token["swab_realized_pnl_usd"] = swab_data.get("realized_pnl_usd")
+        token["swab_last_check_at"] = swab_data.get("last_check_at")
+        token["swab_webhook_active"] = bool(token.get("webhook_id"))
+
+        # Compute auto labels
+        token["labels"] = compute_token_labels(token, swab_data, manual_tags)
+
+        # Compute refresh schedule (is_fast_lane, next_refresh_at)
+        refresh_schedule = compute_refresh_schedule(token, swab_data)
+        token["is_fast_lane"] = refresh_schedule["is_fast_lane"]
+        token["next_refresh_at"] = refresh_schedule["next_refresh_at"]
 
         return token
 

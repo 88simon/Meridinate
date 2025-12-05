@@ -1,13 +1,16 @@
 """
 Ingest Pipeline Router
 
-Provides REST endpoints for the tiered token ingestion pipeline:
+Provides REST endpoints for the Discovery → Queue → Analysis pipeline:
 - GET/POST /api/ingest/settings - View/update thresholds, budgets, flags
 - GET /api/ingest/queue - List queue entries by tier/status
-- POST /api/ingest/run-tier0 - Trigger Tier-0 ingestion (DexScreener, free)
-- POST /api/ingest/run-tier1 - Trigger Tier-1 enrichment (Helius, budgeted)
+- POST /api/ingest/run-discovery - Trigger Discovery (DexScreener, free)
 - POST /api/ingest/promote - Promote tokens to full analysis
 - POST /api/ingest/discard - Mark tokens as discarded
+
+Legacy endpoints (backward compatibility):
+- POST /api/ingest/run-tier0 - Alias for run-discovery
+- POST /api/ingest/run-tier1 - Deprecated (no-op)
 """
 
 from typing import List, Optional
@@ -61,6 +64,16 @@ async def update_ingest_settings(payload: UpdateIngestSettingsRequest):
     if not updates:
         return {"status": "noop", "settings": CURRENT_INGEST_SETTINGS}
 
+    # Handle legacy field mappings
+    if "ingest_enabled" in updates and "discovery_enabled" not in updates:
+        updates["discovery_enabled"] = updates["ingest_enabled"]
+    if "tier0_interval_minutes" in updates and "discovery_interval_minutes" not in updates:
+        updates["discovery_interval_minutes"] = updates["tier0_interval_minutes"]
+    if "tier0_max_tokens_per_run" in updates and "discovery_max_per_run" not in updates:
+        updates["discovery_max_per_run"] = updates["tier0_max_tokens_per_run"]
+    if "fast_lane_mc_threshold" in updates and "tracking_mc_threshold" not in updates:
+        updates["tracking_mc_threshold"] = updates["fast_lane_mc_threshold"]
+
     # Update in-memory settings
     CURRENT_INGEST_SETTINGS.update(updates)
 
@@ -76,8 +89,9 @@ async def update_ingest_settings(payload: UpdateIngestSettingsRequest):
         settings_type="ingest",
     )
 
-    # Update scheduler if feature flags changed
-    if any(k in updates for k in ["ingest_enabled", "enrich_enabled", "hot_refresh_enabled"]):
+    # Update scheduler if feature flags changed (check both legacy and new names)
+    scheduler_flags = ["discovery_enabled", "ingest_enabled", "auto_promote_enabled", "slow_lane_enabled"]
+    if any(k in updates for k in scheduler_flags):
         from meridinate.scheduler import update_ingest_scheduler
 
         update_ingest_scheduler()
@@ -237,10 +251,14 @@ async def get_ingest_queue_stats():
             total=total,
             by_tier=by_tier,
             by_status=by_status,
-            last_tier0_run_at=CURRENT_INGEST_SETTINGS.get("last_tier0_run_at"),
+            # New discovery-based naming
+            last_discovery_run_at=CURRENT_INGEST_SETTINGS.get("last_discovery_run_at"),
+            last_refresh_run_at=CURRENT_INGEST_SETTINGS.get("last_refresh_run_at"),
+            # Legacy fields (backward compatibility)
+            last_tier0_run_at=CURRENT_INGEST_SETTINGS.get("last_tier0_run_at") or CURRENT_INGEST_SETTINGS.get("last_discovery_run_at"),
             last_tier1_run_at=CURRENT_INGEST_SETTINGS.get("last_tier1_run_at"),
             last_tier1_credits_used=CURRENT_INGEST_SETTINGS.get("last_tier1_credits_used", 0),
-            last_hot_refresh_at=CURRENT_INGEST_SETTINGS.get("last_hot_refresh_at"),
+            last_hot_refresh_at=CURRENT_INGEST_SETTINGS.get("last_hot_refresh_at") or CURRENT_INGEST_SETTINGS.get("last_refresh_run_at"),
         )
 
 
@@ -249,8 +267,8 @@ async def get_ingest_queue_stats():
 # ============================================================================
 
 
-class Tier0RunRequest(BaseModel):
-    """Optional overrides for Tier-0 ingestion"""
+class DiscoveryRunRequest(BaseModel):
+    """Optional overrides for Discovery ingestion"""
 
     max_tokens: Optional[int] = Field(None, ge=1, le=500, description="Override max tokens to fetch")
     mc_min: Optional[float] = Field(None, ge=0, description="Override minimum market cap")
@@ -259,15 +277,19 @@ class Tier0RunRequest(BaseModel):
     age_max_hours: Optional[float] = Field(None, ge=1, description="Override maximum age in hours")
 
 
-class Tier1RunRequest(BaseModel):
-    """Optional overrides for Tier-1 enrichment"""
+# Legacy alias for backward compatibility
+Tier0RunRequest = DiscoveryRunRequest
 
-    batch_size: Optional[int] = Field(None, ge=1, le=100, description="Override batch size")
-    credit_budget: Optional[int] = Field(None, ge=1, le=1000, description="Override credit budget")
-    mc_min: Optional[float] = Field(None, ge=0, description="Override minimum market cap")
-    volume_min: Optional[float] = Field(None, ge=0, description="Override minimum volume")
-    liquidity_min: Optional[float] = Field(None, ge=0, description="Override minimum liquidity")
-    age_max_hours: Optional[float] = Field(None, ge=1, description="Override maximum age in hours")
+
+class Tier1RunRequest(BaseModel):
+    """Deprecated: Tier-1 enrichment has been removed"""
+
+    batch_size: Optional[int] = Field(None, ge=1, le=100, description="Deprecated")
+    credit_budget: Optional[int] = Field(None, ge=1, le=1000, description="Deprecated")
+    mc_min: Optional[float] = Field(None, ge=0, description="Deprecated")
+    volume_min: Optional[float] = Field(None, ge=0, description="Deprecated")
+    liquidity_min: Optional[float] = Field(None, ge=0, description="Deprecated")
+    age_max_hours: Optional[float] = Field(None, ge=1, description="Deprecated")
 
 
 class PromoteRequest(BaseModel):
@@ -284,10 +306,10 @@ class DiscardRequest(BaseModel):
     reason: str = Field(default="manual", description="Reason for discarding")
 
 
-@router.post("/run-tier0")
-async def run_tier0(payload: Optional[Tier0RunRequest] = None):
+@router.post("/run-discovery")
+async def run_discovery(payload: Optional[DiscoveryRunRequest] = None):
     """
-    Trigger Tier-0 ingestion (DexScreener, free).
+    Trigger Discovery ingestion (DexScreener, free).
 
     Fetches recently migrated/listed tokens from DexScreener, dedupes against
     existing tokens, and stores snapshots in the ingest queue.
@@ -300,21 +322,22 @@ async def run_tier0(payload: Optional[Tier0RunRequest] = None):
     """
     from meridinate.tasks.ingest_tasks import run_tier0_ingestion
 
-    # Check if ingestion is enabled (can be overridden by explicit call)
-    if not CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
-        log_info("[Tier-0] Manual trigger (ingest_enabled=false)")
+    # Check if discovery is enabled (can be overridden by explicit call)
+    discovery_enabled = CURRENT_INGEST_SETTINGS.get("discovery_enabled") or CURRENT_INGEST_SETTINGS.get("ingest_enabled")
+    if not discovery_enabled:
+        log_info("[Discovery] Manual trigger (discovery_enabled=false)")
 
     params = payload.model_dump(exclude_unset=True) if payload else {}
 
-    log_info("Tier-0 ingestion triggered", params=params, event_type="ingest_trigger", tier="tier0")
+    log_info("Discovery ingestion triggered", params=params, event_type="ingest_trigger", tier="discovery")
 
     result = await run_tier0_ingestion(**params)
 
     # Log high-level operation for persistent history
     from meridinate.credit_tracker import get_credit_tracker
     get_credit_tracker().record_operation(
-        operation="tier0_ingestion",
-        label="Tier-0 Ingestion",
+        operation="discovery_ingestion",
+        label="Discovery Ingestion",
         credits=0,  # DexScreener is free
         call_count=result.get("tokens_fetched", 0),
         context={
@@ -326,55 +349,55 @@ async def run_tier0(payload: Optional[Tier0RunRequest] = None):
     return {"status": "success", "result": result}
 
 
+@router.post("/run-tier0")
+async def run_tier0(payload: Optional[Tier0RunRequest] = None):
+    """
+    Legacy endpoint: Alias for /run-discovery.
+
+    Trigger Discovery ingestion (DexScreener, free).
+
+    Args:
+        payload: Optional overrides for ingestion parameters
+
+    Returns:
+        Ingestion results including tokens fetched, new, updated, skipped
+    """
+    return await run_discovery(payload)
+
+
 @router.post("/run-tier1")
 async def run_tier1(payload: Optional[Tier1RunRequest] = None):
     """
-    Trigger Tier-1 enrichment (Helius, budgeted).
+    Deprecated: Tier-1 enrichment has been removed.
 
-    Selects tokens from queue that pass thresholds, enriches with Helius data
-    (metadata + top holders), respects credit budget.
-
-    Args:
-        payload: Optional overrides for enrichment parameters
+    The simplified Discovery → Queue → Analysis flow no longer uses
+    a separate enrichment step. Discovered tokens can be directly
+    promoted to full analysis.
 
     Returns:
-        Enrichment results including tokens processed, enriched, failed, credits used
+        Deprecation notice
     """
-    from meridinate.tasks.ingest_tasks import run_tier1_enrichment
+    log_info("[Tier-1] Deprecated endpoint called", event_type="deprecated_call")
 
-    # Check if enrichment is enabled (can be overridden by explicit call)
-    if not CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
-        log_info("[Tier-1] Manual trigger (enrich_enabled=false)")
-
-    params = payload.model_dump(exclude_unset=True) if payload else {}
-
-    log_info("Tier-1 enrichment triggered", params=params, event_type="ingest_trigger", tier="tier1")
-
-    result = await run_tier1_enrichment(**params)
-
-    # Log high-level operation for persistent history
-    from meridinate.credit_tracker import get_credit_tracker
-    get_credit_tracker().record_operation(
-        operation="tier1_enrichment",
-        label="Tier-1 Enrichment",
-        credits=result.get("credits_used", 0),
-        call_count=result.get("tokens_enriched", 0),
-        context={
-            "tokens_processed": result.get("tokens_processed", 0),
-            "tokens_failed": result.get("tokens_failed", 0),
+    return {
+        "status": "deprecated",
+        "message": "Tier-1 enrichment has been removed. Use /api/ingest/promote to move discovered tokens to full analysis.",
+        "result": {
+            "tokens_processed": 0,
+            "tokens_enriched": 0,
+            "tokens_failed": 0,
+            "credits_used": 0,
         }
-    )
-
-    return {"status": "success", "result": result}
+    }
 
 
 @router.post("/promote")
 async def promote_tokens(payload: PromoteRequest):
     """
-    Promote tokens from enriched tier to full analysis.
+    Promote tokens from Discovery Queue to full analysis.
 
     Marks tokens for full analysis (MTEW detection, SWAB tracking).
-    Only tokens in 'enriched' tier can be promoted.
+    Tokens in 'ingested' or 'enriched' tier can be promoted.
     Optionally registers SWAB webhooks for tracking (default: True).
 
     Args:

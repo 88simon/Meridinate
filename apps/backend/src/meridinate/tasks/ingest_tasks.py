@@ -1,9 +1,9 @@
 """
 Ingest Pipeline Tasks
 
-Implements Tier-0 ingestion and Tier-1 enrichment jobs for the token discovery pipeline.
+Implements Discovery ingestion and Tier-1 enrichment (deprecated) jobs for the token discovery pipeline.
 
-Tier-0: Fetch tokens from DexScreener (free), dedupe, store snapshots
+Discovery: Fetch tokens from DexScreener (free), dedupe, store snapshots
 Tier-1: Enrich tokens with Helius data (budgeted), apply thresholds
 Hot Refresh: Update MC/volume for recently ingested tokens (free)
 Auto-promote: Promote enriched tokens to full analysis
@@ -26,7 +26,7 @@ async def run_tier0_ingestion(
     age_max_hours: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
-    Tier-0 Ingestion: Fetch tokens from DexScreener (free, no Helius credits).
+    Discovery Ingestion: Fetch tokens from DexScreener (free, no Helius credits).
 
     - Fetches recently migrated/listed tokens from DexScreener
     - Dedupes against analyzed_tokens and existing queue entries
@@ -53,7 +53,7 @@ async def run_tier0_ingestion(
     age_max_hours = age_max_hours if age_max_hours is not None else settings.get("age_max_hours", 48)
 
     log_info(
-        f"[Tier-0] Starting ingestion: max={max_tokens}, mc>=${mc_min}, "
+        f"[Discovery] Starting ingestion: max={max_tokens}, mc>=${mc_min}, "
         f"vol>=${volume_min}, liq>=${liquidity_min}, age<={age_max_hours}h"
     )
 
@@ -70,7 +70,7 @@ async def run_tier0_ingestion(
     try:
         # Get existing addresses for deduplication
         existing_addresses = db.get_existing_token_addresses()
-        log_info(f"[Tier-0] Found {len(existing_addresses)} existing addresses to dedupe against")
+        log_info(f"[Discovery] Found {len(existing_addresses)} existing addresses to dedupe against")
 
         # Fetch tokens from DexScreener
         dexscreener = get_dexscreener_service()
@@ -131,12 +131,12 @@ async def run_tier0_ingestion(
 
         result["completed_at"] = datetime.now().isoformat()
         log_info(
-            f"[Tier-0] Complete: {result['tokens_new']} new, "
+            f"[Discovery] Complete: {result['tokens_new']} new, "
             f"{result['tokens_updated']} updated, {result['tokens_skipped']} skipped"
         )
 
     except Exception as e:
-        log_error(f"[Tier-0] Error: {e}")
+        log_error(f"[Discovery] Error: {e}")
         result["errors"].append(str(e))
         result["completed_at"] = datetime.now().isoformat()
 
@@ -184,7 +184,7 @@ async def run_tier1_enrichment(
     age_max_hours = age_max_hours if age_max_hours is not None else settings.get("age_max_hours", 48)
 
     log_info(
-        f"[Tier-1] Starting enrichment: batch={batch_size}, budget={credit_budget} credits, "
+        f"[Tier-1 Deprecated] Starting enrichment: batch={batch_size}, budget={credit_budget} credits, "
         f"mc>=${mc_min}, vol>=${volume_min}"
     )
 
@@ -209,11 +209,11 @@ async def run_tier1_enrichment(
         )
 
         if not candidates:
-            log_info("[Tier-1] No candidates found for enrichment")
+            log_info("[Tier-1 Deprecated] No candidates found for enrichment")
             result["completed_at"] = datetime.now().isoformat()
             return result
 
-        log_info(f"[Tier-1] Found {len(candidates)} candidates for enrichment")
+        log_info(f"[Tier-1 Deprecated] Found {len(candidates)} candidates for enrichment")
 
         # Initialize Helius API
         helius = HeliusAPI(HELIUS_API_KEY)
@@ -221,7 +221,7 @@ async def run_tier1_enrichment(
         for token in candidates:
             # Check credit budget
             if result["credits_used"] >= credit_budget:
-                log_info(f"[Tier-1] Credit budget exhausted ({credit_budget}), stopping")
+                log_info(f"[Tier-1 Deprecated] Credit budget exhausted ({credit_budget}), stopping")
                 break
 
             address = token["token_address"]
@@ -233,7 +233,7 @@ async def run_tier1_enrichment(
                 result["credits_used"] += meta_credits
 
                 if not metadata:
-                    log_info(f"[Tier-1] No metadata for {address}, skipping")
+                    log_info(f"[Tier-1 Deprecated] No metadata for {address}, skipping")
                     db.update_ingest_queue_tier(address, "ingested", error="No metadata found")
                     result["tokens_failed"] += 1
                     continue
@@ -268,10 +268,10 @@ async def run_tier1_enrichment(
                     ingest_tier_snapshot="enriched",
                 )
 
-                log_info(f"[Tier-1] Enriched {address}: {meta_credits + holders_credits} credits")
+                log_info(f"[Tier-1 Deprecated] Enriched {address}: {meta_credits + holders_credits} credits")
 
             except Exception as e:
-                log_error(f"[Tier-1] Error enriching {address}: {e}")
+                log_error(f"[Tier-1 Deprecated] Error enriching {address}: {e}")
                 db.update_ingest_queue_tier(address, "ingested", error=str(e))
                 result["tokens_failed"] += 1
                 result["errors"].append(f"{address}: {str(e)}")
@@ -283,18 +283,18 @@ async def run_tier1_enrichment(
 
         result["completed_at"] = datetime.now().isoformat()
         log_info(
-            f"[Tier-1] Complete: {result['tokens_enriched']} enriched, "
+            f"[Tier-1 Deprecated] Complete: {result['tokens_enriched']} enriched, "
             f"{result['tokens_failed']} failed, {result['credits_used']} credits used"
         )
 
         # Auto-promote if enabled (runs after enrichment)
         if settings.get("auto_promote_enabled") and result["tokens_enriched"] > 0:
-            log_info("[Tier-1] Triggering auto-promote after enrichment")
+            log_info("[Tier-1 Deprecated] Triggering auto-promote after enrichment")
             auto_promote_result = await run_auto_promote()
             result["auto_promote"] = auto_promote_result
 
     except Exception as e:
-        log_error(f"[Tier-1] Error: {e}")
+        log_error(f"[Tier-1 Deprecated] Error: {e}")
         result["errors"].append(str(e))
         result["completed_at"] = datetime.now().isoformat()
 
@@ -423,6 +423,130 @@ async def run_hot_token_refresh(
     return result
 
 
+async def run_swab_driven_refresh(
+    max_tokens: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Refresh MC/volume/liquidity for analyzed tokens using SWAB-driven priority.
+
+    Priority order:
+    1. Tokens with open SWAB positions (highest priority)
+    2. Tokens with active webhooks
+    3. Tokens with MC > threshold (fast lane)
+    4. All other tokens (slow lane, less frequent refresh)
+
+    Uses DexScreener (free) for price/MC/volume updates.
+
+    Args:
+        max_tokens: Override max tokens to refresh per run
+
+    Returns:
+        Dictionary with refresh results
+    """
+    from meridinate.routers.tokens import cache as tokens_cache
+
+    settings = CURRENT_INGEST_SETTINGS
+
+    # Get settings with defaults
+    fast_lane_mc = settings.get("fast_lane_mc_threshold", 100000)
+    fast_interval = settings.get("fast_lane_interval_minutes", 30)
+    slow_interval = settings.get("slow_lane_interval_minutes", 240)
+    max_tokens = max_tokens or settings.get("hot_refresh_max_tokens", 100)
+
+    log_info(
+        f"[SWAB Refresh] Starting: MC threshold=${fast_lane_mc:,.0f}, "
+        f"fast={fast_interval}m, slow={slow_interval}m, max={max_tokens}"
+    )
+
+    result = {
+        "tokens_checked": 0,
+        "tokens_updated": 0,
+        "fast_lane_updated": 0,
+        "slow_lane_updated": 0,
+        "tokens_failed": 0,
+        "errors": [],
+        "started_at": datetime.now().isoformat(),
+        "completed_at": None,
+    }
+
+    try:
+        # Get tokens prioritized by SWAB exposure and MC
+        tokens = db.get_tokens_for_swab_refresh(
+            fast_lane_mc_threshold=fast_lane_mc,
+            fast_lane_interval_minutes=fast_interval,
+            slow_lane_interval_minutes=slow_interval,
+            limit=max_tokens,
+        )
+        result["tokens_checked"] = len(tokens)
+
+        if not tokens:
+            log_info("[SWAB Refresh] No tokens need refresh")
+            result["completed_at"] = datetime.now().isoformat()
+            return result
+
+        log_info(f"[SWAB Refresh] Found {len(tokens)} tokens to refresh")
+
+        # Get DexScreener service
+        dexscreener = get_dexscreener_service()
+
+        # Refresh each token and update MC in database
+        for token in tokens:
+            token_id = token["id"]
+            address = token["token_address"]
+            is_fast = token.get("is_fast_lane", False)
+
+            try:
+                snapshot = dexscreener.get_token_snapshot(address)
+                if snapshot:
+                    market_cap = snapshot.get("market_cap_usd")
+                    liquidity = snapshot.get("liquidity_usd")
+                    if market_cap is not None:
+                        # Update market cap and liquidity in analyzed_tokens
+                        db.update_token_market_cap(
+                            token_id=token_id,
+                            market_cap_usd=market_cap,
+                            liquidity_usd=liquidity,
+                        )
+                        result["tokens_updated"] += 1
+                        if is_fast:
+                            result["fast_lane_updated"] += 1
+                        else:
+                            result["slow_lane_updated"] += 1
+                else:
+                    result["tokens_failed"] += 1
+            except Exception as e:
+                log_error(f"[SWAB Refresh] Error refreshing {address}: {e}")
+                result["errors"].append(f"{address}: {str(e)}")
+                result["tokens_failed"] += 1
+
+        # Invalidate tokens cache so frontend sees fresh data
+        tokens_cache.invalidate("tokens_history")
+
+        result["completed_at"] = datetime.now().isoformat()
+        log_info(
+            f"[SWAB Refresh] Complete: {result['tokens_updated']} updated "
+            f"(fast={result['fast_lane_updated']}, slow={result['slow_lane_updated']}), "
+            f"{result['tokens_failed']} failed"
+        )
+
+        # Send WebSocket notification
+        from meridinate.websocket import notify_swab_refresh_complete
+
+        await notify_swab_refresh_complete(
+            tokens_updated=result["tokens_updated"],
+            fast_lane_updated=result["fast_lane_updated"],
+            slow_lane_updated=result["slow_lane_updated"],
+            tokens_failed=result["tokens_failed"],
+        )
+
+    except Exception as e:
+        log_error(f"[SWAB Refresh] Error: {e}")
+        result["errors"].append(str(e))
+        result["completed_at"] = datetime.now().isoformat()
+
+    return result
+
+
 async def promote_tokens_to_analysis(
     token_addresses: List[str],
     register_webhooks: bool = True,
@@ -460,10 +584,10 @@ async def promote_tokens_to_analysis(
 
     for address in token_addresses:
         try:
-            # Check token is in enriched tier
+            # Check token is in ingested or enriched tier (both can be promoted)
             entry = db.get_ingest_queue_entry(address)
-            if not entry or entry["tier"] != "enriched":
-                result["errors"].append(f"{address}: Not in enriched tier")
+            if not entry or entry["tier"] not in ("ingested", "enriched"):
+                result["errors"].append(f"{address}: Not in ingested/enriched tier")
                 result["tokens_failed"] += 1
                 continue
 
@@ -533,6 +657,7 @@ async def promote_tokens_to_analysis(
                 credits_used=credits_used,
                 max_wallets=max_wallets,
                 market_cap_usd=analysis_result.get("market_cap_usd"),
+                liquidity_usd=entry.get("last_liquidity"),
                 top_holders=analysis_result.get("top_holders"),
                 ingest_source=entry.get("source", "ingest_queue"),
                 ingest_tier="enriched",
@@ -631,7 +756,7 @@ async def run_auto_promote(
     """
     Auto-promote enriched tokens to full analysis.
 
-    Called after Tier-1 enrichment when auto_promote_enabled is True.
+    Called after Tier-1 enrichment (deprecated) when auto_promote_enabled is True.
 
     Args:
         max_promotions: Maximum tokens to promote per run (default: from settings)

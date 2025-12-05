@@ -66,42 +66,59 @@ DEFAULT_SCORE_WEIGHTS: dict = {
 }
 
 DEFAULT_INGEST_SETTINGS: dict = {
-    # Threshold filters for promotion
+    # Threshold filters for discovery
     "mc_min": 10000,  # Minimum market cap in USD
     "volume_min": 5000,  # Minimum 24h volume in USD
     "liquidity_min": 5000,  # Minimum liquidity in USD
     "age_max_hours": 48,  # Maximum token age in hours
-    # Scheduler intervals
-    "tier0_interval_minutes": 60,  # Tier-0 (DexScreener) scheduler interval
-    # Batch and budget limits
-    "tier0_max_tokens_per_run": 50,  # Max tokens to ingest per Tier-0 run
-    "tier1_batch_size": 10,  # Max tokens to enrich per Tier-1 run
-    "tier1_credit_budget_per_run": 100,  # Max Helius credits per Tier-1 run
-    # Feature flags
-    "ingest_enabled": False,  # Enable Tier-0 ingestion
-    "enrich_enabled": False,  # Enable Tier-1 enrichment
-    "auto_promote_enabled": False,  # Auto-promote enriched tokens to full analysis
-    "hot_refresh_enabled": False,  # Enable hot token MC/volume refresh
+    # Discovery scheduler settings (renamed from tier0)
+    "discovery_enabled": False,  # Enable Discovery (DexScreener) ingestion
+    "discovery_interval_minutes": 60,  # Discovery scheduler interval
+    "discovery_max_per_run": 50,  # Max tokens to discover per run
+    # Auto-promote settings
+    "auto_promote_enabled": False,  # Auto-promote discovered tokens to full analysis
+    "auto_promote_max_per_run": 5,  # Max tokens to auto-promote per run
     # Bypass limits flag
     "bypass_limits": False,  # Bypass UI/backend validation caps
-    # Auto-promote settings
-    "auto_promote_max_per_run": 5,  # Max tokens to auto-promote per run
-    # Hot refresh settings
-    "hot_refresh_age_hours": 48,  # Max age for hot tokens to refresh
-    "hot_refresh_max_tokens": 100,  # Max tokens to refresh per run
+    # Tracking & Refresh settings (renamed from SWAB-driven refresh)
+    "tracking_mc_threshold": 100000,  # Tokens with MC >= this get fast refresh (USD)
+    "fast_lane_interval_minutes": 30,  # Refresh interval for fast-lane tokens (30m)
+    "slow_lane_interval_minutes": 240,  # Refresh interval for slow-lane tokens (4h)
+    "slow_lane_enabled": True,  # Enable slow-lane refresh (can be turned off)
+    # Drop conditions for tracking
+    "drop_if_mc_below_threshold": False,  # Drop from refresh if MC < threshold
+    "drop_if_no_swab_positions": False,  # Drop from refresh if no SWAB positions
+    "drop_condition_mode": "AND",  # AND = both conditions, OR = either condition
+    # Stale thresholds for warnings
+    "stale_threshold_hours": 4,  # Consider data stale if last refresh > this
+    "dormant_threshold_hours": 72,  # Tokens with no activity beyond this are "Dormant"
+    "low_liquidity_threshold": 20000,  # Tokens with liquidity < this get "Low-Liquidity" label (USD)
     # Performance scoring settings
-    "score_enabled": False,  # Enable performance scoring after hot refresh
+    "score_enabled": False,  # Enable performance scoring after refresh
     "performance_prime_threshold": 65,  # Score >= this -> Prime bucket
     "performance_monitor_threshold": 40,  # Score >= this (but < prime) -> Monitor; below -> Cull
     "control_cohort_daily_quota": 5,  # Random low-score tokens to track daily
     "score_weights": DEFAULT_SCORE_WEIGHTS.copy(),
     # Run tracking (read-only, managed by scheduler)
-    "last_tier0_run_at": None,
-    "last_tier1_run_at": None,
-    "last_tier1_credits_used": 0,
-    "last_hot_refresh_at": None,
+    "last_discovery_run_at": None,
+    "last_refresh_run_at": None,
     "last_score_run_at": None,
     "last_control_cohort_run_at": None,
+    # Legacy fields (kept for backward compatibility during migration)
+    "ingest_enabled": False,  # Deprecated: use discovery_enabled
+    "tier0_interval_minutes": 60,  # Deprecated: use discovery_interval_minutes
+    "tier0_max_tokens_per_run": 50,  # Deprecated: use discovery_max_per_run
+    "enrich_enabled": False,  # Deprecated: tier-1 removed
+    "tier1_batch_size": 10,  # Deprecated: tier-1 removed
+    "tier1_credit_budget_per_run": 100,  # Deprecated: tier-1 removed
+    "hot_refresh_enabled": False,  # Deprecated: use tracking settings
+    "hot_refresh_age_hours": 48,  # Deprecated
+    "hot_refresh_max_tokens": 100,  # Deprecated
+    "fast_lane_mc_threshold": 100000,  # Deprecated: use tracking_mc_threshold
+    "last_tier0_run_at": None,  # Deprecated: use last_discovery_run_at
+    "last_tier1_run_at": None,  # Deprecated
+    "last_tier1_credits_used": 0,  # Deprecated
+    "last_hot_refresh_at": None,  # Deprecated: use last_refresh_run_at
 }
 
 
@@ -111,37 +128,41 @@ DEFAULT_INGEST_SETTINGS: dict = {
 
 
 class IngestSettings(BaseModel):
-    """Settings for the tiered token ingestion pipeline"""
+    """Settings for the Discovery → Queue → Analysis pipeline"""
 
-    # Threshold filters
+    # Threshold filters for discovery
     mc_min: float = Field(default=10000, ge=0, description="Minimum market cap in USD")
     volume_min: float = Field(default=5000, ge=0, description="Minimum 24h volume in USD")
     liquidity_min: float = Field(default=5000, ge=0, description="Minimum liquidity in USD")
     age_max_hours: float = Field(default=48, ge=1, description="Maximum token age in hours")
 
-    # Scheduler intervals
-    tier0_interval_minutes: int = Field(default=60, ge=5, description="Tier-0 scheduler interval in minutes")
+    # Discovery scheduler settings
+    discovery_enabled: bool = Field(default=False, description="Enable Discovery (DexScreener) ingestion")
+    discovery_interval_minutes: int = Field(default=60, ge=5, description="Discovery scheduler interval (min)")
+    discovery_max_per_run: int = Field(default=50, ge=1, description="Max tokens to discover per run")
 
-    # Batch and budget limits (no upper bounds when bypass_limits=True)
-    tier0_max_tokens_per_run: int = Field(default=50, ge=1, description="Max tokens per Tier-0 run")
-    tier1_batch_size: int = Field(default=10, ge=1, description="Max tokens per Tier-1 run")
-    tier1_credit_budget_per_run: int = Field(default=100, ge=1, description="Max Helius credits per Tier-1 run")
-
-    # Feature flags
-    ingest_enabled: bool = Field(default=False, description="Enable Tier-0 ingestion")
-    enrich_enabled: bool = Field(default=False, description="Enable Tier-1 enrichment")
-    auto_promote_enabled: bool = Field(default=False, description="Auto-promote enriched tokens")
-    hot_refresh_enabled: bool = Field(default=False, description="Enable hot token MC/volume refresh")
+    # Auto-promote settings
+    auto_promote_enabled: bool = Field(default=False, description="Auto-promote discovered tokens to analysis")
+    auto_promote_max_per_run: int = Field(default=5, ge=1, description="Max tokens to auto-promote per run")
 
     # Bypass limits flag
     bypass_limits: bool = Field(default=False, description="Bypass UI/backend validation caps")
 
-    # Auto-promote settings
-    auto_promote_max_per_run: int = Field(default=5, ge=1, description="Max tokens to auto-promote per run")
+    # Tracking & Refresh settings
+    tracking_mc_threshold: float = Field(default=100000, ge=0, description="MC threshold for fast-lane refresh (USD)")
+    fast_lane_interval_minutes: int = Field(default=30, ge=5, description="Refresh interval for fast-lane tokens (min)")
+    slow_lane_interval_minutes: int = Field(default=240, ge=15, description="Refresh interval for slow-lane tokens (min)")
+    slow_lane_enabled: bool = Field(default=True, description="Enable slow-lane refresh")
 
-    # Hot refresh settings
-    hot_refresh_age_hours: float = Field(default=48, ge=1, description="Max age for hot tokens (hours)")
-    hot_refresh_max_tokens: int = Field(default=100, ge=1, description="Max tokens to refresh per run")
+    # Drop conditions for tracking
+    drop_if_mc_below_threshold: bool = Field(default=False, description="Drop from refresh if MC < threshold")
+    drop_if_no_swab_positions: bool = Field(default=False, description="Drop from refresh if no SWAB positions")
+    drop_condition_mode: str = Field(default="AND", description="Drop condition mode: AND or OR")
+
+    # Stale/dormant thresholds
+    stale_threshold_hours: int = Field(default=4, ge=1, description="Data stale if last refresh > this (hours)")
+    dormant_threshold_hours: int = Field(default=72, ge=1, description="No activity threshold for Dormant label (hours)")
+    low_liquidity_threshold: float = Field(default=20000, ge=0, description="Liquidity threshold for Low-Liquidity label (USD)")
 
     # Performance scoring settings
     score_enabled: bool = Field(default=False, description="Enable performance scoring")
@@ -149,38 +170,82 @@ class IngestSettings(BaseModel):
     performance_monitor_threshold: int = Field(default=40, ge=0, le=100, description="Score >= this = Monitor")
     control_cohort_daily_quota: int = Field(default=5, ge=0, description="Low-score tokens to track daily")
     score_weights: Optional[dict] = Field(default=None, description="Configurable score weights")
-    last_score_run_at: Optional[str] = None
 
     # Run tracking (read-only)
+    last_discovery_run_at: Optional[str] = None
+    last_refresh_run_at: Optional[str] = None
+    last_score_run_at: Optional[str] = None
+    last_control_cohort_run_at: Optional[str] = None
+
+    # Legacy fields (backward compatibility)
+    ingest_enabled: Optional[bool] = Field(default=None, description="Deprecated: use discovery_enabled")
+    tier0_interval_minutes: Optional[int] = Field(default=None, description="Deprecated: use discovery_interval_minutes")
+    tier0_max_tokens_per_run: Optional[int] = Field(default=None, description="Deprecated: use discovery_max_per_run")
+    enrich_enabled: Optional[bool] = Field(default=None, description="Deprecated: tier-1 removed")
+    tier1_batch_size: Optional[int] = Field(default=None, description="Deprecated: tier-1 removed")
+    tier1_credit_budget_per_run: Optional[int] = Field(default=None, description="Deprecated: tier-1 removed")
+    hot_refresh_enabled: Optional[bool] = Field(default=None, description="Deprecated: use tracking settings")
+    hot_refresh_age_hours: Optional[float] = Field(default=None, description="Deprecated")
+    hot_refresh_max_tokens: Optional[int] = Field(default=None, description="Deprecated")
+    fast_lane_mc_threshold: Optional[float] = Field(default=None, description="Deprecated: use tracking_mc_threshold")
     last_tier0_run_at: Optional[str] = None
     last_tier1_run_at: Optional[str] = None
-    last_tier1_credits_used: int = 0
+    last_tier1_credits_used: Optional[int] = None
     last_hot_refresh_at: Optional[str] = None
-    last_control_cohort_run_at: Optional[str] = None
 
 
 class IngestSettingsUpdate(BaseModel):
     """Request model for updating ingest settings (partial update)"""
 
+    # Threshold filters
     mc_min: Optional[float] = Field(None, ge=0)
     volume_min: Optional[float] = Field(None, ge=0)
     liquidity_min: Optional[float] = Field(None, ge=0)
     age_max_hours: Optional[float] = Field(None, ge=1)
-    tier0_interval_minutes: Optional[int] = Field(None, ge=5)
-    tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1)
-    tier1_batch_size: Optional[int] = Field(None, ge=1)
-    tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1)
-    ingest_enabled: Optional[bool] = None
-    enrich_enabled: Optional[bool] = None
+
+    # Discovery settings
+    discovery_enabled: Optional[bool] = None
+    discovery_interval_minutes: Optional[int] = Field(None, ge=5)
+    discovery_max_per_run: Optional[int] = Field(None, ge=1)
+
+    # Auto-promote settings
     auto_promote_enabled: Optional[bool] = None
-    hot_refresh_enabled: Optional[bool] = None
-    bypass_limits: Optional[bool] = None
     auto_promote_max_per_run: Optional[int] = Field(None, ge=1)
-    hot_refresh_age_hours: Optional[float] = Field(None, ge=1)
-    hot_refresh_max_tokens: Optional[int] = Field(None, ge=1)
+
+    # Bypass limits
+    bypass_limits: Optional[bool] = None
+
+    # Tracking & Refresh settings
+    tracking_mc_threshold: Optional[float] = Field(None, ge=0)
+    fast_lane_interval_minutes: Optional[int] = Field(None, ge=5)
+    slow_lane_interval_minutes: Optional[int] = Field(None, ge=15)
+    slow_lane_enabled: Optional[bool] = None
+
+    # Drop conditions
+    drop_if_mc_below_threshold: Optional[bool] = None
+    drop_if_no_swab_positions: Optional[bool] = None
+    drop_condition_mode: Optional[str] = None
+
+    # Stale/dormant thresholds
+    stale_threshold_hours: Optional[int] = Field(None, ge=1)
+    dormant_threshold_hours: Optional[int] = Field(None, ge=1)
+    low_liquidity_threshold: Optional[float] = Field(None, ge=0)
+
     # Performance scoring settings
     score_enabled: Optional[bool] = None
     performance_prime_threshold: Optional[int] = Field(None, ge=0, le=100)
     performance_monitor_threshold: Optional[int] = Field(None, ge=0, le=100)
     control_cohort_daily_quota: Optional[int] = Field(None, ge=0)
     score_weights: Optional[dict] = None
+
+    # Legacy fields (backward compatibility - these map to new fields)
+    ingest_enabled: Optional[bool] = None  # Maps to discovery_enabled
+    tier0_interval_minutes: Optional[int] = Field(None, ge=5)  # Maps to discovery_interval_minutes
+    tier0_max_tokens_per_run: Optional[int] = Field(None, ge=1)  # Maps to discovery_max_per_run
+    enrich_enabled: Optional[bool] = None  # Deprecated
+    tier1_batch_size: Optional[int] = Field(None, ge=1)  # Deprecated
+    tier1_credit_budget_per_run: Optional[int] = Field(None, ge=1)  # Deprecated
+    hot_refresh_enabled: Optional[bool] = None  # Deprecated
+    hot_refresh_age_hours: Optional[float] = Field(None, ge=1)  # Deprecated
+    hot_refresh_max_tokens: Optional[int] = Field(None, ge=1)  # Deprecated
+    fast_lane_mc_threshold: Optional[float] = Field(None, ge=0)  # Maps to tracking_mc_threshold

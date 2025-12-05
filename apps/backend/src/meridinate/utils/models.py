@@ -37,13 +37,20 @@ class Token(BaseModel):
     tags: List[str] = []  # New: token tags (gem, dud, etc.)
     top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
     top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
-    # Performance scoring fields
-    performance_score: Optional[float] = None  # Score 0-100
-    performance_bucket: Optional[str] = None  # prime, monitor, cull, excluded
-    score_timestamp: Optional[str] = None  # When score was last computed
-    is_control_cohort: bool = False  # Whether token is in control cohort for validation
     # Ingestion tracking fields
     ingest_source: Optional[str] = None  # 'manual' or 'dexscreener' (TIP)
+    # SWAB (Smart Wallet Archive Builder) aggregate fields
+    swab_open_positions: int = 0  # Count of open positions (still_holding=1)
+    swab_open_pnl_usd: Optional[float] = None  # Unrealized PnL from open positions
+    swab_realized_pnl_usd: Optional[float] = None  # Realized PnL from closed positions
+    swab_last_check_at: Optional[str] = None  # Latest position_checked_at for token
+    swab_webhook_active: bool = False  # Whether token has active webhook
+    # Auto-generated labels (computed server-side)
+    labels: List[str] = []  # Auto labels (auto:*) + manual tags (tag:*)
+    # Tracking & Refresh scheduling fields
+    next_refresh_at: Optional[str] = None  # Computed next MC refresh time
+    is_fast_lane: bool = False  # Whether token is in fast-lane (SWAB exposure or high MC)
+    tracking_dropped: bool = False  # Whether token has been dropped from refresh (per drop conditions)
 
 
 class Wallet(BaseModel):
@@ -83,13 +90,20 @@ class TokenDetail(BaseModel):
     tags: List[str] = []  # New: token tags (gem, dud, etc.)
     top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
     top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
-    # Performance scoring fields
-    performance_score: Optional[float] = None  # Score 0-100
-    performance_bucket: Optional[str] = None  # prime, monitor, cull, excluded
-    score_timestamp: Optional[str] = None  # When score was last computed
-    is_control_cohort: bool = False  # Whether token is in control cohort for validation
     # Ingestion tracking fields
     ingest_source: Optional[str] = None  # 'manual' or 'dexscreener' (TIP)
+    # SWAB (Smart Wallet Archive Builder) aggregate fields
+    swab_open_positions: int = 0  # Count of open positions (still_holding=1)
+    swab_open_pnl_usd: Optional[float] = None  # Unrealized PnL from open positions
+    swab_realized_pnl_usd: Optional[float] = None  # Realized PnL from closed positions
+    swab_last_check_at: Optional[str] = None  # Latest position_checked_at for token
+    swab_webhook_active: bool = False  # Whether token has active webhook
+    # Auto-generated labels (computed server-side)
+    labels: List[str] = []  # Auto labels (auto:*) + manual tags (tag:*)
+    # Tracking & Refresh scheduling fields
+    next_refresh_at: Optional[str] = None  # Computed next MC refresh time
+    is_fast_lane: bool = False  # Whether token is in fast-lane (SWAB exposure or high MC)
+    tracking_dropped: bool = False  # Whether token has been dropped from refresh (per drop conditions)
     wallets: List[Wallet]
     axiom_json: List[Any]
 
@@ -520,6 +534,10 @@ class IngestQueueStats(BaseModel):
     total: int
     by_tier: Dict[str, int]
     by_status: Dict[str, int]
+    # New discovery-based naming
+    last_discovery_run_at: Optional[str] = None
+    last_refresh_run_at: Optional[str] = None
+    # Legacy fields (backward compatibility)
     last_tier0_run_at: Optional[str] = None
     last_tier1_run_at: Optional[str] = None
     last_tier1_credits_used: int = 0

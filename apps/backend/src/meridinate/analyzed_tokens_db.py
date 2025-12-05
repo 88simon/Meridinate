@@ -809,6 +809,10 @@ def init_database():
             print("[Database] Migrating: Adding is_control_cohort column...")
             cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN is_control_cohort INTEGER DEFAULT 0")
 
+        if "liquidity_usd" not in at_columns:
+            print("[Database] Migrating: Adding liquidity_usd column...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN liquidity_usd REAL")
+
         # Add is_control_cohort to token_ingest_queue
         cursor.execute("PRAGMA table_info(token_ingest_queue)")
         tiq_columns = [col[1] for col in cursor.fetchall()]
@@ -1047,6 +1051,7 @@ def save_analyzed_token(
     credits_used: int = 0,
     max_wallets: int = 10,
     market_cap_usd: Optional[float] = None,
+    liquidity_usd: Optional[float] = None,
     top_holders: Optional[List[Dict]] = None,
     ingest_source: Optional[str] = None,
     ingest_tier: Optional[str] = None,
@@ -1065,6 +1070,7 @@ def save_analyzed_token(
         credits_used: Helius API credits used for this analysis
         max_wallets: Maximum number of wallets to save
         market_cap_usd: Market capitalization in USD (optional)
+        liquidity_usd: Liquidity in USD from DexScreener (optional)
         top_holders: List of top token holders data (optional)
         ingest_source: Source of ingestion (e.g., 'dexscreener', 'manual')
         ingest_tier: Tier when promoted (e.g., 'enriched', 'ingested')
@@ -1085,8 +1091,9 @@ def save_analyzed_token(
                 token_address, token_name, token_symbol, acronym,
                 first_buy_timestamp, wallets_found, axiom_json, credits_used, last_analysis_credits,
                 market_cap_usd, market_cap_usd_current, market_cap_ath, market_cap_ath_timestamp, market_cap_updated_at,
+                liquidity_usd,
                 top_holders_json, top_holders_updated_at, ingest_source, ingest_tier
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP, ?, ?)
             ON CONFLICT(token_address) DO UPDATE SET
                 token_name = excluded.token_name,
                 token_symbol = excluded.token_symbol,
@@ -1098,6 +1105,7 @@ def save_analyzed_token(
                 credits_used = analyzed_tokens.credits_used + excluded.credits_used,
                 last_analysis_credits = excluded.last_analysis_credits,
                 market_cap_usd = excluded.market_cap_usd,
+                liquidity_usd = COALESCE(excluded.liquidity_usd, analyzed_tokens.liquidity_usd),
                 top_holders_json = excluded.top_holders_json,
                 top_holders_updated_at = CASE WHEN excluded.top_holders_json IS NOT NULL THEN CURRENT_TIMESTAMP ELSE analyzed_tokens.top_holders_updated_at END,
                 ingest_source = COALESCE(excluded.ingest_source, analyzed_tokens.ingest_source),
@@ -1116,6 +1124,7 @@ def save_analyzed_token(
                 market_cap_usd,
                 market_cap_usd,  # Initialize current to same as analysis value
                 market_cap_usd,  # Initialize ATH to same as analysis value
+                liquidity_usd,
                 top_holders_json_str,
                 ingest_source,
                 ingest_tier,
@@ -1897,13 +1906,18 @@ def get_deleted_tokens(limit: int = 50) -> List[Dict]:
         return tokens
 
 
-def update_token_market_cap(token_id: int, market_cap_usd: Optional[float]) -> None:
+def update_token_market_cap(
+    token_id: int,
+    market_cap_usd: Optional[float],
+    liquidity_usd: Optional[float] = None,
+) -> None:
     """
-    Update current market cap for a token.
+    Update current market cap and optionally liquidity for a token.
 
     Args:
         token_id: Database ID of the token
         market_cap_usd: Current market capitalization in USD
+        liquidity_usd: Current liquidity in USD (optional)
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -1912,10 +1926,11 @@ def update_token_market_cap(token_id: int, market_cap_usd: Optional[float]) -> N
             """
             UPDATE analyzed_tokens
             SET market_cap_usd_current = ?,
+                liquidity_usd = COALESCE(?, liquidity_usd),
                 market_cap_updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """,
-            (market_cap_usd, token_id),
+            (market_cap_usd, liquidity_usd, token_id),
         )
 
         print(
@@ -4140,9 +4155,9 @@ def get_enriched_tokens_for_promotion(limit: int = 10) -> List[Dict]:
                 last_mc_usd, last_volume_usd, last_liquidity, age_hours,
                 ingest_notes, last_error
             FROM token_ingest_queue
-            WHERE tier = 'enriched'
+            WHERE tier IN ('ingested', 'enriched')
             AND status = 'completed'
-            ORDER BY enriched_at DESC
+            ORDER BY COALESCE(enriched_at, ingested_at) DESC
             LIMIT ?
         """,
             (limit,),
@@ -4709,6 +4724,198 @@ def get_random_low_score_tokens(
             )
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+def get_tokens_for_swab_refresh(
+    fast_lane_mc_threshold: float = 100000,
+    fast_lane_interval_minutes: int = 30,
+    slow_lane_interval_minutes: int = 240,
+    limit: int = 100,
+) -> List[Dict]:
+    """
+    Get analyzed tokens that need MC/volume refresh, prioritized by SWAB exposure and MC.
+
+    Priority order (fast lane first, then slow lane):
+    1. Tokens with open SWAB positions (swab_open_positions > 0)
+    2. Tokens with active webhooks
+    3. Tokens with MC > threshold
+    4. All other tokens (slow lane)
+
+    Tokens are filtered by last refresh time:
+    - Fast lane tokens: not refreshed in fast_lane_interval_minutes
+    - Slow lane tokens: not refreshed in slow_lane_interval_minutes
+
+    Excludes:
+    - Deleted/discarded tokens
+    - Tokens refreshed too recently
+
+    Args:
+        fast_lane_mc_threshold: MC threshold for fast-lane (default 100k USD)
+        fast_lane_interval_minutes: Fast-lane refresh interval (default 30 min)
+        slow_lane_interval_minutes: Slow-lane refresh interval (default 240 min)
+        limit: Max tokens to return
+
+    Returns:
+        List of token dicts with address, priority info, and last refresh time
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Query tokens with SWAB aggregates, prioritized by exposure/MC
+        cursor.execute(
+            """
+            WITH swab_agg AS (
+                SELECT
+                    token_id,
+                    SUM(CASE WHEN still_holding = 1 THEN 1 ELSE 0 END) as open_positions,
+                    MAX(position_checked_at) as last_swab_check
+                FROM mtew_token_positions
+                GROUP BY token_id
+            )
+            SELECT
+                t.id,
+                t.token_address,
+                t.token_name,
+                t.token_symbol,
+                t.market_cap_usd_current,
+                t.market_cap_updated_at,
+                t.webhook_id,
+                COALESCE(s.open_positions, 0) as swab_open_positions,
+                s.last_swab_check,
+                -- Priority: 1=SWAB exposure, 2=webhook, 3=high MC, 4=slow lane
+                CASE
+                    WHEN COALESCE(s.open_positions, 0) > 0 THEN 1
+                    WHEN t.webhook_id IS NOT NULL THEN 2
+                    WHEN COALESCE(t.market_cap_usd_current, t.market_cap_usd, 0) > ? THEN 3
+                    ELSE 4
+                END as refresh_priority,
+                -- Is fast lane?
+                CASE
+                    WHEN COALESCE(s.open_positions, 0) > 0 THEN 1
+                    WHEN t.webhook_id IS NOT NULL THEN 1
+                    WHEN COALESCE(t.market_cap_usd_current, t.market_cap_usd, 0) > ? THEN 1
+                    ELSE 0
+                END as is_fast_lane
+            FROM analyzed_tokens t
+            LEFT JOIN swab_agg s ON s.token_id = t.id
+            WHERE (t.deleted_at IS NULL OR t.deleted_at = '')
+            AND (
+                -- Fast lane: needs refresh if older than fast interval
+                (
+                    (COALESCE(s.open_positions, 0) > 0
+                     OR t.webhook_id IS NOT NULL
+                     OR COALESCE(t.market_cap_usd_current, t.market_cap_usd, 0) > ?)
+                    AND (t.market_cap_updated_at IS NULL
+                         OR t.market_cap_updated_at < datetime('now', ? || ' minutes'))
+                )
+                OR
+                -- Slow lane: needs refresh if older than slow interval
+                (
+                    COALESCE(s.open_positions, 0) = 0
+                    AND t.webhook_id IS NULL
+                    AND COALESCE(t.market_cap_usd_current, t.market_cap_usd, 0) <= ?
+                    AND (t.market_cap_updated_at IS NULL
+                         OR t.market_cap_updated_at < datetime('now', ? || ' minutes'))
+                )
+            )
+            ORDER BY refresh_priority ASC, t.market_cap_updated_at ASC NULLS FIRST
+            LIMIT ?
+            """,
+            (
+                fast_lane_mc_threshold,  # For priority calc
+                fast_lane_mc_threshold,  # For is_fast_lane calc
+                fast_lane_mc_threshold,  # For fast lane filter
+                f"-{fast_lane_interval_minutes}",  # Fast lane interval
+                fast_lane_mc_threshold,  # For slow lane filter
+                f"-{slow_lane_interval_minutes}",  # Slow lane interval
+                limit,
+            ),
+        )
+
+        result = []
+        for row in cursor.fetchall():
+            result.append({
+                "id": row[0],
+                "token_address": row[1],
+                "token_name": row[2],
+                "token_symbol": row[3],
+                "market_cap_usd_current": row[4],
+                "market_cap_updated_at": row[5],
+                "webhook_id": row[6],
+                "swab_open_positions": row[7],
+                "last_swab_check": row[8],
+                "refresh_priority": row[9],
+                "is_fast_lane": bool(row[10]),
+            })
+
+        return result
+
+
+def get_swab_aggregates_by_token(token_ids: List[int]) -> Dict[int, Dict]:
+    """
+    Get SWAB position aggregates for multiple tokens in a single query.
+
+    For each token, returns:
+    - open_positions: Count of positions with still_holding=1
+    - open_pnl_usd: Sum of unrealized PnL (current_balance_usd - total_bought_usd) for open positions
+    - realized_pnl_usd: Sum of realized_pnl from all positions (open and closed)
+    - last_check_at: Latest position_checked_at timestamp for the token
+
+    Args:
+        token_ids: List of token IDs to aggregate SWAB data for
+
+    Returns:
+        Dict mapping token_id to aggregates dict
+    """
+    if not token_ids:
+        return {}
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        placeholders = ",".join("?" for _ in token_ids)
+        cursor.execute(
+            f"""
+            SELECT
+                p.token_id,
+                -- Open position count
+                SUM(CASE WHEN p.still_holding = 1 THEN 1 ELSE 0 END) as open_positions,
+                -- Open PnL: sum of (current_balance_usd - total_bought_usd) for open positions
+                SUM(CASE WHEN p.still_holding = 1
+                    THEN COALESCE(p.current_balance_usd, 0) - COALESCE(p.total_bought_usd, 0)
+                    ELSE 0 END) as open_pnl_usd,
+                -- Realized PnL: sum from all positions (sells)
+                SUM(COALESCE(p.realized_pnl, 0)) as realized_pnl_usd,
+                -- Latest check timestamp
+                MAX(p.position_checked_at) as last_check_at
+            FROM mtew_token_positions p
+            WHERE p.token_id IN ({placeholders})
+            GROUP BY p.token_id
+            """,
+            token_ids,
+        )
+
+        result = {}
+        for row in cursor.fetchall():
+            token_id = row[0]
+            result[token_id] = {
+                "open_positions": row[1] or 0,
+                "open_pnl_usd": row[2] if row[2] is not None else None,
+                "realized_pnl_usd": row[3] if row[3] is not None else None,
+                "last_check_at": row[4],
+            }
+
+        # Fill in defaults for tokens with no positions
+        for token_id in token_ids:
+            if token_id not in result:
+                result[token_id] = {
+                    "open_positions": 0,
+                    "open_pnl_usd": None,
+                    "realized_pnl_usd": None,
+                    "last_check_at": None,
+                }
+
+        return result
 
 
 # Initialize database on module import

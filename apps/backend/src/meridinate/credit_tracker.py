@@ -566,12 +566,8 @@ class CreditTracker:
             context: Additional context data (stored as JSON)
 
         Returns:
-            The operation log entry ID, or 0 if skipped (no credits)
+            The operation log entry ID
         """
-        # Skip logging operations that consumed no credits
-        if credits == 0:
-            return 0
-
         import json
 
         with self._get_connection() as conn:
