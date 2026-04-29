@@ -806,7 +806,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/tokens/{token_id}/gem-status": {
+  "/api/tokens/{token_id}/verdict": {
     parameters: {
       query?: never;
       header?: never;
@@ -819,7 +819,7 @@ export interface paths {
      * Update Gem Status
      * @description Update the gem status of a token (gem, dud, or null to clear)
      */
-    post: operations["update_gem_status_api_tokens__token_id__gem_status_post"];
+    post: operations["update_verdict_api_tokens__token_id__verdict_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3119,8 +3119,10 @@ export interface components {
       token_addresses: string[];
       /** Token Ids */
       token_ids: number[];
-      /** Gem Statuses */
-      gem_statuses: (string | null)[];
+      /** Verdicts */
+      verdicts: (string | null)[];
+      /** Win Multipliers */
+      win_multipliers?: (string | null)[];
       /** Wallet Balance Usd */
       wallet_balance_usd: number | null;
       /** Wallet Balance Usd Previous */
@@ -3715,7 +3717,7 @@ export interface components {
       /** Market Cap Ath Timestamp */
       market_cap_ath_timestamp?: string | null;
       /** Gem Status */
-      gem_status?: string | null;
+      verdict?: string | null;
       /**
        * State Version
        * @default 0
@@ -3806,7 +3808,7 @@ export interface components {
       /** Market Cap Ath Timestamp */
       market_cap_ath_timestamp?: string | null;
       /** Gem Status */
-      gem_status?: string | null;
+      verdict?: string | null;
       /**
        * State Version
        * @default 0
@@ -3944,12 +3946,12 @@ export interface components {
       api_credits_used: number;
     };
     /**
-     * UpdateGemStatusRequest
+     * UpdateVerdictRequest
      * @description Request to update gem status of a token
      */
-    UpdateGemStatusRequest: {
+    UpdateVerdictRequest: {
       /** Gem Status */
-      gem_status?: string | null;
+      verdict?: string | null;
     };
     /** UpdateSettingsRequest */
     UpdateSettingsRequest: {
@@ -5046,7 +5048,7 @@ export interface operations {
       };
     };
   };
-  update_gem_status_api_tokens__token_id__gem_status_post: {
+  update_verdict_api_tokens__token_id__verdict_post: {
     parameters: {
       query?: never;
       header?: never;
@@ -5057,7 +5059,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["UpdateGemStatusRequest"];
+        "application/json": components["schemas"]["UpdateVerdictRequest"];
       };
     };
     responses: {

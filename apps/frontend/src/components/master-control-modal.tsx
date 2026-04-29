@@ -14,8 +14,7 @@ import { Settings2 } from 'lucide-react';
 import {
   ScanningTab,
   SchedulerTab,
-  WebhooksTab,
-  SystemTab,
+  IntelTab,
   ApiSettings
 } from '@/components/master-control';
 
@@ -40,41 +39,38 @@ export function MasterControlModal({
     <TooltipProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogTrigger asChild>{children}</DialogTrigger>
-        <DialogContent className='max-h-[85vh] w-full max-w-2xl overflow-hidden'>
+        <DialogContent className='max-h-[90vh] w-full max-w-4xl overflow-hidden'>
           <DialogHeader>
             <DialogTitle className='flex items-center gap-2'>
               <Settings2 className='h-5 w-5' />
               Settings
             </DialogTitle>
             <DialogDescription>
-              Controls for scanning, ingestion, and tracking
+              Pipeline automation and analysis configuration
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue='scheduler' className='flex-1'>
-            <TabsList className='grid w-full grid-cols-4'>
-              <TabsTrigger value='scheduler' className='text-xs'>
-                Scheduler
+          <Tabs defaultValue='pipeline' className='flex-1'>
+            <TabsList className='grid w-full grid-cols-3'>
+              <TabsTrigger value='pipeline' className='text-xs'>
+                Pipeline
               </TabsTrigger>
-              <TabsTrigger value='scanning' className='text-xs'>
-                Scanning
+              <TabsTrigger value='analysis' className='text-xs'>
+                Analysis
               </TabsTrigger>
-              <TabsTrigger value='webhooks' className='text-xs'>
-                Webhooks
-              </TabsTrigger>
-              <TabsTrigger value='system' className='text-xs'>
-                System
+              <TabsTrigger value='intel' className='text-xs'>
+                Intel
               </TabsTrigger>
             </TabsList>
 
-            <div className='mt-4 h-[55vh] overflow-y-auto pr-2'>
-              <TabsContent value='scheduler'>
+            <div className='mt-4 h-[75vh] overflow-y-auto pr-2'>
+              <TabsContent value='pipeline'>
                 <SchedulerTab
                   bypassLimits={apiSettings.bypassLimits ?? false}
                 />
               </TabsContent>
 
-              <TabsContent value='scanning'>
+              <TabsContent value='analysis'>
                 <ScanningTab
                   apiSettings={apiSettings}
                   setApiSettings={setApiSettings}
@@ -82,12 +78,11 @@ export function MasterControlModal({
                 />
               </TabsContent>
 
-              <TabsContent value='webhooks'>
-                <WebhooksTab />
-              </TabsContent>
-
-              <TabsContent value='system'>
-                <SystemTab />
+              <TabsContent value='intel'>
+                <IntelTab
+                  apiSettings={apiSettings}
+                  setApiSettings={setApiSettings}
+                />
               </TabsContent>
             </div>
           </Tabs>

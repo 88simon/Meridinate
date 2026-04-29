@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWalletTags } from '@/contexts/WalletTagsContext';
-import { ADDITIONAL_TAGS } from '@/lib/wallet-tags';
+import { ALL_WALLET_TAGS } from '@/lib/wallet-tags';
 
 interface WalletTagsProps {
   walletAddress: string;
@@ -23,25 +23,9 @@ export function WalletTags({
   iconOnly = false
 }: WalletTagsProps) {
   const { tags: contextTags } = useWalletTags(walletAddress);
-  // Filter out additional tags and nationality tags - those are managed by AdditionalTagsPopover and display under wallet address
-  const nationalityTags = [
-    'us',
-    'cn',
-    'kr',
-    'jp',
-    'eu',
-    'uk',
-    'sg',
-    'in',
-    'ru',
-    'br',
-    'ca',
-    'au'
-  ];
+  // Filter out system-managed tags (Tier 1/2/3 known tags) — only show custom user-created tags here
   const tags = contextTags.filter(
-    (t) =>
-      !ADDITIONAL_TAGS.includes(t.tag.toLowerCase() as any) &&
-      !nationalityTags.includes(t.tag.toLowerCase())
+    (t) => !ALL_WALLET_TAGS.includes(t.tag as any)
   );
   const [newTag, setNewTag] = useState('');
   const [kolValue, setKolValue] = useState<boolean>(false);

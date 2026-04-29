@@ -24,6 +24,7 @@ import type { Token } from '@/types/token';
 import {
   getLabelDisplayName,
   getLabelVariant,
+  getWinBadgeClass,
   isAutoLabel
 } from '@/types/token';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,6 @@ import {
   Copy,
   Info,
   RefreshCw,
-  Twitter,
   Users,
   Settings,
   Activity,
@@ -85,6 +85,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useCodex } from '@/contexts/codex-context';
 import { cn } from '@/lib/utils';
+import { TokenAddressCell } from '@/components/token-address-cell';
 
 // Lazy-load the top holders modal to reduce initial JS bundle size
 const TopHoldersModal = dynamic(
@@ -120,7 +121,7 @@ const MemoizedTableRow = memo(
           'hover:shadow-[inset_0_0_0_2px_rgba(59,130,246,0.4),0_0_15px_rgba(59,130,246,0.3)]',
           'active:bg-primary/30'
         ],
-        !isSelected && ['hover:bg-muted/50', 'active:bg-muted/70']
+        !isSelected && ['hover:bg-blue-500/10', 'active:bg-blue-500/15']
       )}
       onClick={(e) => handleRowClick(row.original.id, e)}
       onMouseEnter={() => handleRowHover(row.original.id)}
@@ -159,7 +160,7 @@ const MarketCapCell = memo(
     isRefreshing: boolean;
     isCompact: boolean;
     onRefresh: (e: React.MouseEvent) => void;
-    onGemStatusChange: (tokenId: number, status: 'gem' | 'dud' | null) => void;
+    onGemStatusChange: (tokenId: number, status: 'verified-win' | 'verified-loss' | null) => void;
   }) => {
     const marketCapOriginal = token.market_cap_usd;
     const marketCapCurrent = token.market_cap_usd_current;
@@ -392,104 +393,47 @@ const MarketCapCell = memo(
           </div>
         )}
 
-        {/* GEM/DUD Buttons */}
+        {/* Verified Win / Verified Loss Buttons */}
         <div className='mt-1 flex items-center gap-1'>
           <button
             type='button'
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const hasGemTag = token.tags?.includes('gem');
-              const newStatus = hasGemTag ? null : 'gem';
+              const hasWin = token.tags?.includes('verified-win');
+              const newStatus = hasWin ? null : 'verified-win';
               onGemStatusChange(token.id, newStatus);
             }}
             className={cn(
               'cursor-pointer rounded px-2 py-0.5 text-[10px] font-bold transition-colors',
-              token.tags?.includes('gem')
+              token.tags?.includes('verified-win')
                 ? 'bg-green-500 text-white hover:bg-green-600'
                 : 'bg-muted text-muted-foreground hover:bg-green-100 hover:text-green-700'
             )}
           >
-            GEM
+            WIN
           </button>
           <button
             type='button'
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const hasDudTag = token.tags?.includes('dud');
-              const newStatus = hasDudTag ? null : 'dud';
+              const hasLoss = token.tags?.includes('verified-loss');
+              const newStatus = hasLoss ? null : 'verified-loss';
               onGemStatusChange(token.id, newStatus);
             }}
             className={cn(
               'cursor-pointer rounded px-2 py-0.5 text-[10px] font-bold transition-colors',
-              token.tags?.includes('dud')
+              token.tags?.includes('verified-loss')
                 ? 'bg-red-500 text-white hover:bg-red-600'
                 : 'bg-muted text-muted-foreground hover:bg-red-100 hover:text-red-700'
             )}
           >
-            DUD
+            LOSS
           </button>
         </div>
 
-        {/* MC Refresh Schedule Indicator (SWAB-prioritized) */}
-        {token.next_refresh_at && (
-          <div className='mt-1 flex items-center gap-1'>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className={cn(
-                      'flex cursor-help items-center gap-1 rounded px-1.5 py-0.5',
-                      isCompact ? 'text-[9px]' : 'text-[10px]',
-                      token.is_fast_lane
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                    )}
-                  >
-                    <RefreshCw className='h-2.5 w-2.5' />
-                    <span className='font-medium'>
-                      {token.is_fast_lane ? 'Fast' : 'Slow'}
-                    </span>
-                    <span className='text-muted-foreground'>
-                      {(() => {
-                        const nextRefresh = new Date(token.next_refresh_at);
-                        const now = new Date();
-                        const diffMs = nextRefresh.getTime() - now.getTime();
-                        if (diffMs <= 0) return 'due';
-                        const diffMins = Math.floor(diffMs / 60000);
-                        if (diffMins < 60) return `${diffMins}m`;
-                        const diffHours = Math.floor(diffMins / 60);
-                        return `${diffHours}h`;
-                      })()}
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className='max-w-[300px]'>
-                  <div className='space-y-1 text-xs'>
-                    <p className='font-semibold'>
-                      {token.is_fast_lane
-                        ? 'MC Fast-Lane (30m)'
-                        : 'MC Slow-Lane (4h)'}
-                    </p>
-                    <p className='text-muted-foreground'>
-                      {token.is_fast_lane
-                        ? 'SWAB exposure or MC ≥ $100k triggers faster MC updates'
-                        : 'Standard MC refresh interval for lower-priority tokens'}
-                    </p>
-                    <p className='text-muted-foreground'>
-                      Next MC refresh:{' '}
-                      {new Date(token.next_refresh_at).toLocaleString()}
-                    </p>
-                    <p className='text-muted-foreground italic'>
-                      (Separate from SWAB Position Check job)
-                    </p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
+        {/* Fast/Slow lane badge removed — MC Tracker uses age-based decay polling */}
       </div>
     );
   },
@@ -503,7 +447,6 @@ const MarketCapCell = memo(
     prev.token.market_cap_ath_timestamp ===
       next.token.market_cap_ath_timestamp &&
     prev.token.next_refresh_at === next.token.next_refresh_at &&
-    prev.token.is_fast_lane === next.token.is_fast_lane &&
     JSON.stringify(prev.token.tags) === JSON.stringify(next.token.tags) &&
     prev.isRefreshing === next.isRefreshing &&
     prev.isCompact === next.isCompact
@@ -618,7 +561,7 @@ const createColumns = (
   handleRefreshAllMarketCaps: () => Promise<void>,
   handleGemStatusChange: (
     tokenId: number,
-    status: 'gem' | 'dud' | null
+    status: 'verified-win' | 'verified-loss' | null
   ) => Promise<void>,
   handleViewTopHolders: (token: Token) => void,
   refreshingMarketCaps: Set<number>,
@@ -636,8 +579,8 @@ const createColumns = (
       const name = row.original.token_name || 'Unknown';
       const symbol = row.original.token_symbol || '-';
       const tags = row.original.tags || [];
-      const hasGemTag = tags.includes('gem');
-      const hasDudTag = tags.includes('dud');
+      const hasWinTag = tags.includes('verified-win');
+      const hasLossTag = tags.includes('verified-loss');
       return (
         <div className='min-w-[120px]'>
           <div
@@ -647,14 +590,14 @@ const createColumns = (
             )}
           >
             {name}
-            {hasGemTag && (
+            {hasWinTag && (
               <span className='rounded bg-green-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase'>
-                GEM
+                WIN
               </span>
             )}
-            {hasDudTag && (
+            {hasLossTag && (
               <span className='rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase'>
-                DUD
+                LOSS
               </span>
             )}
           </div>
@@ -675,52 +618,7 @@ const createColumns = (
     header: 'Address',
     cell: ({ row }) => {
       const address = row.getValue('token_address') as string;
-      return (
-        <div className='flex items-center gap-1'>
-          <a
-            href={`https://gmgn.ai/sol/token/${address}?min=0.1&isInputValue=true`}
-            target='_blank'
-            rel='noopener noreferrer'
-            className={cn(
-              'text-primary font-mono break-all hover:underline',
-              isCompact ? 'text-[9px]' : 'text-[10px]'
-            )}
-          >
-            {address}
-          </a>
-          <a
-            href={`https://twitter.com/search?q=${encodeURIComponent(address)}`}
-            target='_blank'
-            rel='noopener noreferrer'
-            title='Search on Twitter/X'
-          >
-            <Button
-              variant='ghost'
-              size='sm'
-              className={cn(
-                'flex-shrink-0 p-0',
-                isCompact ? 'h-5 w-5' : 'h-6 w-6'
-              )}
-            >
-              <Twitter className={cn(isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-            </Button>
-          </a>
-          <Button
-            variant='ghost'
-            size='sm'
-            className={cn(
-              'flex-shrink-0 p-0',
-              isCompact ? 'h-5 w-5' : 'h-6 w-6'
-            )}
-            onClick={() => {
-              navigator.clipboard.writeText(address);
-              toast.success('Address copied to clipboard');
-            }}
-          >
-            <Copy className={cn(isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-          </Button>
-        </div>
-      );
+      return <TokenAddressCell address={address} compact={isCompact} />;
     }
   },
   {
@@ -765,6 +663,29 @@ const createColumns = (
     )
   },
   {
+    accessorKey: 'liquidity_usd',
+    header: () => <span>Liquidity</span>,
+    cell: ({ row }) => {
+      const liq = row.original.liquidity_usd;
+      if (!liq) return <span className='text-muted-foreground text-xs'>—</span>;
+      const formatted = liq >= 1000000 ? `$${(liq / 1000000).toFixed(1)}M` : liq >= 1000 ? `$${(liq / 1000).toFixed(1)}K` : `$${liq.toFixed(0)}`;
+      return <span className='text-xs'>{formatted}</span>;
+    }
+  },
+  {
+    accessorKey: 'is_cashback',
+    header: () => <span>Fees</span>,
+    cell: ({ row }) => {
+      const cb = (row.original as any).is_cashback;
+      if (cb === null || cb === undefined) return <span className='text-muted-foreground text-xs'>—</span>;
+      return cb ? (
+        <span className='rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] text-green-400'>Cashback</span>
+      ) : (
+        <span className='rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400'>Creator Fee</span>
+      );
+    }
+  },
+  {
     accessorKey: 'swab_open_positions',
     header: () => (
       <TooltipProvider>
@@ -777,7 +698,7 @@ const createColumns = (
           </TooltipTrigger>
           <TooltipContent className='max-w-[200px]'>
             <p className='text-xs'>
-              Number of SWAB-tracked wallets with open positions in this token
+              Number of position-tracked wallets with open positions in this token
             </p>
           </TooltipContent>
         </Tooltip>
@@ -922,16 +843,16 @@ const createColumns = (
           <TooltipTrigger asChild>
             <div className='flex cursor-help items-center gap-1'>
               <RefreshCw className='h-3 w-3' />
-              <span>SWAB Check</span>
+              <span>Position Check</span>
             </div>
           </TooltipTrigger>
           <TooltipContent className='max-w-[280px]'>
             <div className='space-y-1 text-xs'>
-              <p className='font-semibold'>SWAB Position Check</p>
+              <p className='font-semibold'>Position Check</p>
               <p className='text-muted-foreground'>
                 Verifies if tracked wallets still hold positions in this token.
                 Updates open/realized PnL and triggers fast-lane refresh for
-                tokens with active SWAB exposure.
+                tokens with active positions.
               </p>
             </div>
           </TooltipContent>
@@ -958,7 +879,7 @@ const createColumns = (
               </TooltipTrigger>
               <TooltipContent>
                 <p className='text-xs'>
-                  No SWAB positions tracked for this token
+                  No positions tracked for this token
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -1086,9 +1007,15 @@ const createColumns = (
         );
       }
 
+      // Sort: win multiplier tags first, then signals, then auto labels
+      const sorted = [...labels].sort((a, b) => {
+        const priority = (l: string) => l.startsWith('win:') ? 0 : l.startsWith('signal:') ? 1 : 2;
+        return priority(a) - priority(b);
+      });
+
       // Show first 2 labels, rest in tooltip
-      const visibleLabels = labels.slice(0, 2);
-      const hiddenLabels = labels.slice(2);
+      const visibleLabels = sorted.slice(0, 2);
+      const hiddenLabels = sorted.slice(2);
 
       return (
         <div className='flex flex-wrap gap-0.5'>
@@ -1096,15 +1023,17 @@ const createColumns = (
             const variant = getLabelVariant(label);
             const displayName = getLabelDisplayName(label);
             const isAuto = isAutoLabel(label);
+            const winClass = getWinBadgeClass(label);
 
             return (
               <Badge
                 key={label}
-                variant={variant}
+                variant={winClass ? 'outline' : variant}
                 className={cn(
                   'font-medium',
                   isCompact ? 'px-1 py-0 text-[8px]' : 'px-1.5 py-0 text-[9px]',
-                  isAuto && 'opacity-80'
+                  isAuto && 'opacity-80',
+                  winClass
                 )}
               >
                 {displayName}
@@ -1556,7 +1485,7 @@ export function TokensTable({
   };
 
   const handleGemStatusChange = useCallback(
-    async (tokenId: number, status: 'gem' | 'dud' | null) => {
+    async (tokenId: number, status: 'verified-win' | 'verified-loss' | null) => {
       try {
         // Optimistically update UI immediately (like wallet tags)
         setGemStatusUpdates((prev) => {
@@ -1566,29 +1495,26 @@ export function TokensTable({
         });
 
         // Use tag system - fire and forget like wallet tags
-        if (status === 'gem') {
-          // Remove 'dud' if it exists, then add 'gem'
+        if (status === 'verified-win') {
           try {
-            await removeTokenTag(tokenId, 'dud');
+            await removeTokenTag(tokenId, 'verified-loss');
           } catch {}
-          await addTokenTag(tokenId, 'gem');
-        } else if (status === 'dud') {
-          // Remove 'gem' if it exists, then add 'dud'
+          await addTokenTag(tokenId, 'verified-win');
+        } else if (status === 'verified-loss') {
           try {
-            await removeTokenTag(tokenId, 'gem');
+            await removeTokenTag(tokenId, 'verified-win');
           } catch {}
-          await addTokenTag(tokenId, 'dud');
+          await addTokenTag(tokenId, 'verified-loss');
         } else {
-          // Clear both tags
           try {
-            await removeTokenTag(tokenId, 'gem');
+            await removeTokenTag(tokenId, 'verified-win');
           } catch {}
           try {
-            await removeTokenTag(tokenId, 'dud');
+            await removeTokenTag(tokenId, 'verified-loss');
           } catch {}
         }
 
-        const statusText = status === null ? 'cleared' : status.toUpperCase();
+        const statusText = status === null ? 'cleared' : status === 'verified-win' ? 'Verified Win' : 'Verified Loss';
         toast.success(`Token marked as ${statusText}`);
 
         // Refetch multi-token wallets to update the panel
@@ -1862,8 +1788,8 @@ export function TokensTable({
         const currentTags = updatedToken.tags || [];
         let newTags = [...currentTags];
 
-        // Remove existing gem/dud tags
-        newTags = newTags.filter((tag) => tag !== 'gem' && tag !== 'dud');
+        // Remove existing verdict tags
+        newTags = newTags.filter((tag) => tag !== 'verified-win' && tag !== 'verified-loss');
 
         // Add new tag if not null
         if (gemStatusUpdate !== null) {
@@ -1989,103 +1915,6 @@ export function TokensTable({
   return (
     <>
       <div className='space-y-4'>
-        {/* Global MC Refresh Status Banner */}
-        {refreshStats.total > 0 && (
-          <div className='bg-muted/30 flex items-center justify-between rounded-lg border px-4 py-2'>
-            <div className='flex items-center gap-4'>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className='flex cursor-help items-center gap-1.5'>
-                      <RefreshCw className='h-4 w-4 text-blue-500' />
-                      <span className='text-sm font-medium'>
-                        MC Refresh Schedule
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className='max-w-[320px]'>
-                    <div className='space-y-1.5 text-xs'>
-                      <p className='font-semibold'>
-                        Market Cap Refresh (SWAB-Prioritized)
-                      </p>
-                      <p className='text-muted-foreground'>
-                        Market cap data is refreshed via DexScreener. Tokens
-                        with SWAB exposure (open positions) or high MC get
-                        faster updates. This is separate from the SWAB Position
-                        Check job which verifies wallet holdings.
-                      </p>
-                      <p className='text-muted-foreground'>
-                        <span className='font-medium'>Fast:</span> 30m
-                        (positions or MC ≥ $100k) •{' '}
-                        <span className='font-medium'>Slow:</span> 4h
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <div className='bg-border h-4 w-px' />
-              <div className='flex items-center gap-3 text-xs'>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className='flex cursor-help items-center gap-1'>
-                        <span className='h-2 w-2 rounded-full bg-blue-500' />
-                        <span className='text-muted-foreground'>Fast:</span>
-                        <span className='font-medium'>
-                          {refreshStats.fastLane}
-                        </span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className='text-xs'>
-                        MC refresh every 30m (SWAB exposure or MC ≥ $100k)
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className='flex cursor-help items-center gap-1'>
-                        <span className='h-2 w-2 rounded-full bg-gray-400' />
-                        <span className='text-muted-foreground'>Slow:</span>
-                        <span className='font-medium'>
-                          {refreshStats.slowLane}
-                        </span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className='text-xs'>
-                        MC refresh every 4h (lower-priority tokens)
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                {refreshStats.overdue > 0 && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className='flex cursor-help items-center gap-1'>
-                          <span className='h-2 w-2 rounded-full bg-yellow-500' />
-                          <span className='text-yellow-600'>Overdue:</span>
-                          <span className='font-medium text-yellow-600'>
-                            {refreshStats.overdue}
-                          </span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className='text-xs'>
-                          Tokens past their scheduled MC refresh time
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Search Input and Filters */}
         <div className='flex items-center gap-2'>
           <div className='relative flex-1'>
@@ -2103,28 +1932,52 @@ export function TokensTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='all'>All Labels</SelectItem>
-              <SelectItem value='auto:SWAB-Tracked'>
+              <SelectItem value='auto:Position-Tracked'>
                 <span className='flex items-center gap-1'>
                   <Activity className='h-3 w-3 text-blue-500' />
-                  SWAB-Tracked
+                  Position-Tracked
                 </span>
               </SelectItem>
-              <SelectItem value='auto:MC>100k'>
+              <SelectItem value='auto:Mooning'>
                 <span className='flex items-center gap-1'>
                   <TrendingUp className='h-3 w-3 text-green-500' />
-                  MC&gt;100k
+                  Mooning (3x+)
                 </span>
               </SelectItem>
-              <SelectItem value='auto:Low-Liquidity'>
+              <SelectItem value='auto:Climbing'>
+                <span className='flex items-center gap-1'>
+                  <TrendingUp className='h-3 w-3 text-emerald-400' />
+                  Climbing (1.5x+)
+                </span>
+              </SelectItem>
+              <SelectItem value='auto:Declining'>
                 <span className='flex items-center gap-1'>
                   <TrendingDown className='h-3 w-3 text-red-500' />
-                  Low-Liquidity
+                  Declining
                 </span>
               </SelectItem>
-              <SelectItem value='auto:Dormant'>
+              <SelectItem value='auto:Dead'>
                 <span className='flex items-center gap-1'>
                   <span className='h-2 w-2 rounded-full bg-gray-400' />
-                  Dormant
+                  Dead
+                </span>
+              </SelectItem>
+              <SelectItem value='auto:ATH'>
+                <span className='flex items-center gap-1'>
+                  <TrendingUp className='h-3 w-3 text-yellow-500' />
+                  At ATH
+                </span>
+              </SelectItem>
+              <SelectItem value='signal:Smart-Money'>
+                <span className='flex items-center gap-1'>
+                  <span className='h-2 w-2 rounded-full bg-emerald-400' />
+                  Smart Money
+                </span>
+              </SelectItem>
+              <SelectItem value='signal:Cluster-Alert'>
+                <span className='flex items-center gap-1'>
+                  <span className='h-2 w-2 rounded-full bg-amber-400' />
+                  Cluster Alert
                 </span>
               </SelectItem>
               <SelectItem value='auto:Discarded'>

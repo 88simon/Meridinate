@@ -4,14 +4,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from '@/components/ui/collapsible';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+// DropdownMenu removed — no longer needed without Clerk user menu
 import {
   Sidebar,
   SidebarContent,
@@ -27,18 +20,14 @@ import {
   SidebarRail,
   SidebarTrigger
 } from '@/components/ui/sidebar';
-import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navItems } from '@/constants/data';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { useUser } from '@clerk/nextjs';
 import { MasterControlModal } from '@/components/master-control-modal';
 import { useApiSettings } from '@/contexts/ApiSettingsContext';
 import {
   IconChevronRight,
-  IconChevronsDown,
   IconTags,
-  IconAdjustments,
-  IconClock
+  IconAdjustments
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -47,16 +36,17 @@ import { Icons } from '../icons';
 
 interface AppSidebarProps {
   onCodexToggle?: () => void;
-  onSchedulerToggle?: () => void;
+  onTagRefToggle?: () => void;
+  showTagRef?: boolean;
 }
 
 export default function AppSidebar({
   onCodexToggle,
-  onSchedulerToggle
+  onTagRefToggle,
+  showTagRef = false
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { isOpen } = useMediaQuery();
-  const { user } = useUser();
   const [showSettings, setShowSettings] = React.useState(false);
   const { apiSettings, setApiSettings, defaultApiSettings } = useApiSettings();
 
@@ -78,9 +68,41 @@ export default function AppSidebar({
         </SidebarGroup>
         <div className='flex flex-1 flex-col justify-center'>
           <SidebarGroup>
+            <SidebarMenu>
+              {/* Intel Agent — top of sidebar */}
+              <SidebarMenuItem key='intel-top'>
+                <SidebarMenuButton asChild tooltip='Intel Agent'>
+                  <Link href='/dashboard/intel'>
+                    <Icons.help className='h-4 w-4' />
+                    <span>Intel Agent</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* Bot Probe */}
+              <SidebarMenuItem key='bot-probe-top'>
+                <SidebarMenuButton asChild tooltip='Bot Probe — Reverse engineer profitable bots'>
+                  <Link href='/dashboard/bot-probe'>
+                    <Icons.laptop className='h-4 w-4' />
+                    <span>Bot Probe</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* Tag Reference */}
+              <SidebarMenuItem key='tag-reference-top'>
+                <SidebarMenuButton
+                  onClick={onTagRefToggle}
+                  tooltip='Tag Reference'
+                  className={showTagRef ? 'bg-primary/10 text-primary' : ''}
+                >
+                  <Icons.help className={`h-4 w-4 ${showTagRef ? 'text-primary' : ''}`} />
+                  <span>Tag Reference</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+            <div className='my-2 border-b border-muted-foreground/20' />
             <SidebarGroupLabel>Overview</SidebarGroupLabel>
             <SidebarMenu>
-              {/* Render nav items with Codex inserted between Scanned Tokens and Trash */}
+              {/* Render nav items with Codex inserted */}
               {navItems.map((item, index) => {
                 const Icon = item.icon ? Icons[item.icon] : Icons.logo;
                 const hasSubItems = item?.items && item?.items?.length > 0;
@@ -137,8 +159,8 @@ export default function AppSidebar({
                   </SidebarMenuItem>
                 );
 
-                // Insert Codex after Scanned Tokens (index 1)
-                if (index === 1) {
+                // Insert Codex after Command Center (index 3)
+                if (index === 3) {
                   return (
                     <React.Fragment key={item.title}>
                       {navItem}
@@ -157,17 +179,6 @@ export default function AppSidebar({
 
                 return navItem;
               })}
-
-              {/* Scheduler panel toggle */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={onSchedulerToggle}
-                  tooltip='Scheduler'
-                >
-                  <IconClock />
-                  <span>Scheduler</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
 
               {/* Settings at the end */}
               <SidebarMenuItem>
@@ -191,47 +202,11 @@ export default function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size='lg'
-                  className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
-                >
-                  {user && (
-                    <UserAvatarProfile
-                      className='h-8 w-8 rounded-lg'
-                      showInfo
-                      user={user}
-                    />
-                  )}
-                  <IconChevronsDown className='ml-auto size-4' />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
-                side='bottom'
-                align='end'
-                sideOffset={4}
-              >
-                <DropdownMenuLabel className='p-0 font-normal'>
-                  <div className='px-1 py-1.5'>
-                    {user && (
-                      <UserAvatarProfile
-                        className='h-8 w-8 rounded-lg'
-                        showInfo
-                        user={user}
-                      />
-                    )}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem disabled>
-                  <span className='text-muted-foreground text-sm'>
-                    Meridinate
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <SidebarMenuButton size='lg' className='cursor-default'>
+              <span className='text-muted-foreground text-sm font-medium'>
+                Meridinate
+              </span>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

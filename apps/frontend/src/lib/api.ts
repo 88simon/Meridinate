@@ -71,8 +71,8 @@ export async function fetchWithRetry(
   config: RetryConfig = {}
 ): Promise<Response> {
   const {
-    maxRetries = 2,
-    timeoutMs = 12000,
+    maxRetries = 1,
+    timeoutMs = 5000,
     backoffMs = 1000,
     backoffMultiplier = 2
   } = config;
@@ -108,9 +108,6 @@ export async function fetchWithRetry(
 // ============================================================================
 // Type Exports (from generated schemas)
 // ============================================================================
-
-// Performance bucket type for type guards
-export type PerformanceBucket = 'prime' | 'monitor' | 'cull' | 'excluded';
 
 // Token types - use generated schemas directly (performance fields now included)
 export type Token = components['schemas']['Token'];
@@ -211,10 +208,28 @@ export function clearTokenDetailsCache(id?: number): void {
 /**
  * Fetch all analyzed tokens
  */
-export async function getTokens(): Promise<TokensResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/tokens/history`, {
-    cache: 'no-store' // Always fetch fresh data
-  });
+export async function getTokens(params?: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  dex_id?: string;
+  verdict?: string;
+  performance?: string;
+  since_hours?: number;
+}): Promise<TokensResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.dex_id) searchParams.set('dex_id', params.dex_id);
+  if (params?.verdict) searchParams.set('verdict', params.verdict);
+  if (params?.performance) searchParams.set('performance', params.performance);
+  if (params?.since_hours) searchParams.set('since_hours', params.since_hours.toString());
+
+  const qs = searchParams.toString();
+  const url = qs ? `${API_BASE_URL}/api/tokens/history?${qs}` : `${API_BASE_URL}/api/tokens/history`;
+
+  const res = await fetch(url, { cache: 'no-store' });
 
   if (!res.ok) {
     throw new Error('Failed to fetch tokens');
@@ -429,7 +444,7 @@ export async function getCodexWallets(): Promise<CodexResponse> {
   const res = await fetchWithRetry(
     `${API_BASE_URL}/codex`,
     { cache: 'no-store' },
-    { timeoutMs: 12000, maxRetries: 2 }
+    { timeoutMs: 4000, maxRetries: 1 }
   );
 
   if (!res.ok) {
@@ -630,28 +645,6 @@ export async function updateSolscanSettings(
 }
 
 /**
- * Build Solscan URL from settings for a wallet address
- * Fetches current settings and constructs the proper URL
- *
- * IMPORTANT: Parameter order matters for Solscan!
- * - token_address must come BEFORE value parameters
- * - Second value parameter should be 'undefined', not empty
- */
-export async function buildSolscanUrlWithSettings(
-  walletAddress: string
-): Promise<string> {
-  try {
-    const settings = await getSolscanSettings();
-    // CRITICAL: Maintain exact parameter order that Solscan expects
-    return `https://solscan.io/account/${walletAddress}?activity_type=${settings.activity_type}&exclude_amount_zero=${settings.exclude_amount_zero}&remove_spam=${settings.remove_spam}&token_address=${settings.token_address}&value=${settings.value}&value=undefined&page_size=${settings.page_size}#transfers`;
-  } catch (error) {
-    console.error('Failed to build Solscan URL with settings:', error);
-    // Fallback to basic URL if settings fetch fails
-    return `https://solscan.io/account/${walletAddress}#transfers`;
-  }
-}
-
-/**
  * Normalize activity_type for compatibility with Solscan's current expectations
  * Handles migration from old ACTIVITY_* values to current format if needed
  */
@@ -665,29 +658,6 @@ function normalizeActivityType(activityType: string): string {
   return migrations[activityType] || activityType;
 }
 
-/**
- * Update gem status of a token (DEPRECATED - use token tags instead)
- */
-export async function updateGemStatus(
-  tokenId: number,
-  gemStatus: 'gem' | 'dud' | null
-): Promise<{ message: string }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/tokens/${tokenId}/gem-status`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gem_status: gemStatus })
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to update gem status');
-  }
-
-  return response.json();
-}
 
 /**
  * Get tags for a token
@@ -974,7 +944,7 @@ export async function getScheduledJobs(): Promise<ScheduledJobsResponse> {
   const res = await fetchWithRetry(
     `${API_BASE_URL}/api/stats/scheduler/jobs`,
     { cache: 'no-store' },
-    { timeoutMs: 12000, maxRetries: 2 }
+    { timeoutMs: 4000, maxRetries: 1 }
   );
 
   if (!res.ok) {
@@ -1012,7 +982,7 @@ export async function getLatestToken(): Promise<LatestToken> {
 }
 
 // ============================================================================
-// SWAB (Smart Wallet Archive Builder) API Functions
+// Position Tracker API Functions
 // ============================================================================
 
 export type SwabSettings = components['schemas']['SwabSettingsResponse'];
@@ -1031,11 +1001,10 @@ export type SwabPositionsResponse = Omit<
 > & {
   positions: SwabPosition[];
 };
-export type SwabWalletSummary = components['schemas']['WalletSummaryResponse'];
 export type SwabCheckResult = components['schemas']['CheckResultResponse'];
 
 /**
- * Get SWAB settings
+ * Get position tracker settings
  */
 export async function getSwabSettings(): Promise<SwabSettings> {
   const res = await fetch(`${API_BASE_URL}/api/swab/settings`, {
@@ -1043,14 +1012,14 @@ export async function getSwabSettings(): Promise<SwabSettings> {
   });
 
   if (!res.ok) {
-    throw new Error('Failed to fetch SWAB settings');
+    throw new Error('Failed to fetch position tracker settings');
   }
 
   return res.json();
 }
 
 /**
- * Update SWAB settings
+ * Update position tracker settings
  */
 export async function updateSwabSettings(settings: {
   auto_check_enabled?: boolean;
@@ -1067,9 +1036,9 @@ export async function updateSwabSettings(settings: {
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error('SWAB settings update failed:', res.status, errorText);
+    console.error('Position tracker settings update failed:', res.status, errorText);
     throw new Error(
-      `Failed to update SWAB settings: ${res.status} - ${errorText}`
+      `Failed to update position tracker settings: ${res.status} - ${errorText}`
     );
   }
 
@@ -1077,7 +1046,7 @@ export async function updateSwabSettings(settings: {
 }
 
 /**
- * Get SWAB statistics
+ * Get position tracker statistics
  */
 export async function getSwabStats(): Promise<SwabStats> {
   const res = await fetch(`${API_BASE_URL}/api/swab/stats`, {
@@ -1085,14 +1054,14 @@ export async function getSwabStats(): Promise<SwabStats> {
   });
 
   if (!res.ok) {
-    throw new Error('Failed to fetch SWAB stats');
+    throw new Error('Failed to fetch position tracker stats');
   }
 
   return res.json();
 }
 
 /**
- * Get SWAB scheduler status
+ * Get position tracker scheduler status
  */
 export async function getSwabSchedulerStatus(): Promise<{
   running: boolean;
@@ -1113,7 +1082,7 @@ export async function getSwabSchedulerStatus(): Promise<{
 }
 
 /**
- * Get SWAB positions with filters
+ * Get tracked positions with filters
  */
 export async function getSwabPositions(params?: {
   min_token_count?: number;
@@ -1142,26 +1111,7 @@ export async function getSwabPositions(params?: {
   const res = await fetch(url, { cache: 'no-store' });
 
   if (!res.ok) {
-    throw new Error('Failed to fetch SWAB positions');
-  }
-
-  return res.json();
-}
-
-/**
- * Get SWAB wallet summaries
- */
-export async function getSwabWalletSummaries(
-  min_token_count?: number
-): Promise<SwabWalletSummary[]> {
-  const url = min_token_count
-    ? `${API_BASE_URL}/api/swab/wallets?min_token_count=${min_token_count}`
-    : `${API_BASE_URL}/api/swab/wallets`;
-
-  const res = await fetch(url, { cache: 'no-store' });
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch SWAB wallet summaries');
+    throw new Error('Failed to fetch tracked positions');
   }
 
   return res.json();
@@ -1314,74 +1264,7 @@ export async function purgeSwabData(): Promise<{
   });
 
   if (!res.ok) {
-    throw new Error('Failed to purge SWAB data');
-  }
-
-  return res.json();
-}
-
-// Reconciliation types and functions
-export interface ReconciliationResultItem {
-  wallet_address: string;
-  token_symbol: string;
-  status: 'success' | 'no_tx_found' | 'error';
-  old_pnl_ratio: number | null;
-  new_pnl_ratio: number | null;
-  tokens_sold: number | null;
-  usd_received: number | null;
-  error_message: string | null;
-}
-
-export interface ReconciliationResponse {
-  positions_found: number;
-  positions_reconciled: number;
-  positions_no_tx_found: number;
-  positions_error: number;
-  credits_used: number;
-  results: ReconciliationResultItem[];
-}
-
-/**
- * Reconcile sold positions for a specific token using Helius transaction history.
- * Fixes positions where sell was never recorded with actual price data.
- */
-export async function reconcileTokenPositions(
-  tokenId: number,
-  maxSignatures: number = 50
-): Promise<ReconciliationResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/swab/reconcile/${tokenId}?max_signatures=${maxSignatures}`,
-    { method: 'POST' }
-  );
-
-  if (!res.ok) {
-    throw new Error('Failed to reconcile positions');
-  }
-
-  return res.json();
-}
-
-/**
- * Reconcile all sold positions across all tokens that need reconciliation.
- */
-export async function reconcileAllPositions(params?: {
-  max_signatures?: number;
-  max_positions?: number;
-}): Promise<ReconciliationResponse> {
-  const searchParams = new URLSearchParams();
-  if (params?.max_signatures)
-    searchParams.set('max_signatures', params.max_signatures.toString());
-  if (params?.max_positions)
-    searchParams.set('max_positions', params.max_positions.toString());
-
-  const url = searchParams.toString()
-    ? `${API_BASE_URL}/api/swab/reconcile-all?${searchParams}`
-    : `${API_BASE_URL}/api/swab/reconcile-all`;
-
-  const res = await fetch(url, { method: 'POST' });
-
-  if (!res.ok) {
-    throw new Error('Failed to reconcile positions');
+    throw new Error('Failed to purge position data');
   }
 
   return res.json();
@@ -1394,9 +1277,24 @@ export async function reconcileAllPositions(params?: {
 export interface IngestSettings {
   // Threshold filters
   mc_min: number;
+  mc_max: number | null;
   volume_min: number;
   liquidity_min: number;
   age_max_hours: number;
+
+  // Pipeline filters
+  launchpad_include: string[];
+  launchpad_exclude: string[];
+  quote_token_include: string[];
+  address_suffix_include: string[];
+  buys_24h_min: number | null;
+  sells_24h_max: number | null;
+  net_buys_24h_min: number | null;
+  txs_24h_min: number | null;
+  price_change_h1_min: number | null;
+  keyword_include: string[];
+  keyword_exclude: string[];
+  require_socials: boolean;
 
   // Discovery scheduler settings (new)
   discovery_enabled: boolean;
@@ -1429,6 +1327,21 @@ export interface IngestSettings {
   performance_monitor_threshold: number;
   control_cohort_daily_quota: number;
   score_weights: Record<string, number>;
+
+  // CLOBr enrichment settings
+  clobr_enabled: boolean;
+  clobr_min_score: number;
+
+  // Real-time detection settings
+  realtime_watch_window_seconds: number;
+  realtime_mc_min_at_close: number;
+
+  // Follow-up tracker settings
+  followup_enabled: boolean;
+  followup_max_duration_minutes: number;
+  followup_check_interval_seconds: number;
+  followup_auto_extend_uptrend: boolean;
+  followup_auto_cut_flatline: boolean;
 
   // Run tracking (new)
   last_discovery_run_at: string | null;
@@ -1517,7 +1430,7 @@ export async function getIngestSettings(): Promise<IngestSettings> {
   const res = await fetchWithRetry(
     `${API_BASE_URL}/api/ingest/settings`,
     { cache: 'no-store' },
-    { timeoutMs: 12000, maxRetries: 2 }
+    { timeoutMs: 4000, maxRetries: 1 }
   );
 
   if (!res.ok) {
@@ -1569,7 +1482,7 @@ export async function getIngestQueue(params?: {
   const res = await fetchWithRetry(
     url,
     { cache: 'no-store' },
-    { timeoutMs: 12000, maxRetries: 2 }
+    { timeoutMs: 4000, maxRetries: 1 }
   );
 
   if (!res.ok) {
@@ -1587,7 +1500,7 @@ export async function getIngestQueueStats(): Promise<IngestQueueStats> {
   const res = await fetchWithRetry(
     `${API_BASE_URL}/api/ingest/queue/stats`,
     { cache: 'no-store' },
-    { timeoutMs: 12000, maxRetries: 2 }
+    { timeoutMs: 4000, maxRetries: 1 }
   );
 
   if (!res.ok) {
@@ -1634,30 +1547,7 @@ export async function runTier0Ingestion(params?: {
   return runDiscovery(params);
 }
 
-/**
- * Deprecated: Tier-1 enrichment has been removed
- * @deprecated Tier-1 enrichment no longer exists; use promoteTokens instead
- */
-export async function runTier1Enrichment(params?: {
-  batch_size?: number;
-  credit_budget?: number;
-  mc_min?: number;
-  volume_min?: number;
-  liquidity_min?: number;
-  age_max_hours?: number;
-}): Promise<{ status: string; result: IngestRunResult }> {
-  const res = await fetch(`${API_BASE_URL}/api/ingest/run-tier1`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: params ? JSON.stringify(params) : '{}'
-  });
 
-  if (!res.ok) {
-    throw new Error('Tier-1 enrichment is deprecated');
-  }
-
-  return res.json();
-}
 
 /**
  * Promote tokens from Discovery Queue to full analysis
@@ -1695,5 +1585,217 @@ export async function discardTokens(
     throw new Error('Failed to discard tokens');
   }
 
+  return res.json();
+}
+
+// ============================================================================
+// Helius Wallet API (v1) Integrations
+// ============================================================================
+
+export interface WalletFundedBy {
+  funder: string;
+  funderName: string | null;
+  funderType: string | null;
+  amount: number;
+  date: string;
+  signature: string;
+}
+
+export interface WalletFundedByResponse {
+  wallet_address: string;
+  funded_by: WalletFundedBy | null;
+  credits_used: number;
+}
+
+export interface FunderCluster {
+  funder: string;
+  funder_name: string | null;
+  funder_type: string | null;
+  wallets: string[];
+}
+
+export interface BatchFundedByResponse {
+  results: WalletFundedByResponse[];
+  clusters: FunderCluster[];
+  total_credits: number;
+}
+
+export interface WalletIdentity {
+  name: string;
+  type: string | null;
+  category: string | null;
+  tags: string[];
+}
+
+export interface BatchIdentityResponse {
+  identities: Record<string, WalletIdentity>;
+  total_identified: number;
+  total_queried: number;
+  credits_used: number;
+}
+
+export interface WalletTransfer {
+  signature: string;
+  timestamp: number;
+  direction: 'in' | 'out';
+  counterparty: string;
+  mint: string;
+  symbol: string;
+  amount: number;
+  amountRaw: string;
+  decimals: number;
+}
+
+export interface WalletTransfersResponse {
+  wallet_address: string;
+  transfers: WalletTransfer[];
+  pagination: { hasMore?: boolean; nextCursor?: string };
+  credits_used: number;
+}
+
+/** Batch lookup of funding sources with cluster detection */
+export async function getBatchFundedBy(
+  walletAddresses: string[]
+): Promise<BatchFundedByResponse> {
+  const res = await fetch(`${API_BASE_URL}/wallets/batch-funded-by`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wallet_addresses: walletAddresses })
+  });
+  if (!res.ok) throw new Error('Failed to fetch batch funding sources');
+  return res.json();
+}
+
+/** Batch lookup of wallet identities (exchanges, protocols, labeled entities) */
+export async function getBatchWalletIdentities(
+  walletAddresses: string[]
+): Promise<BatchIdentityResponse> {
+  const res = await fetch(`${API_BASE_URL}/wallets/batch-identity`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wallet_addresses: walletAddresses })
+  });
+  if (!res.ok) throw new Error('Failed to fetch wallet identities');
+  return res.json();
+}
+
+/** Get transfer history for a wallet */
+export async function getWalletTransfers(
+  walletAddress: string,
+  limit: number = 50,
+  cursor?: string
+): Promise<WalletTransfersResponse> {
+  let url = `${API_BASE_URL}/wallets/${walletAddress}/transfers?limit=${limit}`;
+  if (cursor) url += `&cursor=${cursor}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch wallet transfers');
+  return res.json();
+}
+
+// ============================================================================
+// Multi-Hop Funding Trace
+// ============================================================================
+
+export interface FundingHop {
+  hop: number;
+  wallet: string;
+  funder: string | null;
+  funder_name: string | null;
+  funder_type: string | null;
+  date: string | null;
+  timestamp: number | null;
+  amount: number | null;
+  tx_signature: string | null;
+  stop_reason: string | null;
+}
+
+export interface FundingTrace {
+  wallet_address: string;
+  chain: FundingHop[];
+  terminal_wallet: string;
+  terminal_name: string | null;
+  depth: number;
+  credits_used: number;
+}
+
+export interface DeepCluster {
+  terminal_wallet: string;
+  terminal_name: string | null;
+  wallets: string[];
+  count: number;
+}
+
+export interface FundingTraceResponse {
+  traces: Record<string, FundingTrace>;
+  deep_clusters: DeepCluster[];
+  total_credits: number;
+  wallets_traced: number;
+}
+
+/** Trace funding chains for multiple wallets with configurable hop depth */
+export async function traceFundingChains(
+  walletAddresses: string[],
+  maxHops: number = 3,
+  stopAtExchanges: boolean = true
+): Promise<FundingTraceResponse> {
+  const res = await fetch(`${API_BASE_URL}/wallets/trace-funding`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      wallet_addresses: walletAddresses,
+      max_hops: maxHops,
+      stop_at_exchanges: stopAtExchanges,
+    })
+  });
+  if (!res.ok) throw new Error('Failed to trace funding chains');
+  return res.json();
+}
+
+// ============================================================================
+// Forward Funding Trace
+// ============================================================================
+
+export interface ForwardTraceNode {
+  address: string;
+  amount?: number;
+  timestamp?: string;
+  is_known?: boolean;
+  identity_name?: string | null;
+  identity_type?: string | null;
+  children: ForwardTraceNode[];
+}
+
+export interface ForwardTraceClusterToken {
+  token_name: string;
+  token_symbol: string;
+  token_id: number;
+  buyer_count: number;
+  buyers: string[];
+}
+
+export interface ForwardTraceResponse {
+  wallet_address: string;
+  tree: ForwardTraceNode;
+  total_recipients: number;
+  cluster_tokens: ForwardTraceClusterToken[];
+  credits_used: number;
+}
+
+/** Trace forward funding from a wallet to its recipients */
+export async function traceForward(
+  walletAddress: string,
+  maxHops: number = 2,
+  maxRecipients: number = 10
+): Promise<ForwardTraceResponse> {
+  const res = await fetch(`${API_BASE_URL}/wallets/trace-forward`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      wallet_address: walletAddress,
+      max_hops: maxHops,
+      max_recipients: maxRecipients,
+    })
+  });
+  if (!res.ok) throw new Error('Failed to trace forward funding');
   return res.json();
 }

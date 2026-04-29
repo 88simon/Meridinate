@@ -2,7 +2,7 @@
 Scheduler Module
 ================
 Handles background job scheduling for:
-- SWAB position checking
+- Position checking
 - Ingest pipeline (Discovery ingestion, tracking refresh)
 
 Uses APScheduler with asyncio support.
@@ -22,11 +22,15 @@ from meridinate.observability import log_error, log_info
 _scheduler: Optional[AsyncIOScheduler] = None
 _check_job_id = "swab_position_check"
 _tier0_job_id = "ingest_tier0"
-_tier1_job_id = "ingest_tier1"
+# _tier1_job_id removed — Tier-1 enrichment is fully deprecated
 _hot_refresh_job_id = "ingest_hot_refresh"
 
 # Track currently running jobs: job_id -> started_at timestamp
 _running_jobs: Dict[str, datetime] = {}
+
+# Credits per position check (getTokenAccountsByOwner = 1 credit standard RPC)
+CREDITS_PER_POSITION_CHECK = 1
+MAX_POSITIONS_PER_CHECK = 50
 
 
 def mark_job_started(job_id: str) -> None:
@@ -51,10 +55,9 @@ def get_running_jobs() -> list:
     global _running_jobs
 
     job_names = {
-        _check_job_id: "SWAB Position Check",
-        _tier0_job_id: "Discovery Ingestion",
-        _tier1_job_id: "Tier-1 Enrichment (Deprecated)",
-        _hot_refresh_job_id: "Hot Token Refresh",
+        _check_job_id: "Position Check",
+        _tier0_job_id: "Auto-Scan",
+        _hot_refresh_job_id: "MC Tracker",
     }
 
     running = []
@@ -82,9 +85,9 @@ def get_scheduler() -> AsyncIOScheduler:
 
 async def swab_position_check_job():
     """
-    Scheduled job to check SWAB positions.
+    Scheduled job to check positions.
 
-    Respects SWAB settings for:
+    Respects position tracker settings for:
     - auto_check_enabled
     - stale_threshold_minutes
     - daily_credit_budget
@@ -92,31 +95,30 @@ async def swab_position_check_job():
     from meridinate.tasks.position_tracker import check_mtew_positions
 
     try:
-        # Get current SWAB settings
+        # Get current position tracker settings
         settings = db.get_swab_settings()
 
         # Check if auto-check is enabled
         if not settings["auto_check_enabled"]:
-            log_info("SWAB auto-check disabled, skipping scheduled check")
+            log_info("Position auto-check disabled, skipping scheduled check")
             return
 
         # Check daily credit budget
         credits_remaining = settings["daily_credit_budget"] - settings["credits_used_today"]
         if credits_remaining <= 0:
-            log_info("SWAB daily credit budget exhausted, skipping scheduled check")
+            log_info("Position daily credit budget exhausted, skipping scheduled check")
             return
 
         # Calculate max positions to check based on remaining budget
-        # Each position costs ~10 credits
-        max_positions = min(50, credits_remaining // 10)
+        max_positions = min(MAX_POSITIONS_PER_CHECK, credits_remaining // CREDITS_PER_POSITION_CHECK)
         if max_positions <= 0:
-            log_info("SWAB insufficient credits for position check")
+            log_info("Position insufficient credits for position check")
             return
 
         mark_job_started(_check_job_id)
 
         log_info(
-            f"SWAB scheduled check starting: max_positions={max_positions}, "
+            f"Position scheduled check starting: max_positions={max_positions}, "
             f"credits_remaining={credits_remaining}"
         )
 
@@ -127,28 +129,40 @@ async def swab_position_check_job():
             max_credits=credits_remaining,
         )
 
-        # Update SWAB credits used
+        # Update position tracker credits used
         db.update_swab_last_check(credits_used=result.get("credits_used", 0))
 
         log_info(
-            f"SWAB scheduled check complete: "
+            f"Position scheduled check complete: "
             f"{result['positions_checked']} checked, "
             f"{result['still_holding']} holding, "
             f"{result['sold']} sold, "
             f"{result['credits_used']} credits used"
         )
 
+        # Rebuild leaderboard cache after position data changes
+        try:
+            from meridinate.services.leaderboard_cache import rebuild_leaderboard_cache
+            rebuild_leaderboard_cache()
+        except Exception as cache_err:
+            log_error(f"Leaderboard cache rebuild failed after position check: {cache_err}")
+
     except Exception as e:
-        log_error(f"SWAB scheduled check failed: {e}")
+        log_error(f"Position scheduled check failed: {e}")
+        from meridinate.credit_tracker import get_credit_tracker
+        get_credit_tracker().record_operation(
+            operation="position_check", label="Position Check",
+            credits=0, call_count=0, context={"error": str(e)},
+        )
     finally:
         mark_job_finished(_check_job_id)
 
 
 def update_scheduler_interval():
     """
-    Update the scheduler interval based on SWAB settings.
+    Update the scheduler interval based on position tracker settings.
 
-    Call this when SWAB settings are updated.
+    Call this when position tracker settings are updated.
     """
     global _scheduler
 
@@ -157,8 +171,11 @@ def update_scheduler_interval():
 
     settings = db.get_swab_settings()
 
-    # Remove existing job if present
-    if _scheduler.get_job(_check_job_id):
+    # Preserve pause state across reschedule
+    was_paused = False
+    existing = _scheduler.get_job(_check_job_id)
+    if existing:
+        was_paused = existing.next_run_time is None
         _scheduler.remove_job(_check_job_id)
 
     # Only add job if auto-check is enabled
@@ -168,16 +185,63 @@ def update_scheduler_interval():
             swab_position_check_job,
             trigger=IntervalTrigger(minutes=interval_minutes),
             id=_check_job_id,
-            name="SWAB Position Check",
+            name="Position Check",
             replace_existing=True,
+            max_instances=1,
+            coalesce=True,
         )
-        log_info(f"SWAB scheduler updated: checking every {interval_minutes} minutes")
+        if was_paused:
+            _scheduler.get_job(_check_job_id).pause()
+            log_info(f"Position tracker updated: every {interval_minutes} min (still PAUSED)")
+        else:
+            log_info(f"Position tracker scheduler updated: checking every {interval_minutes} minutes")
     else:
-        log_info("SWAB scheduler: auto-check disabled")
+        log_info("Position tracker scheduler: auto-check disabled")
+
+
+def update_scan_interval():
+    """
+    Update the auto-scan interval based on ingest settings.
+    Call this when scan interval settings are changed.
+    """
+    global _scheduler
+    from meridinate.settings import CURRENT_INGEST_SETTINGS
+
+    if _scheduler is None or not _scheduler.running:
+        return
+
+    interval = CURRENT_INGEST_SETTINGS.get("discovery_interval_minutes", 15)
+
+    # Preserve pause state across reschedule
+    was_paused = False
+    existing = _scheduler.get_job(_tier0_job_id)
+    if existing:
+        was_paused = existing.next_run_time is None
+        _scheduler.remove_job(_tier0_job_id)
+
+    enabled = CURRENT_INGEST_SETTINGS.get("discovery_enabled")
+    if enabled:
+        _scheduler.add_job(
+            ingest_tier0_job,
+            trigger=IntervalTrigger(minutes=interval),
+            id=_tier0_job_id,
+            name="Auto-Scan (DexScreener + Helius)",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        # Re-pause if it was paused before the interval change
+        if was_paused:
+            _scheduler.get_job(_tier0_job_id).pause()
+            log_info(f"[Auto-Scan] Interval updated to {interval} min (still PAUSED)")
+        else:
+            log_info(f"[Auto-Scan] Interval updated: every {interval} minutes")
+    else:
+        log_info("[Auto-Scan] Disabled")
 
 
 def start_scheduler():
-    """Start the scheduler with SWAB and Ingest jobs."""
+    """Start the scheduler with Position Tracker and Ingest jobs."""
     global _scheduler
     from meridinate.settings import CURRENT_INGEST_SETTINGS
 
@@ -187,7 +251,7 @@ def start_scheduler():
         log_info("Scheduler already running")
         return
 
-    # Load SWAB settings and configure job
+    # Load position tracker settings and configure job
     settings = db.get_swab_settings()
 
     if settings["auto_check_enabled"]:
@@ -196,63 +260,57 @@ def start_scheduler():
             swab_position_check_job,
             trigger=IntervalTrigger(minutes=interval_minutes),
             id=_check_job_id,
-            name="SWAB Position Check",
+            name="Position Check",
             replace_existing=True,
+            max_instances=1,
+            coalesce=True,
         )
-        log_info(f"SWAB scheduler configured: checking every {interval_minutes} minutes")
+        log_info(f"Position tracker scheduler configured: checking every {interval_minutes} minutes")
     else:
-        log_info("SWAB scheduler: auto-check disabled at startup")
+        log_info("Position tracker scheduler: auto-check disabled at startup")
 
-    # Configure Ingest jobs (feature-flagged)
-    if CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
-        tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
+    # Configure Auto-Scan job (feature-flagged)
+    if CURRENT_INGEST_SETTINGS.get("discovery_enabled"):
+        tier0_interval = CURRENT_INGEST_SETTINGS.get("discovery_interval_minutes", 15)
         scheduler.add_job(
             ingest_tier0_job,
             trigger=IntervalTrigger(minutes=tier0_interval),
             id=_tier0_job_id,
-            name="Discovery (DexScreener)",
+            name="Auto-Scan (DexScreener + Helius)",
             replace_existing=True,
+            max_instances=1,
+            coalesce=True,
         )
         log_info(f"[Ingest] Discovery scheduler enabled: running every {tier0_interval} minutes")
     else:
         log_info("[Ingest] Discovery scheduler disabled at startup")
 
-    if CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
-        scheduler.add_job(
-            ingest_tier1_job,
-            trigger=IntervalTrigger(hours=4),
-            id=_tier1_job_id,
-            name="Tier-1 Enrichment (Deprecated)",
-            replace_existing=True,
-        )
-        log_info("[Ingest] Tier-1 scheduler enabled: running every 4 hours")
-    else:
-        log_info("[Ingest] Tier-1 scheduler disabled at startup")
+    # Tier-1 enrichment removed — fully deprecated
 
-    # Configure Hot Refresh job (feature-flagged, runs every 2 hours)
-    if CURRENT_INGEST_SETTINGS.get("hot_refresh_enabled"):
-        scheduler.add_job(
-            ingest_hot_refresh_job,
-            trigger=IntervalTrigger(hours=2),
-            id=_hot_refresh_job_id,
-            name="Ingest Hot Token Refresh (DexScreener)",
-            replace_existing=True,
-        )
-        log_info("[Ingest] Hot Refresh scheduler enabled: running every 2 hours")
-    else:
-        log_info("[Ingest] Hot Refresh scheduler disabled at startup")
+    # MC Tracker — decay-based polling, runs every 2 minutes
+    # The tracker itself checks which tokens are due based on age-decay intervals
+    scheduler.add_job(
+        mc_tracker_job,
+        trigger=IntervalTrigger(minutes=2),
+        id=_hot_refresh_job_id,
+        name="MC Tracker (decay-based)",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    log_info("[MC Tracker] Decay-based polling enabled: checking every 2 minutes")
 
     scheduler.start()
     log_info("Scheduler started")
 
 
 def stop_scheduler():
-    """Stop the SWAB scheduler."""
+    """Stop the Position tracker scheduler."""
     global _scheduler
 
     if _scheduler is not None and _scheduler.running:
         _scheduler.shutdown(wait=False)
-        log_info("SWAB scheduler stopped")
+        log_info("Position tracker scheduler stopped")
 
 
 def get_scheduler_status() -> dict:
@@ -284,130 +342,73 @@ def get_scheduler_status() -> dict:
 
 async def ingest_tier0_job():
     """
-    Scheduled job for Discovery ingestion (DexScreener, free).
-
-    Respects ingest settings for:
-    - ingest_enabled flag
-    - tier0_max_tokens_per_run
-    - Threshold filters (mc_min, volume_min, etc.)
+    Scheduled Auto-Scan job: discovers tokens from DexScreener and
+    immediately runs Helius analysis on those passing filters.
     """
     from meridinate.settings import CURRENT_INGEST_SETTINGS
-    from meridinate.tasks.ingest_tasks import run_tier0_ingestion
+    from meridinate.tasks.ingest_tasks import run_auto_scan
 
     try:
-        # Check if ingestion is enabled
-        if not CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
-            log_info("[Discovery] Auto-ingestion disabled, skipping scheduled run")
+        # Check if scanning is enabled
+        if not CURRENT_INGEST_SETTINGS.get("discovery_enabled"):
+            log_info("[Auto-Scan] Disabled, skipping scheduled run")
             return
 
         mark_job_started(_tier0_job_id)
-        log_info("[Discovery] Starting scheduled ingestion")
+        log_info("[Auto-Scan] Starting scheduled scan")
 
-        result = await run_tier0_ingestion()
+        result = await run_auto_scan()
 
         log_info(
-            f"[Discovery] Scheduled run complete: "
-            f"{result['tokens_new']} new, {result['tokens_updated']} updated"
+            f"[Auto-Scan] Scheduled run complete: "
+            f"{result['tokens_scanned']} scanned, {result['tokens_filtered']} filtered"
         )
 
     except Exception as e:
-        log_error(f"[Discovery] Scheduled run failed: {e}")
+        log_error(f"[Auto-Scan] Scheduled run failed: {e}")
+        from meridinate.credit_tracker import get_credit_tracker
+        get_credit_tracker().record_operation(
+            operation="auto_scan", label="Auto-Scan",
+            credits=0, call_count=0, context={"error": str(e)},
+        )
     finally:
         mark_job_finished(_tier0_job_id)
 
 
-async def ingest_tier1_job():
+async def mc_tracker_job():
     """
-    Scheduled job for tracking refresh (Helius, budgeted).
-
-    Respects ingest settings for:
-    - enrich_enabled flag
-    - tier1_batch_size
-    - tier1_credit_budget_per_run
-    - Threshold filters
-    - auto_promote_enabled (triggers auto-promote after enrichment)
+    Scheduled MC tracker job — runs every 2 minutes.
+    The tracker itself determines which tokens are due based on age-decay intervals.
+    Runs in a thread to avoid blocking the event loop.
     """
-    from meridinate.settings import CURRENT_INGEST_SETTINGS
-    from meridinate.tasks.ingest_tasks import run_tier1_enrichment
-
+    import asyncio
     try:
-        # Check if enrichment is enabled
-        if not CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
-            log_info("[Tier-1 Deprecated] Auto-enrichment disabled, skipping scheduled run")
-            return
-
-        mark_job_started(_tier1_job_id)
-        log_info("[Tier-1 Deprecated] Starting scheduled enrichment")
-
-        result = await run_tier1_enrichment()
-
-        log_info(
-            f"[Tier-1 Deprecated] Scheduled run complete: "
-            f"{result['tokens_enriched']} enriched, {result['credits_used']} credits used"
-        )
-
-        # Log auto-promote results if triggered
-        if "auto_promote" in result:
-            ap = result["auto_promote"]
-            log_info(
-                f"[Tier-1 Deprecated] Auto-promote results: "
-                f"{ap.get('tokens_promoted', 0)} promoted, "
-                f"{ap.get('webhooks_registered', 0)} webhooks"
-            )
-            # Record auto-promote operation for persistent history
-            from meridinate.credit_tracker import get_credit_tracker
-            get_credit_tracker().record_operation(
-                operation="auto_promotion",
-                label="Auto Promotion",
-                credits=ap.get("credits_used", 0),
-                call_count=ap.get("tokens_promoted", 0),
-                context={
-                    "webhooks_registered": ap.get("webhooks_registered", 0),
-                    "trigger": "scheduled",
-                }
-            )
-
-    except Exception as e:
-        log_error(f"[Tier-1 Deprecated] Scheduled run failed: {e}")
-    finally:
-        mark_job_finished(_tier1_job_id)
-
-
-async def ingest_hot_refresh_job():
-    """
-    Scheduled job for hot token MC/volume refresh (DexScreener, free).
-
-    Refreshes snapshots for recently ingested/enriched tokens to keep
-    metrics fresh for promotion decisions.
-
-    Respects ingest settings for:
-    - hot_refresh_enabled flag
-    - hot_refresh_age_hours
-    - hot_refresh_max_tokens
-    """
-    from meridinate.settings import CURRENT_INGEST_SETTINGS
-    from meridinate.tasks.ingest_tasks import run_hot_token_refresh
-
-    try:
-        # Check if hot refresh is enabled
-        if not CURRENT_INGEST_SETTINGS.get("hot_refresh_enabled"):
-            log_info("[Hot Refresh] Disabled, skipping scheduled run")
-            return
-
         mark_job_started(_hot_refresh_job_id)
-        log_info("[Hot Refresh] Starting scheduled refresh")
-
-        result = await run_hot_token_refresh()
-
+        from meridinate.tasks.mc_tracker import run_mc_tracker
+        result = await asyncio.to_thread(run_mc_tracker)
         log_info(
-            f"[Hot Refresh] Scheduled run complete: "
-            f"{result['tokens_updated']} updated, {result['tokens_failed']} failed"
+            f"[MC Tracker] {result.get('tokens_updated', 0)} updated, "
+            f"{result.get('verdicts_computed', 0)} verdicts"
         )
 
+        # Rebuild leaderboard cache only if tokens were actually updated
+        if result.get('tokens_updated', 0) > 0 or result.get('verdicts_computed', 0) > 0:
+            try:
+                from meridinate.services.leaderboard_cache import rebuild_leaderboard_cache
+                await asyncio.to_thread(rebuild_leaderboard_cache)
+            except Exception as cache_err:
+                log_error(f"Leaderboard cache rebuild failed after MC tracker: {cache_err}")
+
     except Exception as e:
-        log_error(f"[Hot Refresh] Scheduled run failed: {e}")
+        log_error(f"[MC Tracker] Job failed: {e}")
+        from meridinate.credit_tracker import get_credit_tracker
+        get_credit_tracker().record_operation(
+            operation="mc_tracker", label="MC Tracker",
+            credits=0, call_count=0, context={"error": str(e)},
+        )
     finally:
         mark_job_finished(_hot_refresh_job_id)
+
 
 
 def update_ingest_scheduler():
@@ -422,53 +423,28 @@ def update_ingest_scheduler():
     if _scheduler is None:
         return
 
-    # Remove existing jobs if present
-    if _scheduler.get_job(_tier0_job_id):
-        _scheduler.remove_job(_tier0_job_id)
-    if _scheduler.get_job(_tier1_job_id):
-        _scheduler.remove_job(_tier1_job_id)
-    if _scheduler.get_job(_hot_refresh_job_id):
-        _scheduler.remove_job(_hot_refresh_job_id)
+    # Preserve pause states across reschedule
+    paused_states = {}
+    for job_id in [_tier0_job_id, _hot_refresh_job_id]:
+        existing = _scheduler.get_job(job_id)
+        if existing:
+            paused_states[job_id] = existing.next_run_time is None
+            _scheduler.remove_job(job_id)
 
-    # Add Discovery job if enabled (uses tier0_interval_minutes setting)
-    if CURRENT_INGEST_SETTINGS.get("ingest_enabled"):
-        tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
-        _scheduler.add_job(
-            ingest_tier0_job,
-            trigger=IntervalTrigger(minutes=tier0_interval),
-            id=_tier0_job_id,
-            name="Discovery (DexScreener)",
-            replace_existing=True,
-        )
-        log_info(f"[Ingest] Discovery scheduler enabled: running every {tier0_interval} minutes")
+    def _add_and_maybe_pause(job_func, trigger, job_id, name):
+        _scheduler.add_job(job_func, trigger=trigger, id=job_id, name=name, replace_existing=True, max_instances=1, coalesce=True)
+        if paused_states.get(job_id, False):
+            _scheduler.get_job(job_id).pause()
+            log_info(f"[Ingest] {name} updated (still PAUSED)")
+        else:
+            log_info(f"[Ingest] {name} enabled")
+
+    # Add Discovery job if enabled
+    if CURRENT_INGEST_SETTINGS.get("discovery_enabled"):
+        tier0_interval = CURRENT_INGEST_SETTINGS.get("discovery_interval_minutes", 15)
+        _add_and_maybe_pause(ingest_tier0_job, IntervalTrigger(minutes=tier0_interval), _tier0_job_id, f"Auto-Scan (every {tier0_interval} min)")
     else:
         log_info("[Ingest] Discovery scheduler disabled")
-
-    # Add Tier-1 job if enabled (runs every 4 hours)
-    if CURRENT_INGEST_SETTINGS.get("enrich_enabled"):
-        _scheduler.add_job(
-            ingest_tier1_job,
-            trigger=IntervalTrigger(hours=4),
-            id=_tier1_job_id,
-            name="Tier-1 Enrichment (Deprecated)",
-            replace_existing=True,
-        )
-        log_info("[Ingest] Tier-1 scheduler enabled: running every 4 hours")
-    else:
-        log_info("[Ingest] Tier-1 scheduler disabled")
-
-    # Add Hot Refresh job if enabled (runs every 2 hours)
-    if CURRENT_INGEST_SETTINGS.get("hot_refresh_enabled"):
-        _scheduler.add_job(
-            ingest_hot_refresh_job,
-            trigger=IntervalTrigger(hours=2),
-            id=_hot_refresh_job_id,
-            name="Ingest Hot Token Refresh (DexScreener)",
-            replace_existing=True,
-        )
-        log_info("[Ingest] Hot Refresh scheduler enabled: running every 2 hours")
-    else:
-        log_info("[Ingest] Hot Refresh scheduler disabled")
 
 
 def get_all_scheduled_jobs() -> list:
@@ -483,62 +459,57 @@ def get_all_scheduled_jobs() -> list:
 
     jobs = []
 
-    # SWAB position check
+    # Position Check
     swab_settings = db.get_swab_settings()
     swab_job = {
         "id": _check_job_id,
-        "name": "SWAB Position Check",
+        "name": "Position Check",
         "enabled": swab_settings["auto_check_enabled"],
         "next_run_at": None,
         "interval_minutes": swab_settings["check_interval_minutes"],
     }
     if _scheduler is not None and _scheduler.running:
         job = _scheduler.get_job(_check_job_id)
-        if job and job.next_run_time:
-            swab_job["next_run_at"] = job.next_run_time.isoformat()
+        if job:
+            if job.next_run_time:
+                swab_job["next_run_at"] = job.next_run_time.isoformat()
+            else:
+                swab_job["paused"] = True
     jobs.append(swab_job)
 
-    # Discovery Ingestion
-    tier0_interval = CURRENT_INGEST_SETTINGS.get("tier0_interval_minutes", 60)
+    # Auto-Scan
+    tier0_interval = CURRENT_INGEST_SETTINGS.get("discovery_interval_minutes", 15)
     tier0_job = {
         "id": _tier0_job_id,
-        "name": "Discovery Ingestion",
-        "enabled": CURRENT_INGEST_SETTINGS.get("ingest_enabled", False),
+        "name": "Auto-Scan",
+        "enabled": CURRENT_INGEST_SETTINGS.get("discovery_enabled", False),
         "next_run_at": None,
         "interval_minutes": tier0_interval,
     }
     if _scheduler is not None and _scheduler.running:
         job = _scheduler.get_job(_tier0_job_id)
-        if job and job.next_run_time:
-            tier0_job["next_run_at"] = job.next_run_time.isoformat()
+        if job:
+            if job.next_run_time:
+                tier0_job["next_run_at"] = job.next_run_time.isoformat()
+            else:
+                tier0_job["paused"] = True
     jobs.append(tier0_job)
 
-    # Tier-1 Enrichment (Deprecated)
-    tier1_job = {
-        "id": _tier1_job_id,
-        "name": "Tier-1 Enrichment (Deprecated)",
-        "enabled": CURRENT_INGEST_SETTINGS.get("enrich_enabled", False),
-        "next_run_at": None,
-        "interval_minutes": 240,  # 4 hours
-    }
-    if _scheduler is not None and _scheduler.running:
-        job = _scheduler.get_job(_tier1_job_id)
-        if job and job.next_run_time:
-            tier1_job["next_run_at"] = job.next_run_time.isoformat()
-    jobs.append(tier1_job)
-
-    # Hot Token Refresh
+    # MC Tracker (always enabled — decay-based polling)
     hot_refresh_job = {
         "id": _hot_refresh_job_id,
-        "name": "Hot Token Refresh",
-        "enabled": CURRENT_INGEST_SETTINGS.get("hot_refresh_enabled", False),
+        "name": "MC Tracker",
+        "enabled": True,
         "next_run_at": None,
-        "interval_minutes": 120,  # 2 hours
+        "interval_minutes": 2,
     }
     if _scheduler is not None and _scheduler.running:
         job = _scheduler.get_job(_hot_refresh_job_id)
-        if job and job.next_run_time:
-            hot_refresh_job["next_run_at"] = job.next_run_time.isoformat()
+        if job:
+            if job.next_run_time:
+                hot_refresh_job["next_run_at"] = job.next_run_time.isoformat()
+            else:
+                hot_refresh_job["paused"] = True
     jobs.append(hot_refresh_job)
 
     return jobs

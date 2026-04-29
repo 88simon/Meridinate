@@ -28,244 +28,6 @@ from typing import Any, Dict, List, Optional
 from meridinate import settings
 
 DATABASE_FILE = settings.DATABASE_FILE
-ANALYSIS_RESULTS_DIR = settings.ANALYSIS_RESULTS_DIR
-AXIOM_EXPORTS_DIR = settings.AXIOM_EXPORTS_DIR
-
-
-def sanitize_filename(text: str, max_length: int = 50) -> str:
-    """
-    Sanitize a string for use in filenames.
-
-    Args:
-        text: Text to sanitize
-        max_length: Maximum length of output
-
-    Returns:
-        Sanitized filename-safe string
-    """
-    # Convert to lowercase
-    text = text.lower()
-    # Replace spaces with hyphens
-    text = text.replace(" ", "-")
-    # Remove any character that isn't alphanumeric or hyphen
-    text = "".join(c for c in text if c.isalnum() or c == "-")
-    # Remove consecutive hyphens
-    while "--" in text:
-        text = text.replace("--", "-")
-    # Trim hyphens from start/end
-    text = text.strip("-")
-    # Truncate to max length
-    if len(text) > max_length:
-        text = text[:max_length].rstrip("-")
-    return text
-
-
-def get_analysis_file_path(token_id: int, token_name: str, in_trash: bool = False) -> str:
-    """
-    Generate the file path for analysis results JSON.
-
-    Format: {id}_{sanitized-name}.json
-    Example: 20_eugene-the-meme.json
-    """
-    sanitized_name = sanitize_filename(token_name)
-    filename = f"{token_id}_{sanitized_name}.json"
-
-    if in_trash:
-        return os.path.join(ANALYSIS_RESULTS_DIR, "trash", filename)
-    else:
-        return os.path.join(ANALYSIS_RESULTS_DIR, filename)
-
-
-def get_axiom_file_path(token_id: int, acronym: str, in_trash: bool = False) -> str:
-    """
-    Generate the file path for Axiom export JSON.
-
-    Format: {id}_{acronym}.json
-    Example: 20_em.json
-    """
-    sanitized_acronym = sanitize_filename(acronym, max_length=10)
-    filename = f"{token_id}_{sanitized_acronym}.json"
-
-    if in_trash:
-        return os.path.join(AXIOM_EXPORTS_DIR, "trash", filename)
-    else:
-        return os.path.join(AXIOM_EXPORTS_DIR, filename)
-
-
-def move_files_to_trash(token_id: int):
-    """
-    Move token files to trash folders.
-
-    Returns:
-        Tuple of (analysis_moved, axiom_moved)
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT analysis_file_path, axiom_file_path
-            FROM analyzed_tokens
-            WHERE id = ?
-        """,
-            (token_id,),
-        )
-        row = cursor.fetchone()
-
-        if not row:
-            return (False, False)
-
-        analysis_path, axiom_path = row[0], row[1]
-        analysis_moved = False
-        axiom_moved = False
-
-        # Create trash directories if they don't exist
-        os.makedirs(os.path.join(ANALYSIS_RESULTS_DIR, "trash"), exist_ok=True)
-        os.makedirs(os.path.join(AXIOM_EXPORTS_DIR, "trash"), exist_ok=True)
-
-        # Move analysis file
-        if analysis_path and os.path.exists(analysis_path):
-            trash_path = analysis_path.replace(ANALYSIS_RESULTS_DIR, os.path.join(ANALYSIS_RESULTS_DIR, "trash"))
-            try:
-                os.rename(analysis_path, trash_path)
-                cursor.execute("UPDATE analyzed_tokens SET analysis_file_path = ? WHERE id = ?", (trash_path, token_id))
-                analysis_moved = True
-            except Exception as e:
-                print(f"[WARN] Failed to move analysis file: {e}")
-
-        # Move axiom file
-        if axiom_path and os.path.exists(axiom_path):
-            trash_path = axiom_path.replace(AXIOM_EXPORTS_DIR, os.path.join(AXIOM_EXPORTS_DIR, "trash"))
-            try:
-                os.rename(axiom_path, trash_path)
-                cursor.execute("UPDATE analyzed_tokens SET axiom_file_path = ? WHERE id = ?", (trash_path, token_id))
-                axiom_moved = True
-            except Exception as e:
-                print(f"[WARN] Failed to move axiom file: {e}")
-
-        conn.commit()
-        return (analysis_moved, axiom_moved)
-
-
-def restore_files_from_trash(token_id: int):
-    """
-    Restore token files from trash folders.
-
-    Returns:
-        Tuple of (analysis_restored, axiom_restored)
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT analysis_file_path, axiom_file_path
-            FROM analyzed_tokens
-            WHERE id = ?
-        """,
-            (token_id,),
-        )
-        row = cursor.fetchone()
-
-        if not row:
-            return (False, False)
-
-        analysis_path, axiom_path = row[0], row[1]
-        analysis_restored = False
-        axiom_restored = False
-
-        # Restore analysis file
-        if analysis_path and "trash" in analysis_path and os.path.exists(analysis_path):
-            restored_path = analysis_path.replace(os.path.join(ANALYSIS_RESULTS_DIR, "trash"), ANALYSIS_RESULTS_DIR)
-            try:
-                os.rename(analysis_path, restored_path)
-                cursor.execute(
-                    "UPDATE analyzed_tokens SET analysis_file_path = ? WHERE id = ?", (restored_path, token_id)
-                )
-                analysis_restored = True
-            except Exception as e:
-                print(f"[WARN] Failed to restore analysis file: {e}")
-
-        # Restore axiom file
-        if axiom_path and "trash" in axiom_path and os.path.exists(axiom_path):
-            restored_path = axiom_path.replace(os.path.join(AXIOM_EXPORTS_DIR, "trash"), AXIOM_EXPORTS_DIR)
-            try:
-                os.rename(axiom_path, restored_path)
-                cursor.execute("UPDATE analyzed_tokens SET axiom_file_path = ? WHERE id = ?", (restored_path, token_id))
-                axiom_restored = True
-            except Exception as e:
-                print(f"[WARN] Failed to restore axiom file: {e}")
-
-        conn.commit()
-        return (analysis_restored, axiom_restored)
-
-
-def delete_token_files(token_id: int):
-    """
-    Permanently delete token files.
-
-    Returns:
-        Tuple of (analysis_deleted, axiom_deleted)
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT analysis_file_path, axiom_file_path
-            FROM analyzed_tokens
-            WHERE id = ?
-        """,
-            (token_id,),
-        )
-        row = cursor.fetchone()
-
-        if not row:
-            return (False, False)
-
-        analysis_path, axiom_path = row[0], row[1]
-        analysis_deleted = False
-        axiom_deleted = False
-
-        # Delete analysis file
-        if analysis_path and os.path.exists(analysis_path):
-            try:
-                os.remove(analysis_path)
-                analysis_deleted = True
-            except Exception as e:
-                print(f"[WARN] Failed to delete analysis file: {e}")
-
-        # Delete axiom file
-        if axiom_path and os.path.exists(axiom_path):
-            try:
-                os.remove(axiom_path)
-                axiom_deleted = True
-            except Exception as e:
-                print(f"[WARN] Failed to delete axiom file: {e}")
-
-        return (analysis_deleted, axiom_deleted)
-
-
-def update_token_file_paths(token_id: int, analysis_path: str, axiom_path: str) -> bool:
-    """
-    Update the file paths for a token in the database.
-
-    Args:
-        token_id: ID of the token to update
-        analysis_path: Path to the analysis results file
-        axiom_path: Path to the axiom export file
-
-    Returns:
-        True if successful, False otherwise
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE analyzed_tokens
-            SET analysis_file_path = ?, axiom_file_path = ?
-            WHERE id = ?
-        """,
-            (analysis_path, axiom_path, token_id),
-        )
-        return cursor.rowcount > 0
 
 
 @contextmanager
@@ -464,6 +226,22 @@ def init_database():
         """
         )
 
+        # Index on deleted_at for the filter used by nearly every query
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_deleted_at
+            ON analyzed_tokens(deleted_at)
+        """
+        )
+
+        # Index on deployer_address for deployer profiles and win-rate queries
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_deployer_address
+            ON analyzed_tokens(deployer_address)
+        """
+        )
+
         cursor.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_token_analysis_run
@@ -485,7 +263,7 @@ def init_database():
         """
         )
 
-        # Multi-token wallet metadata table - tracks which wallets are "new" to the multi-token panel
+        # Multi-token wallet metadata table - tracks which wallets are "new" to the recurring wallets
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS multi_token_wallet_metadata (
@@ -504,8 +282,8 @@ def init_database():
         """
         )
 
-        # MTEW (Multi-Token Early Wallet) Position Tracking table
-        # Tracks positions of MTEWs in tokens they're early in, enabling win rate calculation
+        # Recurring Wallet Position Tracking table
+        # Tracks positions of recurring wallets in tokens they're early in, enabling win rate calculation
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS mtew_token_positions (
@@ -570,29 +348,7 @@ def init_database():
         """
         )
 
-        # Wallet metrics table - aggregated win/loss stats per wallet
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS wallet_metrics (
-                wallet_address TEXT PRIMARY KEY,
-                win_count INTEGER DEFAULT 0,
-                loss_count INTEGER DEFAULT 0,
-                total_positions INTEGER DEFAULT 0,
-                win_rate REAL,
-                avg_pnl_ratio REAL,
-                metrics_updated_at TIMESTAMP
-            )
-        """
-        )
-
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_wallet_metrics_win_rate
-            ON wallet_metrics(win_rate DESC)
-        """
-        )
-
-        # SWAB (Smart Wallet Archive Builder) Settings table
+        # Position Tracker Settings table
         # Stores configuration for auto-check scheduling and filtering
         cursor.execute(
             """
@@ -988,6 +744,381 @@ def init_database():
             print("[Database] Migrating: Adding fpnl_ratio column to mtew_token_positions...")
             cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN fpnl_ratio REAL")
 
+        # Migration for PnL source tracking (estimated vs real)
+        if "pnl_source" not in mtp_columns:
+            print("[Database] Migrating: Adding pnl_source column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN pnl_source TEXT DEFAULT 'estimated'")
+
+        # Migration for real sell timestamp from PnL v2
+        if "last_sell_timestamp" not in mtp_columns:
+            print("[Database] Migrating: Adding last_sell_timestamp column to mtew_token_positions...")
+            cursor.execute("ALTER TABLE mtew_token_positions ADD COLUMN last_sell_timestamp TIMESTAMP")
+
+        # ================================================================
+        # Migration: Pipeline filter fields + wallet PnL
+        # ================================================================
+
+        # Add dex_id to analyzed_tokens
+        cursor.execute("PRAGMA table_info(analyzed_tokens)")
+        at_cols_check = [col[1] for col in cursor.fetchall()]
+        if "dex_id" not in at_cols_check:
+            print("[Database] Migrating: Adding dex_id column to analyzed_tokens...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN dex_id TEXT")
+        if "is_cashback" not in at_cols_check:
+            print("[Database] Migrating: Adding is_cashback column to analyzed_tokens...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN is_cashback BOOLEAN")
+
+        # Token scoring + Helius metadata columns
+        scoring_cols = {
+            "mint_authority_revoked": "BOOLEAN",
+            "freeze_authority_active": "BOOLEAN",
+            "token_supply": "REAL",
+            "holder_count_latest": "INTEGER",
+            "holder_count_previous": "INTEGER",
+            "holder_top1_pct": "REAL",
+            "holder_top10_pct": "REAL",
+            "score_momentum": "REAL",
+            "score_smart_money": "REAL",
+            "score_risk": "REAL",
+            "score_composite": "REAL",
+            "score_updated_at": "TIMESTAMP",
+        }
+        for col_name, col_type in scoring_cols.items():
+            if col_name not in at_cols_check:
+                cursor.execute(f"ALTER TABLE analyzed_tokens ADD COLUMN {col_name} {col_type}")
+        if any(c not in at_cols_check for c in scoring_cols):
+            print("[Database] Migrating: Added token scoring columns to analyzed_tokens")
+
+        # Add deployer_address + creation_events columns
+        deployer_cols = {
+            "deployer_address": "TEXT",
+            "creation_events_json": "TEXT",
+        }
+        for col_name, col_type in deployer_cols.items():
+            if col_name not in at_cols_check:
+                cursor.execute(f"ALTER TABLE analyzed_tokens ADD COLUMN {col_name} {col_type}")
+        if any(c not in at_cols_check for c in deployer_cols):
+            print("[Database] Migrating: Added deployer_address and creation_events_json to analyzed_tokens")
+
+        # Analytics upgrade: derived signal columns
+        analytics_cols = {
+            "holder_top1_pct_previous": "REAL",
+            "holder_top10_pct_previous": "REAL",
+            "holder_velocity": "REAL",
+            "deployer_is_top_holder": "BOOLEAN",
+            "early_buyer_holder_overlap": "INTEGER",
+            "fresh_wallet_pct": "REAL",
+            "fresh_at_deploy_count": "INTEGER",
+            "fresh_at_deploy_total": "INTEGER",
+            "controlled_supply_score": "REAL",
+            "fresh_supply_pct": "REAL",
+            "bundle_cluster_count": "INTEGER",
+            "bundle_cluster_size": "INTEGER",
+            "stealth_holder_count": "INTEGER",
+            "stealth_holder_pct": "REAL",
+            "has_meteora_pool": "BOOLEAN",
+            "meteora_pool_address": "TEXT",
+            "meteora_pool_created_at": "TIMESTAMP",
+            "meteora_pool_creator": "TEXT",
+            "meteora_creator_linked": "BOOLEAN",
+            "meteora_link_type": "TEXT",
+            "meteora_lp_activity_json": "TEXT",
+            "mc_volatility": "REAL",
+            "mc_recovery_count": "INTEGER",
+            "mc_history_json": "TEXT",
+            "clobr_score": "INTEGER",
+            "clobr_support_usd": "REAL",
+            "clobr_resistance_usd": "REAL",
+            "clobr_sr_ratio": "REAL",
+            "clobr_updated_at": "TIMESTAMP",
+        }
+        for col_name, col_type in analytics_cols.items():
+            if col_name not in at_cols_check:
+                cursor.execute(f"ALTER TABLE analyzed_tokens ADD COLUMN {col_name} {col_type}")
+        if any(c not in at_cols_check for c in analytics_cols):
+            print("[Database] Migrating: Added analytics upgrade columns to analyzed_tokens")
+
+        # Webhook detections table — persists real-time token detections
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS webhook_detections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_address TEXT UNIQUE NOT NULL,
+                deployer_address TEXT,
+                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                signature TEXT,
+                initial_sol REAL DEFAULT 0,
+                conviction_score INTEGER DEFAULT 0,
+                deployer_score INTEGER DEFAULT 0,
+                safety_score INTEGER DEFAULT 0,
+                social_proof_score INTEGER DEFAULT 0,
+                deployer_token_count INTEGER DEFAULT 0,
+                deployer_win_rate REAL,
+                deployer_tags_json TEXT,
+                status TEXT DEFAULT 'watching',
+                rejection_reason TEXT,
+                token_name TEXT,
+                token_symbol TEXT,
+                -- Cross-system fields (populated when auto-scan picks up the same token)
+                auto_scan_picked_up_at TIMESTAMP,
+                time_to_migration_minutes REAL,
+                auto_scan_token_id INTEGER,
+                conviction_vs_outcome TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_webhook_detections_address
+            ON webhook_detections(token_address)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_webhook_detections_status
+            ON webhook_detections(status)
+        """)
+
+        # Cross-system columns on analyzed_tokens
+        cross_system_cols = {
+            "webhook_detected_at": "TIMESTAMP",
+            "webhook_conviction_score": "INTEGER",
+            "time_to_migration_minutes": "REAL",
+        }
+        for col_name, col_type in cross_system_cols.items():
+            if col_name not in at_cols_check:
+                cursor.execute(f"ALTER TABLE analyzed_tokens ADD COLUMN {col_name} {col_type}")
+        if any(c not in at_cols_check for c in cross_system_cols):
+            print("[Database] Migrating: Added cross-system webhook columns to analyzed_tokens")
+
+        # Add pipeline filter fields to token_ingest_queue
+        cursor.execute("PRAGMA table_info(token_ingest_queue)")
+        tiq_cols = [col[1] for col in cursor.fetchall()]
+        new_tiq_cols = {
+            "dex_id": "TEXT",
+            "quote_token": "TEXT",
+            "buys_24h": "INTEGER",
+            "sells_24h": "INTEGER",
+            "net_buys_24h": "INTEGER",
+            "txs_24h": "INTEGER",
+            "price_change_h1": "REAL",
+            "price_change_h6": "REAL",
+            "price_change_h24": "REAL",
+            "has_socials": "BOOLEAN DEFAULT 0",
+        }
+        for col_name, col_type in new_tiq_cols.items():
+            if col_name not in tiq_cols:
+                cursor.execute(f"ALTER TABLE token_ingest_queue ADD COLUMN {col_name} {col_type}")
+        if any(c not in tiq_cols for c in new_tiq_cols):
+            print("[Database] Migrating: Added pipeline filter columns to token_ingest_queue")
+
+        # ================================================================
+        # Migration: 3-tier tag system for wallets and tokens
+        # ================================================================
+
+        # Add tier + source columns to wallet_tags
+        cursor.execute("PRAGMA table_info(wallet_tags)")
+        wt_cols = [col[1] for col in cursor.fetchall()]
+
+        if "tier" not in wt_cols:
+            print("[Database] Migrating: Adding tier/source/updated_at columns to wallet_tags...")
+            cursor.execute("ALTER TABLE wallet_tags ADD COLUMN tier INTEGER DEFAULT 3")
+            cursor.execute("ALTER TABLE wallet_tags ADD COLUMN source TEXT DEFAULT 'manual'")
+            cursor.execute("ALTER TABLE wallet_tags ADD COLUMN updated_at TIMESTAMP")
+            # Set all existing tags as tier 3 (manual)
+            cursor.execute("UPDATE wallet_tags SET tier = 3, source = 'manual' WHERE tier IS NULL")
+            # Remove obsolete tags (gunslinger, gambler, bot, whale, nationality codes)
+            obsolete_tags = ('bot', 'whale', 'gunslinger', 'gambler',
+                             'US', 'CN', 'KR', 'JP', 'EU', 'UK', 'SG', 'IN', 'RU', 'BR', 'CA', 'AU',
+                             'Smart', 'Dumb')
+            placeholders = ",".join("?" for _ in obsolete_tags)
+            cursor.execute(f"DELETE FROM wallet_tags WHERE tag IN ({placeholders})", obsolete_tags)
+            # Promote any wallets with is_kol=1 to a dedicated KOL tag
+            cursor.execute("""
+                INSERT OR IGNORE INTO wallet_tags (wallet_address, tag, tier, source)
+                SELECT DISTINCT wallet_address, 'KOL', 3, 'manual'
+                FROM wallet_tags WHERE is_kol = 1
+            """)
+            print("[Database] Migration complete: wallet_tags upgraded to 3-tier system")
+
+        # Add tier + source columns to token_tags
+        cursor.execute("PRAGMA table_info(token_tags)")
+        tt_cols = [col[1] for col in cursor.fetchall()]
+
+        if "tier" not in tt_cols:
+            print("[Database] Migrating: Adding tier/source/updated_at columns to token_tags...")
+            cursor.execute("ALTER TABLE token_tags ADD COLUMN tier INTEGER DEFAULT 3")
+            cursor.execute("ALTER TABLE token_tags ADD COLUMN source TEXT DEFAULT 'manual'")
+            cursor.execute("ALTER TABLE token_tags ADD COLUMN updated_at TIMESTAMP")
+            # Rename gem -> verified-win, dud -> verified-loss
+            cursor.execute("UPDATE token_tags SET tag = 'verified-win' WHERE tag = 'gem'")
+            cursor.execute("UPDATE token_tags SET tag = 'verified-loss' WHERE tag = 'dud'")
+            cursor.execute("UPDATE token_tags SET tier = 3, source = 'manual' WHERE tier IS NULL")
+            print("[Database] Migration complete: token_tags upgraded to 3-tier system, gem/dud renamed")
+
+        # Migrate gem_status column values to token_tags (one-time)
+        # This consolidates verdict storage into token_tags as single source of truth
+        cursor.execute("""
+            INSERT OR IGNORE INTO token_tags (token_id, tag, tier, source, updated_at)
+            SELECT id, gem_status, 3, 'manual:migrated', CURRENT_TIMESTAMP
+            FROM analyzed_tokens
+            WHERE gem_status IN ('verified-win', 'verified-loss')
+            AND id NOT IN (
+                SELECT token_id FROM token_tags WHERE tag IN ('verified-win', 'verified-loss')
+            )
+        """)
+        migrated_count = cursor.rowcount
+        if migrated_count > 0:
+            print(f"[Database] Migrated {migrated_count} verdict(s) from gem_status to token_tags")
+
+        # ================================================================
+        # Migration: Position-derived signal columns (Phase 3)
+        # ================================================================
+
+        # Add smart_money_flow and avg_hold_hours to analyzed_tokens
+        cursor.execute("PRAGMA table_info(analyzed_tokens)")
+        at_phase3_cols = [col[1] for col in cursor.fetchall()]
+
+        if "smart_money_flow" not in at_phase3_cols:
+            print("[Database] Migrating: Adding smart_money_flow column to analyzed_tokens...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN smart_money_flow TEXT")
+
+        if "avg_hold_hours" not in at_phase3_cols:
+            print("[Database] Migrating: Adding avg_hold_hours column to analyzed_tokens...")
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN avg_hold_hours REAL")
+
+        # Add avg_entry_seconds to early_buyer_wallets (per-wallet entry timing)
+        cursor.execute("PRAGMA table_info(early_buyer_wallets)")
+        ebw_phase3_cols = [col[1] for col in cursor.fetchall()]
+
+        if "avg_entry_seconds" not in ebw_phase3_cols:
+            print("[Database] Migrating: Adding avg_entry_seconds column to early_buyer_wallets...")
+            cursor.execute("ALTER TABLE early_buyer_wallets ADD COLUMN avg_entry_seconds REAL")
+
+        # Create wallet_enrichment_cache table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS wallet_enrichment_cache (
+                wallet_address TEXT PRIMARY KEY,
+                identity_json TEXT,
+                funded_by_json TEXT,
+                balances_total_usd REAL,
+                transfers_in_count INTEGER,
+                transfers_out_count INTEGER,
+                enriched_at TIMESTAMP,
+                credits_used INTEGER DEFAULT 0
+            )
+        """)
+
+        # Add forward_transfers_json column if missing
+        cursor.execute("PRAGMA table_info(wallet_enrichment_cache)")
+        wec_cols = {row[1] for row in cursor.fetchall()}
+        if "forward_transfers_json" not in wec_cols:
+            cursor.execute("ALTER TABLE wallet_enrichment_cache ADD COLUMN forward_transfers_json TEXT")
+
+        # ================================================================
+        # Quick DD Runs
+        # ================================================================
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quick_dd_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_address TEXT NOT NULL,
+                token_id INTEGER,
+                token_name TEXT,
+                token_symbol TEXT,
+                market_cap_usd REAL,
+                clobr_score INTEGER,
+                lp_trust_score INTEGER,
+                credits_used INTEGER DEFAULT 0,
+                duration_seconds REAL,
+                report_json TEXT,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP
+            )
+        """)
+
+        # LP trust columns on analyzed_tokens
+        cursor.execute("PRAGMA table_info(analyzed_tokens)")
+        at_cols_lp = {row[1] for row in cursor.fetchall()}
+        if "lp_trust_score" not in at_cols_lp:
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN lp_trust_score INTEGER")
+        if "lp_trust_json" not in at_cols_lp:
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN lp_trust_json TEXT")
+        if "rug_score" not in at_cols_lp:
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN rug_score INTEGER")
+        if "rug_score_json" not in at_cols_lp:
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN rug_score_json TEXT")
+        if "rug_label" not in at_cols_lp:
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN rug_label TEXT")
+        if "rug_label_at" not in at_cols_lp:
+            cursor.execute("ALTER TABLE analyzed_tokens ADD COLUMN rug_label_at TIMESTAMP")
+
+        # ================================================================
+        # Starred Items (Favorites)
+        # ================================================================
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS starred_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_type TEXT NOT NULL,
+                item_address TEXT NOT NULL,
+                nametag TEXT,
+                starred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(item_type, item_address)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_starred_type ON starred_items(item_type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_starred_address ON starred_items(item_address)")
+
+        # ================================================================
+        # Wallet Leaderboard Cache Tables
+        # ================================================================
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS wallet_leaderboard_cache (
+                wallet_address TEXT PRIMARY KEY,
+                total_pnl_usd REAL DEFAULT 0,
+                realized_pnl_usd REAL DEFAULT 0,
+                unrealized_pnl_usd REAL DEFAULT 0,
+                pnl_1d_usd REAL DEFAULT 0,
+                pnl_7d_usd REAL DEFAULT 0,
+                pnl_30d_usd REAL DEFAULT 0,
+                tokens_traded INTEGER DEFAULT 0,
+                tokens_won INTEGER DEFAULT 0,
+                tokens_lost INTEGER DEFAULT 0,
+                win_rate REAL DEFAULT 0,
+                best_trade_pnl REAL DEFAULT 0,
+                best_trade_token TEXT,
+                worst_trade_pnl REAL DEFAULT 0,
+                worst_trade_token TEXT,
+                wallet_balance_usd REAL,
+                avg_entry_seconds REAL,
+                wallet_created_at TEXT,
+                avg_hold_hours_7d REAL,
+                tier_score REAL DEFAULT 0,
+                home_runs INTEGER DEFAULT 0,
+                rugs INTEGER DEFAULT 0,
+                tiers_json TEXT DEFAULT '{}',
+                tags_json TEXT DEFAULT '[]',
+                computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS wallet_leaderboard_tags (
+                wallet_address TEXT NOT NULL,
+                tag TEXT NOT NULL,
+                PRIMARY KEY (wallet_address, tag)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS wallet_leaderboard_tiers (
+                wallet_address TEXT NOT NULL,
+                tier_tag TEXT NOT NULL,
+                cnt INTEGER DEFAULT 0,
+                PRIMARY KEY (wallet_address, tier_tag)
+            )
+        """)
+        # Indexes for sort columns
+        for col in ['total_pnl_usd', 'realized_pnl_usd', 'pnl_1d_usd', 'pnl_7d_usd', 'pnl_30d_usd',
+                     'tokens_traded', 'win_rate', 'tier_score', 'avg_entry_seconds',
+                     'wallet_balance_usd', 'avg_hold_hours_7d', 'best_trade_pnl', 'home_runs', 'rugs']:
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_wlc_{col} ON wallet_leaderboard_cache({col})")
+        # Indexes for filter JOINs
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_wlt_tag ON wallet_leaderboard_tags(tag, wallet_address)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_wltier_tag ON wallet_leaderboard_tiers(tier_tag, wallet_address)")
+
         # Verify all required columns exist (safeguard against data loss)
         print("[Database] Verifying schema integrity...")
         cursor.execute("PRAGMA table_info(analyzed_tokens)")
@@ -1055,6 +1186,9 @@ def save_analyzed_token(
     top_holders: Optional[List[Dict]] = None,
     ingest_source: Optional[str] = None,
     ingest_tier: Optional[str] = None,
+    dex_id: Optional[str] = None,
+    deployer_address: Optional[str] = None,
+    creation_events: Optional[List[Dict]] = None,
 ) -> int:
     """
     Save analyzed token and its early buyers.
@@ -1081,8 +1215,9 @@ def save_analyzed_token(
     with get_db_connection() as conn:
         cursor = conn.cursor()
 
-        # Prepare top holders JSON
+        # Prepare top holders JSON and creation events JSON
         top_holders_json_str = json.dumps(top_holders) if top_holders else None
+        creation_events_json_str = json.dumps(creation_events) if creation_events else None
 
         # Insert or update analyzed token
         cursor.execute(
@@ -1092,8 +1227,9 @@ def save_analyzed_token(
                 first_buy_timestamp, wallets_found, axiom_json, credits_used, last_analysis_credits,
                 market_cap_usd, market_cap_usd_current, market_cap_ath, market_cap_ath_timestamp, market_cap_updated_at,
                 liquidity_usd,
-                top_holders_json, top_holders_updated_at, ingest_source, ingest_tier
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+                top_holders_json, top_holders_updated_at, ingest_source, ingest_tier, dex_id,
+                deployer_address, creation_events_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
             ON CONFLICT(token_address) DO UPDATE SET
                 token_name = excluded.token_name,
                 token_symbol = excluded.token_symbol,
@@ -1109,7 +1245,10 @@ def save_analyzed_token(
                 top_holders_json = excluded.top_holders_json,
                 top_holders_updated_at = CASE WHEN excluded.top_holders_json IS NOT NULL THEN CURRENT_TIMESTAMP ELSE analyzed_tokens.top_holders_updated_at END,
                 ingest_source = COALESCE(excluded.ingest_source, analyzed_tokens.ingest_source),
-                ingest_tier = COALESCE(excluded.ingest_tier, analyzed_tokens.ingest_tier)
+                ingest_tier = COALESCE(excluded.ingest_tier, analyzed_tokens.ingest_tier),
+                dex_id = COALESCE(excluded.dex_id, analyzed_tokens.dex_id),
+                deployer_address = COALESCE(excluded.deployer_address, analyzed_tokens.deployer_address),
+                creation_events_json = COALESCE(excluded.creation_events_json, analyzed_tokens.creation_events_json)
         """,
             (
                 token_address,
@@ -1128,6 +1267,9 @@ def save_analyzed_token(
                 top_holders_json_str,
                 ingest_source,
                 ingest_tier,
+                dex_id,
+                deployer_address,
+                creation_events_json_str,
             ),
         )
 
@@ -1341,23 +1483,6 @@ def get_token_analysis_history(token_id: int) -> List[Dict]:
         return runs
 
 
-def get_wallet_activity(wallet_id: int, limit: int = 50) -> List[Dict]:
-    """Get activity history for a specific wallet"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT * FROM wallet_activity
-            WHERE wallet_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-        """,
-            (wallet_id, limit),
-        )
-
-        return [dict(row) for row in cursor.fetchall()]
-
-
 def save_wallet_activity(
     wallet_address: str,
     transaction_signature: str,
@@ -1413,30 +1538,6 @@ def save_wallet_activity(
         except sqlite3.IntegrityError:
             # Duplicate transaction signature
             return False
-
-
-def get_recent_activity(limit: int = 100) -> List[Dict]:
-    """Get recent wallet activity across all tracked wallets"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT
-                wa.*,
-                ebw.wallet_address,
-                ebw.axiom_name,
-                at.token_name,
-                at.acronym
-            FROM wallet_activity wa
-            JOIN early_buyer_wallets ebw ON wa.wallet_id = ebw.id
-            JOIN analyzed_tokens at ON ebw.token_id = at.id
-            ORDER BY wa.timestamp DESC
-            LIMIT ?
-        """,
-            (limit,),
-        )
-
-        return [dict(row) for row in cursor.fetchall()]
 
 
 def delete_analyzed_token(token_id: int) -> bool:
@@ -1575,46 +1676,7 @@ def get_multi_token_wallets(min_tokens: int = 2) -> List[Dict]:
         return wallets
 
 
-def update_wallet_balance(wallet_address: str, balance_usd: float) -> bool:
-    """
-    Update the wallet balance for a given wallet address in all instances.
-
-    Args:
-        wallet_address: The wallet address to update
-        balance_usd: The new balance in USD
-
-    Returns:
-        True if at least one row was updated, False otherwise
-    """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update balance in early_buyer_wallets table
-        cursor.execute(
-            """
-            UPDATE early_buyer_wallets
-            SET wallet_balance_usd_previous = wallet_balance_usd,
-                wallet_balance_usd = ?,
-                wallet_balance_updated_at = CURRENT_TIMESTAMP
-            WHERE wallet_address = ?
-        """,
-            (balance_usd, wallet_address),
-        )
-
-        rows_updated = cursor.getrowcount()
-        conn.commit()
-        return rows_updated > 0
-
-    except Exception as e:
-        print(f"Error updating wallet balance for {wallet_address}: {e}")
-        conn.rollback()
-        return False
-    finally:
-        conn.close()
-
-
-def add_wallet_tag(wallet_address: str, tag: str, is_kol: bool = False) -> bool:
+def add_wallet_tag(wallet_address: str, tag: str, is_kol: bool = False, tier: int = 3, source: str = "manual") -> bool:
     """
     Add a tag to a wallet address.
 
@@ -1622,6 +1684,8 @@ def add_wallet_tag(wallet_address: str, tag: str, is_kol: bool = False) -> bool:
         wallet_address: The wallet address to tag
         tag: The tag to add
         is_kol: Whether this is a KOL (Key Opinion Leader) tag
+        tier: Tag tier (1=auto/Helius, 2=computed/Meridinate, 3=manual)
+        source: Tag source identifier (e.g., "helius:identity", "computed:gem-tracker", "manual")
 
     Returns:
         True if tag was added, False if it already existed
@@ -1631,14 +1695,19 @@ def add_wallet_tag(wallet_address: str, tag: str, is_kol: bool = False) -> bool:
         try:
             cursor.execute(
                 """
-                INSERT INTO wallet_tags (wallet_address, tag, is_kol)
-                VALUES (?, ?, ?)
+                INSERT INTO wallet_tags (wallet_address, tag, is_kol, tier, source, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
-                (wallet_address, tag, 1 if is_kol else 0),
+                (wallet_address, tag, 1 if is_kol else 0, tier, source),
             )
             return True
         except sqlite3.IntegrityError:
-            # Tag already exists for this wallet
+            # Tag already exists — update tier/source if it's an auto-tag
+            if tier < 3:
+                cursor.execute(
+                    "UPDATE wallet_tags SET tier = ?, source = ?, updated_at = CURRENT_TIMESTAMP WHERE wallet_address = ? AND tag = ?",
+                    (tier, source, wallet_address, tag),
+                )
             return False
 
 
@@ -1673,19 +1742,19 @@ def get_wallet_tags(wallet_address: str) -> List[Dict]:
         wallet_address: The wallet address
 
     Returns:
-        List of tag dictionaries with 'tag' and 'is_kol' fields
+        List of tag dictionaries with 'tag', 'is_kol', 'tier', and 'source' fields
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT tag, is_kol FROM wallet_tags
+            SELECT tag, is_kol, COALESCE(tier, 3), COALESCE(source, 'manual') FROM wallet_tags
             WHERE wallet_address = ?
-            ORDER BY created_at DESC
+            ORDER BY tier ASC, created_at DESC
         """,
             (wallet_address,),
         )
-        return [{"tag": row[0], "is_kol": bool(row[1])} for row in cursor.fetchall()]
+        return [{"tag": row[0], "is_kol": bool(row[1]), "tier": row[2], "source": row[3]} for row in cursor.fetchall()]
 
 
 def get_multi_wallet_tags(wallet_addresses: List[str]) -> Dict[str, List[Dict]]:
@@ -1713,10 +1782,10 @@ def get_multi_wallet_tags(wallet_addresses: List[str]) -> Dict[str, List[Dict]]:
         # Single query fetches all tags for all wallets
         cursor.execute(
             f"""
-            SELECT wallet_address, tag, is_kol
+            SELECT wallet_address, tag, is_kol, COALESCE(tier, 3), COALESCE(source, 'manual')
             FROM wallet_tags
             WHERE wallet_address IN ({placeholders})
-            ORDER BY wallet_address, created_at DESC
+            ORDER BY wallet_address, tier ASC, created_at DESC
         """,
             wallet_addresses,
         )
@@ -1724,8 +1793,8 @@ def get_multi_wallet_tags(wallet_addresses: List[str]) -> Dict[str, List[Dict]]:
         # Group results by wallet address
         result = {addr: [] for addr in wallet_addresses}
         for row in cursor.fetchall():
-            wallet_addr, tag, is_kol = row
-            result[wallet_addr].append({"tag": tag, "is_kol": bool(is_kol)})
+            wallet_addr, tag, is_kol, tier, source = row
+            result[wallet_addr].append({"tag": tag, "is_kol": bool(is_kol), "tier": tier, "source": source})
 
         return result
 
@@ -1746,6 +1815,110 @@ def get_all_tags() -> List[str]:
         """
         )
         return [row[0] for row in cursor.fetchall()]
+
+
+def replace_wallet_tier_tags(wallet_address: str, tier: int, new_tags: List[Dict]) -> None:
+    """
+    Atomically replace all tags of a given tier for a wallet.
+    Each tag dict should have: {tag, source} at minimum.
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM wallet_tags WHERE wallet_address = ? AND tier = ?", (wallet_address, tier))
+        for t in new_tags:
+            cursor.execute(
+                """INSERT OR IGNORE INTO wallet_tags (wallet_address, tag, tier, source, updated_at)
+                   VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                (wallet_address, t["tag"], tier, t.get("source", f"tier{tier}")),
+            )
+
+
+def upsert_wallet_enrichment(wallet_address: str, **kwargs) -> None:
+    """Store raw Helius API enrichment data for a wallet."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM wallet_enrichment_cache WHERE wallet_address = ?", (wallet_address,))
+        if cursor.fetchone():
+            sets = []
+            vals = []
+            for k, v in kwargs.items():
+                sets.append(f"{k} = ?")
+                vals.append(v)
+            sets.append("enriched_at = CURRENT_TIMESTAMP")
+            vals.append(wallet_address)
+            cursor.execute(f"UPDATE wallet_enrichment_cache SET {', '.join(sets)} WHERE wallet_address = ?", vals)
+        else:
+            cols = ["wallet_address", "enriched_at"] + list(kwargs.keys())
+            placeholders = ", ".join(["?"] * len(cols))
+            vals = [wallet_address, datetime.now().isoformat()] + list(kwargs.values())
+            cursor.execute(f"INSERT INTO wallet_enrichment_cache ({', '.join(cols)}) VALUES ({placeholders})", vals)
+
+
+def get_wallet_enrichment(wallet_address: str) -> Optional[Dict]:
+    """Get cached enrichment data for a wallet."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM wallet_enrichment_cache WHERE wallet_address = ?", (wallet_address,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        cols = [desc[0] for desc in cursor.description]
+        return dict(zip(cols, row))
+
+
+def compute_wallet_tier2_tags(wallet_address: str) -> List[Dict]:
+    """
+    Compute Tier 2 tags from Meridinate's own data (no API calls).
+
+    - Consistent Winner: early in 3+ tokens tagged verified-win
+    - Consistent Loser: early in 3+ tokens tagged verified-loss, zero wins
+    - Diversified: appeared in 5+ tokens
+    - Sniper: consistently among first 10 buyers
+    """
+    tags = []
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Count tokens with verified-win/verified-loss where this wallet was early
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN tt.tag = 'verified-win' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN tt.tag = 'verified-loss' THEN 1 ELSE 0 END) as losses,
+                COUNT(DISTINCT ebw.token_id) as total_tokens
+            FROM early_buyer_wallets ebw
+            JOIN analyzed_tokens t ON t.id = ebw.token_id
+            LEFT JOIN token_tags tt ON tt.token_id = ebw.token_id AND tt.tag IN ('verified-win', 'verified-loss')
+            WHERE ebw.wallet_address = ? AND (t.deleted_at IS NULL OR t.deleted_at = '')
+        """, (wallet_address,))
+        row = cursor.fetchone()
+        wins = row[0] or 0
+        losses = row[1] or 0
+        total_tokens = row[2] or 0
+
+        if wins >= 3:
+            tags.append({"tag": "Consistent Winner", "source": "computed:gem-tracker"})
+        if losses >= 3 and wins == 0:
+            tags.append({"tag": "Consistent Loser", "source": "computed:gem-tracker"})
+        if total_tokens >= 5:
+            tags.append({"tag": "Diversified", "source": "computed:token-count"})
+
+        # Check if wallet is a sniper (among first 10 buyers in most tokens)
+        cursor.execute("""
+            SELECT COUNT(*) as snipe_count FROM (
+                SELECT ebw.token_id,
+                    (SELECT COUNT(*) FROM early_buyer_wallets ebw2
+                     WHERE ebw2.token_id = ebw.token_id AND ebw2.rowid <= ebw.rowid) as buy_rank
+                FROM early_buyer_wallets ebw
+                WHERE ebw.wallet_address = ?
+            ) ranked WHERE buy_rank <= 10
+        """, (wallet_address,))
+        snipe_count = cursor.fetchone()[0] or 0
+        if total_tokens >= 3 and snipe_count >= total_tokens * 0.7:
+            tags.append({"tag": "Sniper", "source": "computed:buy-rank"})
+
+    # Replace tier 2 tags atomically
+    replace_wallet_tier_tags(wallet_address, 2, tags)
+    return tags
 
 
 def get_wallets_by_tag(tag: str) -> List[str]:
@@ -1771,29 +1944,6 @@ def get_wallets_by_tag(tag: str) -> List[str]:
         return [row[0] for row in cursor.fetchall()]
 
 
-def get_all_tagged_wallets() -> List[Dict]:
-    """
-    Get all wallets that have at least one tag (Codex).
-
-    Returns:
-        List of dictionaries with wallet_address and tags
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT wallet_address FROM wallet_tags
-            ORDER BY created_at DESC
-        """
-        )
-        wallets = []
-        for row in cursor.fetchall():
-            wallet_address = row[0]
-            tags = get_wallet_tags(wallet_address)
-            wallets.append({"wallet_address": wallet_address, "tags": tags})
-        return wallets
-
-
 def soft_delete_token(token_id: int) -> bool:
     """
     Soft delete a token (mark as deleted and move files to trash).
@@ -1815,10 +1965,6 @@ def soft_delete_token(token_id: int) -> bool:
             (token_id,),
         )
         success = cursor.rowcount > 0
-
-        if success:
-            # Move files to trash
-            move_files_to_trash(token_id)
 
         return success
 
@@ -1845,10 +1991,6 @@ def restore_token(token_id: int) -> bool:
         )
         success = cursor.rowcount > 0
 
-        if success:
-            # Restore files from trash
-            restore_files_from_trash(token_id)
-
         return success
 
 
@@ -1863,9 +2005,6 @@ def permanent_delete_token(token_id: int) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    # Delete files first (before database record is gone)
-    delete_token_files(token_id)
-
     with get_db_connection() as conn:
         cursor = conn.cursor()
         # Delete token (CASCADE will handle related records)
@@ -2047,7 +2186,7 @@ def update_multi_token_wallet_metadata(token_id: int, min_tokens: int = 2) -> in
         )
         previous_multi_token_wallets = {row[0] for row in cursor.fetchall()}
 
-        # Wallets that just crossed the threshold (new to multi-token panel)
+        # Wallets that just crossed the threshold (new to recurring wallets)
         newly_added_wallets = current_multi_token_wallets - previous_multi_token_wallets
 
         # Clear the "new" flag from all previously marked wallets
@@ -2067,7 +2206,7 @@ def update_multi_token_wallet_metadata(token_id: int, min_tokens: int = 2) -> in
 
         if newly_added_wallets:
             print(
-                f"[Database] Marked {len(newly_added_wallets)} wallet(s) as NEW in multi-token panel "
+                f"[Database] Marked {len(newly_added_wallets)} wallet(s) as NEW in recurring wallets "
                 f"after analyzing token {token_id}"
             )
 
@@ -2075,7 +2214,7 @@ def update_multi_token_wallet_metadata(token_id: int, min_tokens: int = 2) -> in
 
 
 # =============================================================================
-# MTEW Position Tracking Functions
+# Position Tracking Functions
 # =============================================================================
 
 
@@ -2094,10 +2233,10 @@ def upsert_mtew_position(
     total_bought_usd: Optional[float] = None,
 ) -> int:
     """
-    Insert or update MTEW position for a token.
+    Insert or update recurring wallet position for a token.
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_id: Token ID from analyzed_tokens
         entry_market_cap: Market cap at time of scan (entry point)
         still_holding: Whether wallet still holds the token
@@ -2157,9 +2296,9 @@ def upsert_mtew_position(
 
 def get_stale_mtew_positions(older_than_minutes: int = 15, limit: int = 100) -> List[Dict]:
     """
-    Get MTEW positions that haven't been checked recently.
+    Get positions that haven't been checked recently.
 
-    Only returns positions for wallets that meet the MTEW→SWAB gate
+    Only returns positions for wallets that meet the recurring wallet gate
     (min_token_count from settings).
 
     Args:
@@ -2234,13 +2373,13 @@ def get_stale_mtew_positions(older_than_minutes: int = 15, limit: int = 100) -> 
 
 def get_position_by_token_address(wallet_address: str, token_address: str) -> Optional[Dict]:
     """
-    Look up any MTEW position by wallet address and token mint address.
+    Look up any position by wallet address and token mint address.
 
     Used by webhook callbacks to find positions when a token transfer is detected.
     Returns position regardless of still_holding status (for buy re-entry detection).
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_address: Token mint address (from webhook transfer)
 
     Returns:
@@ -2298,12 +2437,12 @@ def get_position_by_token_address(wallet_address: str, token_address: str) -> Op
 
 def get_active_position_by_token_address(wallet_address: str, token_address: str) -> Optional[Dict]:
     """
-    Look up an active MTEW position by wallet address and token mint address.
+    Look up an active position by wallet address and token mint address.
 
     Used by webhook callbacks to find positions when a token transfer is detected.
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_address: Token mint address (from webhook transfer)
 
     Returns:
@@ -2446,7 +2585,7 @@ def update_position_sell_reconciliation(
     - pnl_ratio (exit_price / entry_price)
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_id: Token ID
         tokens_sold: Number of tokens sold
         usd_received: USD value received from the sell
@@ -2521,10 +2660,10 @@ def update_mtew_position(
     exit_market_cap: Optional[float] = None,
 ) -> bool:
     """
-    Update an existing MTEW position after checking.
+    Update an existing position after checking.
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_id: Token ID
         still_holding: Whether wallet still holds
         current_balance: Current token balance (if holding)
@@ -2590,7 +2729,7 @@ def record_position_buy(
     - Recalculates avg_entry_price
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_id: Token ID
         tokens_bought: Number of tokens bought in this transaction
         usd_amount: USD value of the buy
@@ -2647,7 +2786,7 @@ def record_position_sell(
     - Calculates fpnl_ratio (fumbled PnL: current_mc / entry_mc - what they missed)
 
     Args:
-        wallet_address: MTEW wallet address
+        wallet_address: tracked wallet address
         token_id: Token ID
         tokens_sold: Number of tokens sold in this transaction
         usd_received: USD value received from the sell
@@ -2805,119 +2944,16 @@ def get_wallet_positions(wallet_address: str) -> List[Dict]:
         return positions
 
 
-def calculate_wallet_metrics(wallet_address: str) -> Dict:
-    """
-    Calculate and update win rate metrics for a wallet based on positions.
-
-    Args:
-        wallet_address: Wallet address to calculate metrics for
-
-    Returns:
-        Dict with win_count, loss_count, win_rate, avg_pnl_ratio
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-
-        # Get all positions with valid PnL ratios
-        cursor.execute(
-            """
-            SELECT pnl_ratio
-            FROM mtew_token_positions
-            WHERE wallet_address = ?
-            AND pnl_ratio IS NOT NULL
-        """,
-            (wallet_address,),
-        )
-
-        pnl_ratios = [row[0] for row in cursor.fetchall()]
-
-        if not pnl_ratios:
-            return {
-                "win_count": 0,
-                "loss_count": 0,
-                "total_positions": 0,
-                "win_rate": None,
-                "avg_pnl_ratio": None,
-            }
-
-        win_count = sum(1 for pnl in pnl_ratios if pnl > 1.0)
-        loss_count = sum(1 for pnl in pnl_ratios if pnl <= 1.0)
-        total_positions = len(pnl_ratios)
-        win_rate = win_count / total_positions if total_positions > 0 else 0
-        avg_pnl_ratio = sum(pnl_ratios) / total_positions if total_positions > 0 else 0
-
-        # Update wallet_metrics table
-        cursor.execute(
-            """
-            INSERT INTO wallet_metrics
-                (wallet_address, win_count, loss_count, total_positions, win_rate, avg_pnl_ratio, metrics_updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(wallet_address) DO UPDATE SET
-                win_count = excluded.win_count,
-                loss_count = excluded.loss_count,
-                total_positions = excluded.total_positions,
-                win_rate = excluded.win_rate,
-                avg_pnl_ratio = excluded.avg_pnl_ratio,
-                metrics_updated_at = CURRENT_TIMESTAMP
-        """,
-            (wallet_address, win_count, loss_count, total_positions, win_rate, avg_pnl_ratio),
-        )
-
-        return {
-            "win_count": win_count,
-            "loss_count": loss_count,
-            "total_positions": total_positions,
-            "win_rate": win_rate,
-            "avg_pnl_ratio": avg_pnl_ratio,
-        }
-
-
-def get_wallet_metrics(wallet_address: str) -> Optional[Dict]:
-    """
-    Get cached wallet metrics.
-
-    Args:
-        wallet_address: Wallet address to query
-
-    Returns:
-        Dict with metrics or None if not calculated yet
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT win_count, loss_count, total_positions, win_rate, avg_pnl_ratio, metrics_updated_at
-            FROM wallet_metrics
-            WHERE wallet_address = ?
-        """,
-            (wallet_address,),
-        )
-
-        row = cursor.fetchone()
-        if not row:
-            return None
-
-        return {
-            "win_count": row[0],
-            "loss_count": row[1],
-            "total_positions": row[2],
-            "win_rate": row[3],
-            "avg_pnl_ratio": row[4],
-            "metrics_updated_at": row[5],
-        }
-
-
 def get_multi_token_wallets_for_token(token_id: int, min_tokens: int = 2) -> List[str]:
     """
-    Get wallets that are/will become MTEWs after this token scan.
+    Get wallets that are/will become recurring wallets after this token scan.
 
     Args:
         token_id: The token being scanned
-        min_tokens: Minimum tokens to qualify as MTEW (default: 2)
+        min_tokens: Minimum tokens to qualify as a recurring wallet (default: 2)
 
     Returns:
-        List of wallet addresses that are or will become MTEWs
+        List of wallet addresses that are or will become recurring wallets
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -2933,7 +2969,7 @@ def get_multi_token_wallets_for_token(token_id: int, min_tokens: int = 2) -> Lis
         )
         token_wallets = {row[0] for row in cursor.fetchall()}
 
-        # Get wallets that are already MTEWs (in 2+ tokens)
+        # Get wallets that are already recurring wallets (in 2+ tokens)
         cursor.execute(
             """
             SELECT wallet_address, COUNT(DISTINCT token_id) as token_count
@@ -2947,10 +2983,10 @@ def get_multi_token_wallets_for_token(token_id: int, min_tokens: int = 2) -> Lis
         )
         existing_mtews = {row[0] for row in cursor.fetchall()}
 
-        # Wallets in this token that are MTEWs
+        # Wallets in this token that are recurring wallets
         mtews_in_token = token_wallets & existing_mtews
 
-        # Also check wallets that JUST became MTEWs with this token
+        # Also check wallets that JUST became recurring wallets with this token
         # (they were in exactly 1 other token before)
         cursor.execute(
             """
@@ -2973,16 +3009,16 @@ def get_multi_token_wallets_for_token(token_id: int, min_tokens: int = 2) -> Lis
 
 
 # =============================================================================
-# SWAB (Smart Wallet Archive Builder) Functions
+# Position Tracker Settings Functions
 # =============================================================================
 
 
 def get_swab_settings() -> Dict:
     """
-    Get SWAB configuration settings.
+    Get position tracker configuration settings.
 
     Returns:
-        Dict with SWAB settings
+        Dict with position tracker settings
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -3033,14 +3069,14 @@ def update_swab_settings(
     min_token_count: Optional[int] = None,
 ) -> Dict:
     """
-    Update SWAB configuration settings.
+    Update position tracker configuration settings.
 
     Args:
         auto_check_enabled: Enable/disable auto-check
         check_interval_minutes: Interval between checks
-        daily_credit_budget: Max credits per day for SWAB
+        daily_credit_budget: Max credits per day for position tracking
         stale_threshold_minutes: Position is stale after this many minutes
-        min_token_count: Minimum tokens for MTEW to be tracked
+        min_token_count: Minimum tokens for recurring wallet to be tracked
 
     Returns:
         Updated settings dict
@@ -3096,7 +3132,7 @@ def update_swab_settings(
 
 def update_swab_last_check(credits_used: int = 0) -> None:
     """
-    Update SWAB last check timestamp and credits used.
+    Update position tracker last check timestamp and credits used.
 
     Args:
         credits_used: Credits used in this check cycle
@@ -3145,10 +3181,10 @@ def get_swab_positions(
     offset: int = 0,
 ) -> Dict:
     """
-    Get positions for SWAB display with filters.
+    Get positions for display with filters.
 
     Args:
-        min_token_count: Minimum tokens for MTEW to be included
+        min_token_count: Minimum tokens for recurring wallet to be included
         status_filter: Filter by status ('holding', 'sold', 'stale', 'all')
         pnl_min: Minimum PnL ratio filter
         pnl_max: Maximum PnL ratio filter
@@ -3170,7 +3206,7 @@ def get_swab_positions(
         where_clauses = []
         params = []
 
-        # Filter by MTEW token count
+        # Filter by recurring wallet token count
         where_clauses.append(
             """
             p.wallet_address IN (
@@ -3331,10 +3367,10 @@ def get_swab_positions(
 
 def get_swab_wallet_summary(min_token_count: Optional[int] = None) -> List[Dict]:
     """
-    Get aggregated wallet summary for SWAB display.
+    Get aggregated wallet summary for position tracking display.
 
     Args:
-        min_token_count: Minimum tokens for MTEW to be included
+        min_token_count: Minimum tokens for recurring wallet to be included
 
     Returns:
         List of wallet summaries with win rate, avg pnl, position counts
@@ -3401,7 +3437,7 @@ def get_swab_wallet_summary(min_token_count: Optional[int] = None) -> List[Dict]
 
 def get_swab_stats() -> Dict:
     """
-    Get overview statistics for SWAB.
+    Get overview statistics for position tracking.
 
     Returns:
         Dict with total positions, win rate, avg pnl, etc.
@@ -3412,7 +3448,7 @@ def get_swab_stats() -> Dict:
     with get_db_connection() as conn:
         cursor = conn.cursor()
 
-        # Get position counts - filtered by MTEW token count gate
+        # Get position counts - filtered by recurring wallet token count gate
         # Now counts ALL positions (including sold) for qualifying wallets
         cursor.execute(
             """
@@ -3420,9 +3456,10 @@ def get_swab_stats() -> Dict:
                 COUNT(*) as total_positions,
                 SUM(CASE WHEN still_holding = 1 AND (tracking_enabled = 1 OR tracking_enabled IS NULL) THEN 1 ELSE 0 END) as holding,
                 SUM(CASE WHEN still_holding = 0 THEN 1 ELSE 0 END) as sold,
-                SUM(CASE WHEN pnl_ratio > 1.0 THEN 1 ELSE 0 END) as winners,
-                SUM(CASE WHEN pnl_ratio <= 1.0 AND pnl_ratio IS NOT NULL THEN 1 ELSE 0 END) as losers,
-                AVG(pnl_ratio) as avg_pnl,
+                SUM(CASE WHEN pnl_source = 'helius_enhanced' AND realized_pnl > 0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE WHEN pnl_source = 'helius_enhanced' AND realized_pnl <= 0 AND still_holding = 0 THEN 1 ELSE 0 END) as losers,
+                AVG(CASE WHEN pnl_source = 'helius_enhanced' AND total_sold_usd > 0
+                    THEN total_sold_usd / NULLIF(total_bought_usd, 0) END) as avg_pnl,
                 COUNT(DISTINCT wallet_address) as unique_wallets,
                 COUNT(DISTINCT token_id) as unique_tokens
             FROM mtew_token_positions
@@ -3453,7 +3490,7 @@ def get_swab_stats() -> Dict:
         if winners + losers > 0:
             win_rate = winners / (winners + losers)
 
-        # Count stale positions - filtered by MTEW token count gate
+        # Count stale positions - filtered by recurring wallet token count gate
         cursor.execute(
             """
             SELECT COUNT(*)
@@ -3497,7 +3534,7 @@ def get_swab_stats() -> Dict:
 
 def get_active_swab_wallets() -> List[str]:
     """
-    Get all unique wallet addresses with active SWAB positions.
+    Get all unique wallet addresses with active tracked positions.
 
     Used to create a Helius webhook for real-time sell detection.
     Only returns wallets that:
@@ -3707,69 +3744,6 @@ def calculate_wallet_expectancy(wallet_address: str) -> Dict[str, Any]:
     }
 
 
-def update_wallet_smart_dumb_label(wallet_address: str) -> Optional[str]:
-    """
-    Calculate expectancy and update Smart/Dumb label for a wallet.
-
-    Removes any existing Smart/Dumb label and adds the new one if applicable.
-    Uses hysteresis to prevent label flapping near thresholds.
-
-    Args:
-        wallet_address: Wallet address to update label for
-
-    Returns:
-        The new label ('Smart', 'Dumb', or None if unlabeled)
-    """
-    metrics = calculate_wallet_expectancy(wallet_address)
-    suggested_label = metrics["suggested_label"]
-
-    # Get current labels
-    current_tags = get_wallet_tags(wallet_address)
-    current_label = None
-    for tag in current_tags:
-        if tag["tag"] in ("Smart", "Dumb"):
-            current_label = tag["tag"]
-            break
-
-    # Apply hysteresis - harder to remove a label than to gain it
-    # If currently labeled, require stronger evidence to change
-    if current_label == "Smart" and suggested_label != "Smart":
-        # To lose Smart label, expectancy must drop below 0.3 (not just below 0.5)
-        if metrics["expectancy"] is not None and metrics["expectancy"] > 0.3:
-            suggested_label = "Smart"  # Keep Smart label
-
-    if current_label == "Dumb" and suggested_label != "Dumb":
-        # To lose Dumb label, expectancy must rise above 0.0 (not just above -0.2)
-        if metrics["expectancy"] is not None and metrics["expectancy"] < 0.0:
-            suggested_label = "Dumb"  # Keep Dumb label
-
-    # Remove existing Smart/Dumb labels
-    if current_label:
-        remove_wallet_tag(wallet_address, current_label)
-
-    # Add new label if applicable
-    if suggested_label:
-        add_wallet_tag(wallet_address, suggested_label, is_kol=False)
-
-    return suggested_label
-
-
-def batch_update_wallet_labels(wallet_addresses: List[str]) -> Dict[str, Optional[str]]:
-    """
-    Update Smart/Dumb labels for multiple wallets.
-
-    Args:
-        wallet_addresses: List of wallet addresses to update
-
-    Returns:
-        Dict mapping wallet_address -> new label (or None)
-    """
-    results = {}
-    for wallet_address in wallet_addresses:
-        results[wallet_address] = update_wallet_smart_dumb_label(wallet_address)
-    return results
-
-
 def get_all_wallet_expectancies(min_closed: int = MIN_CLOSED_POSITIONS) -> List[Dict]:
     """
     Get expectancy metrics for all wallets with sufficient closed positions.
@@ -3808,7 +3782,7 @@ def get_all_wallet_expectancies(min_closed: int = MIN_CLOSED_POSITIONS) -> List[
 
 def purge_swab_data() -> Dict[str, int]:
     """
-    Purge all SWAB position tracking data for a fresh start.
+    Purge all position tracking data for a fresh start.
 
     This deletes:
     - All records from mtew_token_positions
@@ -3888,6 +3862,16 @@ def insert_ingest_queue_entry(
     last_liquidity: Optional[float] = None,
     age_hours: Optional[float] = None,
     ingest_notes: Optional[str] = None,
+    dex_id: Optional[str] = None,
+    quote_token: Optional[str] = None,
+    buys_24h: Optional[int] = None,
+    sells_24h: Optional[int] = None,
+    net_buys_24h: Optional[int] = None,
+    txs_24h: Optional[int] = None,
+    price_change_h1: Optional[float] = None,
+    price_change_h6: Optional[float] = None,
+    price_change_h24: Optional[float] = None,
+    has_socials: bool = False,
 ) -> bool:
     """
     Insert a new token into the ingest queue.
@@ -3902,6 +3886,16 @@ def insert_ingest_queue_entry(
         last_liquidity: Liquidity snapshot
         age_hours: Token age in hours
         ingest_notes: Optional notes
+        dex_id: DEX/launchpad identifier (e.g., "pumpfun", "raydium")
+        quote_token: Quote token symbol (e.g., "SOL", "USDC")
+        buys_24h: Number of buy transactions in 24h
+        sells_24h: Number of sell transactions in 24h
+        net_buys_24h: Net buys (buys - sells) in 24h
+        txs_24h: Total transactions in 24h
+        price_change_h1: Price change % in last 1 hour
+        price_change_h6: Price change % in last 6 hours
+        price_change_h24: Price change % in last 24 hours
+        has_socials: Whether token has social links
 
     Returns:
         True if inserted, False if already exists
@@ -3915,8 +3909,10 @@ def insert_ingest_queue_entry(
                     token_address, token_name, token_symbol, source,
                     tier, status, ingested_at,
                     last_mc_usd, last_volume_usd, last_liquidity, age_hours,
-                    ingest_notes
-                ) VALUES (?, ?, ?, ?, 'ingested', 'pending', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+                    ingest_notes,
+                    dex_id, quote_token, buys_24h, sells_24h, net_buys_24h,
+                    txs_24h, price_change_h1, price_change_h6, price_change_h24, has_socials
+                ) VALUES (?, ?, ?, ?, 'ingested', 'pending', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     token_address,
@@ -3928,6 +3924,16 @@ def insert_ingest_queue_entry(
                     last_liquidity,
                     age_hours,
                     ingest_notes,
+                    dex_id,
+                    quote_token,
+                    buys_24h,
+                    sells_24h,
+                    net_buys_24h,
+                    txs_24h,
+                    price_change_h1,
+                    price_change_h6,
+                    price_change_h24,
+                    1 if has_socials else 0,
                 ),
             )
             return True
@@ -3972,53 +3978,6 @@ def update_ingest_queue_snapshot(
             (last_mc_usd, last_volume_usd, last_liquidity, age_hours, token_address),
         )
         return cursor.rowcount > 0
-
-
-def get_ingest_queue_candidates_for_enrichment(
-    mc_min: float = 0,
-    volume_min: float = 0,
-    liquidity_min: float = 0,
-    age_max_hours: float = 48,
-    limit: int = 10,
-) -> List[Dict]:
-    """
-    Get tokens from ingest queue that are ready for Tier-1 enrichment.
-
-    Filters for tokens with tier='ingested' that pass threshold checks.
-
-    Args:
-        mc_min: Minimum market cap in USD
-        volume_min: Minimum 24h volume in USD
-        liquidity_min: Minimum liquidity in USD
-        age_max_hours: Maximum age in hours
-        limit: Maximum number of tokens to return
-
-    Returns:
-        List of token dictionaries ready for enrichment
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT
-                token_address, token_name, token_symbol,
-                first_seen_at, source, tier, status,
-                ingested_at, enriched_at, analyzed_at, discarded_at,
-                last_mc_usd, last_volume_usd, last_liquidity, age_hours,
-                ingest_notes, last_error
-            FROM token_ingest_queue
-            WHERE tier = 'ingested'
-            AND status = 'pending'
-            AND COALESCE(last_mc_usd, 0) >= ?
-            AND COALESCE(last_volume_usd, 0) >= ?
-            AND COALESCE(last_liquidity, 0) >= ?
-            AND (age_hours IS NULL OR age_hours <= ?)
-            ORDER BY first_seen_at DESC
-            LIMIT ?
-        """,
-            (mc_min, volume_min, liquidity_min, age_max_hours, limit),
-        )
-        return [dict(row) for row in cursor.fetchall()]
 
 
 def update_ingest_queue_tier(
@@ -4274,7 +4233,7 @@ def save_performance_snapshot(
         trade_count_24h: Number of trades in last 24h
         holder_count: Number of holders
         top_holder_share: Top holder share (0-1)
-        our_positions_pnl_usd: Our positions PnL from SWAB
+        our_positions_pnl_usd: Our positions PnL from position tracker
         lp_locked: Whether LP is locked
         ingest_tier_snapshot: Current tier at snapshot time
 
@@ -4733,10 +4692,10 @@ def get_tokens_for_swab_refresh(
     limit: int = 100,
 ) -> List[Dict]:
     """
-    Get analyzed tokens that need MC/volume refresh, prioritized by SWAB exposure and MC.
+    Get analyzed tokens that need MC/volume refresh, prioritized by position exposure and MC.
 
     Priority order (fast lane first, then slow lane):
-    1. Tokens with open SWAB positions (swab_open_positions > 0)
+    1. Tokens with open tracked positions (swab_open_positions > 0)
     2. Tokens with active webhooks
     3. Tokens with MC > threshold
     4. All other tokens (slow lane)
@@ -4761,7 +4720,7 @@ def get_tokens_for_swab_refresh(
     with get_db_connection() as conn:
         cursor = conn.cursor()
 
-        # Query tokens with SWAB aggregates, prioritized by exposure/MC
+        # Query tokens with position aggregates, prioritized by exposure/MC
         cursor.execute(
             """
             WITH swab_agg AS (
@@ -4782,7 +4741,7 @@ def get_tokens_for_swab_refresh(
                 t.webhook_id,
                 COALESCE(s.open_positions, 0) as swab_open_positions,
                 s.last_swab_check,
-                -- Priority: 1=SWAB exposure, 2=webhook, 3=high MC, 4=slow lane
+                -- Priority: 1=position exposure, 2=webhook, 3=high MC, 4=slow lane
                 CASE
                     WHEN COALESCE(s.open_positions, 0) > 0 THEN 1
                     WHEN t.webhook_id IS NOT NULL THEN 2
@@ -4853,7 +4812,7 @@ def get_tokens_for_swab_refresh(
 
 def get_swab_aggregates_by_token(token_ids: List[int]) -> Dict[int, Dict]:
     """
-    Get SWAB position aggregates for multiple tokens in a single query.
+    Get position aggregates for multiple tokens in a single query.
 
     For each token, returns:
     - open_positions: Count of positions with still_holding=1
@@ -4862,7 +4821,7 @@ def get_swab_aggregates_by_token(token_ids: List[int]) -> Dict[int, Dict]:
     - last_check_at: Latest position_checked_at timestamp for the token
 
     Args:
-        token_ids: List of token IDs to aggregate SWAB data for
+        token_ids: List of token IDs to aggregate position data for
 
     Returns:
         Dict mapping token_id to aggregates dict

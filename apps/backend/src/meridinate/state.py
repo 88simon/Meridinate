@@ -17,7 +17,7 @@ from typing import Any, Dict
 analysis_jobs: Dict[str, Dict[str, Any]] = {}
 
 # Thread pool for background analysis jobs
-ANALYSIS_EXECUTOR = ThreadPoolExecutor(max_workers=10, thread_name_prefix="analysis")
+ANALYSIS_EXECUTOR = ThreadPoolExecutor(max_workers=3, thread_name_prefix="analysis")
 WEBHOOK_EXECUTOR = ThreadPoolExecutor(max_workers=5, thread_name_prefix="webhook")
 
 

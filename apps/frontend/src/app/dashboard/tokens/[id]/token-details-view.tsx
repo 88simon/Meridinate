@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Download, ExternalLink, Copy } from 'lucide-react';
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { useWalletIntelligence } from '@/contexts/wallet-intelligence-context';
 import Link from 'next/link';
 import {
   Table,
@@ -31,6 +32,7 @@ interface TokenDetailsViewProps {
 }
 
 export function TokenDetailsView({ token }: TokenDetailsViewProps) {
+  const { openWIR } = useWalletIntelligence();
   const [copied, setCopied] = useState(false);
   const [solscanSettings, setSolscanSettings] = useState<SolscanSettings>({
     activity_type: 'ACTIVITY_SPL_TRANSFER',
@@ -276,7 +278,11 @@ export function TokenDetailsView({ token }: TokenDetailsViewProps) {
                           </TableCell>
                           <TableCell>
                             <div className='flex flex-col gap-0.5'>
-                              <div className='font-mono text-sm'>
+                              <div
+                                className='font-mono text-sm cursor-pointer hover:text-blue-400 transition-colors'
+                                title='Click for Wallet Intelligence Report'
+                                onClick={() => openWIR(wallet.wallet_address)}
+                              >
                                 {wallet.wallet_address}
                               </div>
                               <WalletTagLabels

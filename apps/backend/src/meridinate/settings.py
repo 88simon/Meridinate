@@ -25,6 +25,14 @@ DATA_FILE = os.path.join(BACKEND_ROOT, "monitored_addresses.json")
 ANALYSIS_RESULTS_DIR = os.path.join(BACKEND_ROOT, "data", "analysis_results")
 AXIOM_EXPORTS_DIR = os.path.join(BACKEND_ROOT, "data", "axiom_exports")
 
+# ============================================================================
+# Server URLs
+# ============================================================================
+
+API_PORT = 5003
+API_BASE_URL = f"http://localhost:{API_PORT}"
+FRONTEND_URL = "http://localhost:3000"
+
 # Ensure directories exist
 os.makedirs(ANALYSIS_RESULTS_DIR, exist_ok=True)
 os.makedirs(AXIOM_EXPORTS_DIR, exist_ok=True)
@@ -90,6 +98,78 @@ else:
     print(f"[Config] Loaded Top Holders API key: {HELIUS_TOP_HOLDERS_API_KEY[:8]}...")
 
 # ============================================================================
+# Anthropic API Key (for AI Intel Agent)
+# ============================================================================
+
+def load_anthropic_api_key() -> Optional[str]:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if api_key:
+        return api_key
+    config_file = os.path.join(BACKEND_ROOT, "config.json")
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                config = json.load(f)
+                return config.get("anthropic_api_key")
+        except Exception:
+            pass
+    return None
+
+ANTHROPIC_API_KEY = load_anthropic_api_key()
+if ANTHROPIC_API_KEY:
+    print(f"[Config] Loaded Anthropic API key: {ANTHROPIC_API_KEY[:12]}...")
+else:
+    print("[Config] No Anthropic API key configured (Intel Agent disabled)")
+
+def load_housekeeper_key() -> Optional[str]:
+    api_key = os.environ.get("ANTHROPIC_HOUSEKEEPER_KEY")
+    if api_key:
+        return api_key
+    config_file = os.path.join(BACKEND_ROOT, "config.json")
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                config = json.load(f)
+                return config.get("anthropic_housekeeper_key")
+        except Exception:
+            pass
+    return None
+
+ANTHROPIC_HOUSEKEEPER_KEY = load_housekeeper_key()
+if ANTHROPIC_HOUSEKEEPER_KEY:
+    print(f"[Config] Loaded Housekeeper API key: {ANTHROPIC_HOUSEKEEPER_KEY[:12]}...")
+else:
+    print("[Config] No Housekeeper API key configured")
+
+# ============================================================================
+# CLOBr API Key Loading
+# ============================================================================
+
+
+def load_clobr_key() -> Optional[str]:
+    """Load CLOBr API key from environment or config file"""
+    api_key = os.environ.get("CLOBR_API_KEY")
+    if api_key:
+        return api_key
+
+    config_file = os.path.join(BACKEND_ROOT, "config.json")
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                config = json.load(f)
+                return config.get("clobr_api_key")
+        except Exception:
+            pass
+    return None
+
+
+CLOBR_API_KEY = load_clobr_key()
+if CLOBR_API_KEY:
+    print(f"[Config] Loaded CLOBr API key: {CLOBR_API_KEY[:12]}...")
+else:
+    print("[Config] No CLOBr API key configured (CLOBr enrichment disabled)")
+
+# ============================================================================
 # Redis Configuration (for task queue and rate limiting)
 # ============================================================================
 
@@ -113,6 +193,11 @@ DEFAULT_API_SETTINGS = {
     "maxCreditsPerAnalysis": 1000,
     "maxRetries": 3,
     "topHoldersLimit": 10,
+    # Intel Agent settings
+    "intelMaxTokens": 8192,
+    "intelHousekeeperMaxTokens": 8192,
+    "intelForensicsWalletCount": 10,
+    "intelModel": "claude-sonnet-4-20250514",
 }
 
 DEFAULT_THRESHOLD = 100
@@ -191,7 +276,6 @@ def save_ingest_settings(settings: Dict) -> bool:
 # Load ingest settings on module import
 CURRENT_INGEST_SETTINGS = load_ingest_settings()
 print(
-    f"[Config] Ingest Settings: ingest_enabled={CURRENT_INGEST_SETTINGS['ingest_enabled']}, "
-    f"enrich_enabled={CURRENT_INGEST_SETTINGS['enrich_enabled']}, "
-    f"mc_min=${CURRENT_INGEST_SETTINGS['mc_min']}"
+    f"[Config] Ingest Settings: discovery_enabled={CURRENT_INGEST_SETTINGS.get('discovery_enabled', False)}, "
+    f"mc_min=${CURRENT_INGEST_SETTINGS.get('mc_min', 0)}"
 )

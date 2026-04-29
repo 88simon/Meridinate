@@ -56,25 +56,37 @@ class CreditOperation(str, Enum):
     # Enhanced API calls (higher cost)
     TRANSACTIONS_FOR_ADDRESS = "transactions_for_address"  # 100 credits per call
 
+    # Wallet API calls (beta, ~100 credits each)
+    WALLET_API_BALANCES = "wallet_api_balances"  # /v1/wallet/{addr}/balances
+    WALLET_API_FUNDED_BY = "wallet_api_funded_by"  # /v1/wallet/{addr}/funded-by
+    WALLET_API_IDENTITY = "wallet_api_identity"  # /v1/wallet/{addr}/identity
+    WALLET_API_BATCH_IDENTITY = "wallet_api_batch_identity"  # /v1/wallet/batch-identity
+    WALLET_API_TRANSFERS = "wallet_api_transfers"  # /v1/wallet/{addr}/transfers
+
     # Composite operations (for reporting, actual credits are sum of components)
     TOKEN_ANALYSIS = "token_analysis"  # Full token analysis
     TOP_HOLDERS_FETCH = "top_holders_fetch"  # Top holders lookup
     MARKET_CAP_REFRESH = "market_cap_refresh"  # Market cap update
     WALLET_REFRESH = "wallet_refresh"  # Wallet balance refresh
-    POSITION_CHECK = "position_check"  # MTEW position check
+    POSITION_CHECK = "position_check"  # Recurring wallet position check
 
 
 # Credit costs per operation (used for estimation, actual cost comes from API)
 CREDIT_COSTS: Dict[CreditOperation, int] = {
     CreditOperation.WALLET_BALANCE: 1,
-    CreditOperation.TOKEN_METADATA: 1,
+    CreditOperation.TOKEN_METADATA: 10,  # DAS API
     CreditOperation.ACCOUNT_OWNER: 1,
     CreditOperation.TOKEN_LARGEST_ACCOUNTS: 1,
     CreditOperation.GET_TRANSACTION: 1,
     CreditOperation.SIGNATURES_FOR_ADDRESS: 1,
-    CreditOperation.TOKEN_ACCOUNTS: 10,
-    CreditOperation.TRANSACTIONS_FOR_ADDRESS: 100,
-    CreditOperation.POSITION_CHECK: 10,
+    CreditOperation.TOKEN_ACCOUNTS: 1,  # Standard RPC call
+    CreditOperation.TRANSACTIONS_FOR_ADDRESS: 50,  # Helius enhanced
+    CreditOperation.POSITION_CHECK: 1,  # getTokenAccountsByOwner = standard RPC
+    CreditOperation.WALLET_API_BALANCES: 100,
+    CreditOperation.WALLET_API_FUNDED_BY: 100,
+    CreditOperation.WALLET_API_IDENTITY: 100,
+    CreditOperation.WALLET_API_BATCH_IDENTITY: 100,
+    CreditOperation.WALLET_API_TRANSFERS: 100,
 }
 
 

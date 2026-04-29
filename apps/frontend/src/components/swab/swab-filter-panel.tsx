@@ -68,7 +68,7 @@ export function SwabFilterPanel({
         onClick={(e) => e.stopPropagation()}
       >
         <div className='flex items-center justify-between border-b p-4'>
-          <h2 className='text-lg font-semibold'>Filter SWAB Display</h2>
+          <h2 className='text-lg font-semibold'>Filter Positions</h2>
           <Button variant='ghost' size='icon' onClick={onClose}>
             <X className='h-4 w-4' />
           </Button>

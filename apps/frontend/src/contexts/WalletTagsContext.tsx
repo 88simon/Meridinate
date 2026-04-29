@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '@/lib/api';
 
 interface WalletTag {
@@ -64,10 +64,18 @@ export function WalletTagsProvider({
     }
   };
 
+  // Track previous addresses to avoid O(n) JSON.stringify on every render
+  const prevAddressesRef = useRef<string[]>([]);
   useEffect(() => {
-    fetchTags();
+    const prev = prevAddressesRef.current;
+    const changed = walletAddresses.length !== prev.length ||
+      walletAddresses.some((a, i) => a !== prev[i]);
+    if (changed) {
+      prevAddressesRef.current = walletAddresses;
+      fetchTags();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(walletAddresses)]);
+  }, [walletAddresses]);
 
   // Listen for tag changes from other components
   useEffect(() => {

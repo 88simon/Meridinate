@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 
 interface StatusBarProps {
   tokensScanned: number;
+  tokensScannedToday?: number;
   latestAnalysis: string | null;
   latestTokenName?: string | null;
   latestWalletsFound?: number | null;
@@ -56,6 +57,7 @@ function formatCredits(credits: number): string {
 
 export function StatusBar({
   tokensScanned,
+  tokensScannedToday = 0,
   latestAnalysis,
   latestTokenName,
   latestWalletsFound,
@@ -88,6 +90,14 @@ export function StatusBar({
                 tokensScanned
               )}
             </span>
+          </div>
+
+          {/* Tokens Scanned Today */}
+          <div className='flex items-center gap-2'>
+            <span className='text-muted-foreground text-xs font-medium'>
+              Scanned Today:
+            </span>
+            <span className='text-sm font-bold'>{tokensScannedToday}</span>
           </div>
 
           {/* Total API Credits Today with Recent Operations Popover */}

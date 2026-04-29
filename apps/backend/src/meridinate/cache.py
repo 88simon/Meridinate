@@ -31,18 +31,20 @@ class ResponseCache:
     - Request deduplication to prevent duplicate concurrent queries
     """
 
-    def __init__(self, ttl: int = 30, name: str = "unknown"):
+    def __init__(self, ttl: int = 30, name: str = "unknown", maxsize: int = 500):
         """
         Initialize response cache
 
         Args:
             ttl: Time-to-live in seconds (default: 30)
             name: Cache name for metrics tracking (default: "unknown")
+            maxsize: Maximum number of entries before LRU eviction (default: 500)
         """
         self.cache: Dict[str, Tuple[Any, float, str]] = {}  # (data, timestamp, etag)
         self.pending_requests: Dict[str, asyncio.Future] = {}  # Request deduplication
         self.ttl = ttl
         self.name = name
+        self.maxsize = maxsize
 
     def get(self, key: str) -> Tuple[Optional[Any], Optional[str]]:
         """
@@ -83,6 +85,14 @@ class ResponseCache:
         """
         etag = self._generate_etag(data)
         self.cache[key] = (data, time.time(), etag)
+
+        # Evict oldest entries if over max size
+        if len(self.cache) > self.maxsize:
+            entries = sorted(self.cache.items(), key=lambda x: x[1][1])  # sort by timestamp
+            to_remove = len(self.cache) - self.maxsize
+            for k, _ in entries[:to_remove]:
+                del self.cache[k]
+
         return etag
 
     def _generate_etag(self, data: Any) -> str:

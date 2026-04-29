@@ -92,7 +92,7 @@ REM [3/3] Launch Frontend
 echo [3/3] Starting frontend...
 echo       Checking: %~dp0..\apps\frontend\package.json
 if exist "%~dp0..\apps\frontend\package.json" (
-    start "Meridinate - Frontend" /D "%~dp0..\apps\frontend" cmd /k "title Meridinate - Frontend && pnpm dev"
+    start "Meridinate - Frontend" /D "%~dp0..\apps\frontend" cmd /k "title Meridinate - Frontend && npx next build && npx next start"
     timeout /t 2 /nobreak >nul
     echo       [OK] Started: Frontend (localhost:3000)
 ) else (

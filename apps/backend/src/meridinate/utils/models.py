@@ -32,14 +32,17 @@ class Token(BaseModel):
     market_cap_updated_at: Optional[str] = None
     market_cap_ath: Optional[float] = None
     market_cap_ath_timestamp: Optional[str] = None
-    gem_status: Optional[str] = None  # Keeping for backwards compatibility during migration
+    verdict: Optional[str] = None  # Win/Loss verdict (mapped from DB gem_status column)
     state_version: int = 0  # Keeping for backwards compatibility during migration
-    tags: List[str] = []  # New: token tags (gem, dud, etc.)
+    tags: List[str] = []  # Token tags (verified-win, verified-loss, etc.)
     top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
     top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
+    liquidity_usd: Optional[float] = None  # Token liquidity in USD
     # Ingestion tracking fields
     ingest_source: Optional[str] = None  # 'manual' or 'dexscreener' (TIP)
-    # SWAB (Smart Wallet Archive Builder) aggregate fields
+    dex_id: Optional[str] = None  # DEX/launchpad identifier (e.g., "pumpswap", "raydium")
+    is_cashback: Optional[bool] = None  # PumpFun cashback coin (True = cashback, False = creator fees)
+    # Position tracking aggregate fields
     swab_open_positions: int = 0  # Count of open positions (still_holding=1)
     swab_open_pnl_usd: Optional[float] = None  # Unrealized PnL from open positions
     swab_realized_pnl_usd: Optional[float] = None  # Realized PnL from closed positions
@@ -63,6 +66,9 @@ class Wallet(BaseModel):
     wallet_balance_usd: Optional[float]
     wallet_balance_usd_previous: Optional[float] = None
     wallet_balance_updated_at: Optional[str] = None
+    still_holding: Optional[int] = None
+    realized_pnl: Optional[float] = None
+    pnl_source: Optional[str] = None
 
 
 class TokenDetail(BaseModel):
@@ -85,14 +91,17 @@ class TokenDetail(BaseModel):
     market_cap_updated_at: Optional[str] = None
     market_cap_ath: Optional[float] = None
     market_cap_ath_timestamp: Optional[str] = None
-    gem_status: Optional[str] = None  # Keeping for backwards compatibility during migration
+    verdict: Optional[str] = None  # Win/Loss verdict (mapped from DB gem_status column)
     state_version: int = 0  # Keeping for backwards compatibility during migration
-    tags: List[str] = []  # New: token tags (gem, dud, etc.)
+    tags: List[str] = []  # Token tags (verified-win, verified-loss, etc.)
     top_holders: Optional[List["TopHolder"]] = None  # Top 10 token holders (forward reference)
     top_holders_updated_at: Optional[str] = None  # When top holders were last fetched
+    liquidity_usd: Optional[float] = None  # Token liquidity in USD
     # Ingestion tracking fields
     ingest_source: Optional[str] = None  # 'manual' or 'dexscreener' (TIP)
-    # SWAB (Smart Wallet Archive Builder) aggregate fields
+    dex_id: Optional[str] = None  # DEX/launchpad identifier (e.g., "pumpswap", "raydium")
+    is_cashback: Optional[bool] = None  # PumpFun cashback coin (True = cashback, False = creator fees)
+    # Position tracking aggregate fields
     swab_open_positions: int = 0  # Count of open positions (still_holding=1)
     swab_open_pnl_usd: Optional[float] = None  # Unrealized PnL from open positions
     swab_realized_pnl_usd: Optional[float] = None  # Realized PnL from closed positions
@@ -104,6 +113,32 @@ class TokenDetail(BaseModel):
     next_refresh_at: Optional[str] = None  # Computed next MC refresh time
     is_fast_lane: bool = False  # Whether token is in fast-lane (SWAB exposure or high MC)
     tracking_dropped: bool = False  # Whether token has been dropped from refresh (per drop conditions)
+    # Deployer fields
+    deployer_address: Optional[str] = None
+    creation_events_json: Optional[str] = None
+    # Analytics signals
+    holder_velocity: Optional[float] = None
+    deployer_is_top_holder: Optional[bool] = None
+    early_buyer_holder_overlap: Optional[int] = None
+    fresh_wallet_pct: Optional[float] = None
+    mc_volatility: Optional[float] = None
+    mc_recovery_count: Optional[int] = None
+    smart_money_flow: Optional[str] = None
+    avg_hold_hours: Optional[float] = None
+    # Cross-system fields (webhook ↔ auto-scan)
+    webhook_detected_at: Optional[str] = None
+    webhook_conviction_score: Optional[int] = None
+    time_to_migration_minutes: Optional[float] = None
+    # Scoring fields
+    score_momentum: Optional[float] = None
+    score_smart_money: Optional[float] = None
+    score_risk: Optional[float] = None
+    score_composite: Optional[float] = None
+    mint_authority_revoked: Optional[bool] = None
+    freeze_authority_active: Optional[bool] = None
+    holder_top1_pct: Optional[float] = None
+    holder_top10_pct: Optional[float] = None
+    holder_count_latest: Optional[int] = None
     wallets: List[Wallet]
     axiom_json: List[Any]
 
@@ -131,7 +166,8 @@ class MultiTokenWallet(BaseModel):
     token_names: List[str]
     token_addresses: List[str]
     token_ids: List[int]
-    gem_statuses: List[Optional[str]]
+    verdicts: List[Optional[str]]
+    win_multipliers: List[Optional[str]] = []
     wallet_balance_usd: Optional[float]
     wallet_balance_usd_previous: Optional[float] = None
     wallet_balance_updated_at: Optional[str] = None
@@ -450,10 +486,10 @@ class AnalysisStartNotification(BaseModel):
     token_symbol: str
 
 
-class UpdateGemStatusRequest(BaseModel):
-    """Request to update gem status of a token"""
+class UpdateVerdictRequest(BaseModel):
+    """Request to update verdict of a token"""
 
-    gem_status: Optional[str] = None  # 'gem', 'dud', or null to clear
+    verdict: Optional[str] = None  # 'verified-win', 'verified-loss', or null to clear
 
 
 # ============================================================================

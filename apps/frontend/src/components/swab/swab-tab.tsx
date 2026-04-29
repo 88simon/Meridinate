@@ -10,13 +10,10 @@ import {
   triggerSwabCheck,
   triggerSwabPnlUpdate,
   getSwabSchedulerStatus,
-  purgeSwabData,
-  reconcileAllPositions,
   SwabStats,
   SwabSettings,
   SwabPositionsResponse,
-  SwabPosition,
-  ReconciliationResponse
+  SwabPosition
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -29,8 +26,6 @@ import {
   Trash2,
   Twitter,
   Copy,
-  RotateCcw,
-  Wrench,
   Loader2
 } from 'lucide-react';
 import { SwabSettingsPanel } from './swab-settings-panel';
@@ -68,14 +63,11 @@ export function SwabTab({ isActive }: SwabTabProps) {
   );
   const [pnlUpdateLoading, setPnlUpdateLoading] = useState(false);
   const [batchUntrackLoading, setBatchUntrackLoading] = useState(false);
-  const [purgeLoading, setPurgeLoading] = useState(false);
-  const [reconcileLoading, setReconcileLoading] = useState(false);
-
   // Panel states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Filter state (display filters only - MTEW gate is in settings)
+  // Filter state (display filters only - tracking gate is in settings)
   const [filters, setFilters] = useState({
     status: 'all' as 'holding' | 'sold' | 'stale' | 'all',
     pnl_min: undefined as number | undefined,
@@ -95,14 +87,14 @@ export function SwabTab({ isActive }: SwabTabProps) {
     if (!isActive) return;
 
     try {
-      // First fetch settings to get the MTEW→SWAB gate threshold
+      // First fetch settings to get the tracking gate threshold
       const settingsData = await getSwabSettings();
       setSettings(settingsData);
 
       const [statsData, positionsData, schedulerData] = await Promise.all([
         getSwabStats(),
         getSwabPositions({
-          // Use settings.min_token_count as the MTEW→SWAB gate
+          // Use settings.min_token_count as the tracking gate
           min_token_count: settingsData.min_token_count,
           status: filters.status === 'all' ? undefined : filters.status,
           pnl_min: filters.pnl_min,
@@ -117,7 +109,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
       setPositions(positionsData);
       setSchedulerStatus(schedulerData);
     } catch (error) {
-      console.error('Error fetching SWAB data:', error);
+      console.error('Error fetching position data:', error);
     } finally {
       setLoading(false);
     }
@@ -188,7 +180,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
     try {
       const updated = await updateSwabSettings(newSettings);
       setSettings(updated);
-      toast.success('SWAB settings updated');
+      toast.success('Position tracker settings updated');
       fetchData();
     } catch {
       toast.error('Failed to update settings');
@@ -256,70 +248,6 @@ export function SwabTab({ isActive }: SwabTabProps) {
       toast.error('Failed to untrack positions');
     } finally {
       setBatchUntrackLoading(false);
-    }
-  };
-
-  const handlePurge = async () => {
-    if (
-      !confirm(
-        'This will delete ALL SWAB position tracking data. This action cannot be undone. Continue?'
-      )
-    ) {
-      return;
-    }
-
-    setPurgeLoading(true);
-    try {
-      const result = await purgeSwabData();
-      toast.success(
-        `Purged ${result.positions_deleted} positions and ${result.metrics_deleted} wallet metrics`
-      );
-      setSelectedPositions(new Set());
-      fetchData();
-    } catch {
-      toast.error('Failed to purge SWAB data');
-    } finally {
-      setPurgeLoading(false);
-    }
-  };
-
-  const handleReconcile = async () => {
-    setReconcileLoading(true);
-    try {
-      const result = await reconcileAllPositions({
-        max_positions: 50,
-        max_signatures: 100
-      });
-
-      if (result.positions_found === 0) {
-        toast.info(
-          'No positions need reconciliation - all positions have sell data'
-        );
-      } else {
-        const successCount = result.positions_reconciled;
-        const noTxCount = result.positions_no_tx_found;
-        const errorCount = result.positions_error;
-
-        if (successCount > 0) {
-          toast.success(
-            `Reconciled ${successCount}/${result.positions_found} positions (${result.credits_used} credits)` +
-              (noTxCount > 0 ? ` - ${noTxCount} sells too old to find` : '')
-          );
-        } else if (noTxCount > 0) {
-          toast.warning(
-            `${noTxCount} sells too old to find (>100 transactions ago). ` +
-              `PnL shown is MC-based estimate. Set up webhook for future accurate tracking.`,
-            { duration: 8000 }
-          );
-        } else {
-          toast.error(`Reconciliation failed for ${errorCount} positions`);
-        }
-      }
-      fetchData();
-    } catch {
-      toast.error('Failed to reconcile positions');
-    } finally {
-      setReconcileLoading(false);
     }
   };
 
@@ -424,26 +352,26 @@ export function SwabTab({ isActive }: SwabTabProps) {
 
   return (
     <div className='space-y-2'>
-      {/* Compact Stats Bar */}
+      {/* Stats Bar */}
       <div className='flex items-center justify-center gap-4 py-1'>
         {stats && (
           <>
             <div className='flex items-center gap-1.5'>
               <span className='text-lg font-bold'>{stats.total_positions}</span>
-              <span className='text-muted-foreground text-xs'>positions</span>
+              <span className='text-muted-foreground text-xs'>Total Tracked</span>
             </div>
             <div className='text-muted-foreground'>|</div>
             <div className='flex items-center gap-1.5'>
               <span className='text-lg font-bold text-green-500'>
                 {stats.holding}
               </span>
-              <span className='text-muted-foreground text-xs'>holding</span>
+              <span className='text-muted-foreground text-xs'>Still Holding</span>
             </div>
             <div className='flex items-center gap-1.5'>
               <span className='text-lg font-bold text-red-500'>
                 {stats.sold}
               </span>
-              <span className='text-muted-foreground text-xs'>sold</span>
+              <span className='text-muted-foreground text-xs'>Exited</span>
             </div>
             <div className='text-muted-foreground'>|</div>
             <div className='flex items-center gap-1.5'>
@@ -452,7 +380,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
                   ? `${(stats.win_rate * 100).toFixed(0)}%`
                   : '--'}
               </span>
-              <span className='text-muted-foreground text-xs'>win</span>
+              <span className='text-muted-foreground text-xs'>Win Rate</span>
             </div>
             <div className='flex items-center gap-1.5'>
               <span className='text-lg font-bold'>
@@ -460,21 +388,21 @@ export function SwabTab({ isActive }: SwabTabProps) {
                   ? `${stats.avg_pnl_ratio.toFixed(1)}x`
                   : '--'}
               </span>
-              <span className='text-muted-foreground text-xs'>avg</span>
+              <span className='text-muted-foreground text-xs'>Avg Return</span>
             </div>
             <div className='text-muted-foreground'>|</div>
             <div className='flex items-center gap-1.5'>
               <span className='text-lg font-bold text-yellow-500'>
                 {stats.stale_positions}
               </span>
-              <span className='text-muted-foreground text-xs'>stale</span>
+              <span className='text-muted-foreground text-xs'>Needs Update</span>
             </div>
             <div className='flex items-center gap-1'>
               <span className='text-sm font-medium'>
                 {stats.credits_used_today}
               </span>
               <span className='text-muted-foreground text-xs'>
-                /{stats.daily_credit_budget} cr
+                /{stats.daily_credit_budget} credits today
               </span>
             </div>
           </>
@@ -564,35 +492,6 @@ export function SwabTab({ isActive }: SwabTabProps) {
           <Filter className='h-3.5 w-3.5' />
         </Button>
 
-        <Button
-          variant='outline'
-          size='icon'
-          className='h-7 w-7 text-orange-500 hover:bg-orange-500/20'
-          onClick={handleReconcile}
-          disabled={reconcileLoading}
-          title='Reconcile sold positions (fix PnL for positions without sell data)'
-        >
-          {reconcileLoading ? (
-            <RefreshCw className='h-3.5 w-3.5 animate-spin' />
-          ) : (
-            <Wrench className='h-3.5 w-3.5' />
-          )}
-        </Button>
-
-        <Button
-          variant='outline'
-          size='icon'
-          className='text-destructive hover:bg-destructive hover:text-destructive-foreground h-7 w-7'
-          onClick={handlePurge}
-          disabled={purgeLoading}
-          title='Purge all SWAB data'
-        >
-          {purgeLoading ? (
-            <RefreshCw className='h-3.5 w-3.5 animate-spin' />
-          ) : (
-            <RotateCcw className='h-3.5 w-3.5' />
-          )}
-        </Button>
       </div>
 
       {/* Position Table */}
@@ -615,7 +514,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
           <div className='flex items-center justify-center gap-2 py-6'>
             <AlertCircle className='text-muted-foreground h-4 w-4' />
             <p className='text-muted-foreground text-sm'>
-              No positions tracked yet (analyze tokens with MTEWs to start)
+              No positions tracked yet (analyze tokens with recurring wallets to start)
             </p>
           </div>
         ) : (
@@ -623,7 +522,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
             <table className='w-full'>
               <thead className='bg-card sticky top-0 z-10'>
                 <tr className='text-muted-foreground border-b text-left text-xs'>
-                  <th className='px-3 py-1.5'>MTEW Wallet</th>
+                  <th className='px-3 py-1.5'>Wallet</th>
                   <th className='px-3 py-1.5'>Token</th>
                   <th className='px-3 py-1.5 text-right'>Entry MC</th>
                   <th className='px-3 py-1.5 text-right'>Current MC</th>

@@ -4,14 +4,19 @@ Stats router - API credit usage and system statistics endpoints
 Provides REST endpoints for monitoring API credit usage and system health.
 """
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
+from meridinate.cache import ResponseCache
 from meridinate.middleware.rate_limit import READ_RATE_LIMIT, conditional_rate_limit
 from meridinate.credit_tracker import get_credit_tracker, CreditOperation
+
+# Status bar cache — 15 second TTL (scheduler jobs run on 2+ minute intervals)
+_status_bar_cache = ResponseCache(ttl=15, name="status_bar")
 
 router = APIRouter()
 
@@ -511,3 +516,317 @@ async def get_scheduled_jobs(request: Request):
         ],
         scheduler_running=scheduler.running if scheduler else False,
     )
+
+
+@router.get("/api/stats/status-bar")
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def get_status_bar(request: Request):
+    """
+    Single endpoint for the global status bar. Returns scheduler timers,
+    token polling tier breakdown, credit usage, and relevant settings.
+    All values are live and reflect current settings.
+    """
+    # Short-lived cache to avoid redundant heavy aggregation on rapid polling
+    cached, _ = _status_bar_cache.get("status_bar")
+    if cached is not None:
+        return cached
+
+    import aiosqlite
+    from meridinate.scheduler import get_all_scheduled_jobs, get_running_jobs
+    from meridinate.settings import DATABASE_FILE
+    from meridinate.tasks.mc_tracker import get_poll_interval_minutes
+
+    # Scheduler jobs (timers)
+    jobs = get_all_scheduled_jobs()
+    running = get_running_jobs()
+    running_ids = {rj["id"] for rj in running}
+
+    timers = {}
+    for job in jobs:
+        timers[job["id"]] = {
+            "name": job["name"],
+            "enabled": job["enabled"],
+            "next_run_at": job["next_run_at"],
+            "interval_minutes": job["interval_minutes"],
+            "is_running": job["id"] in running_ids,
+            "paused": job.get("paused", False),
+        }
+
+    # Token polling tier breakdown
+    tiers = {"fresh": 0, "maturing": 0, "aging": 0, "old": 0, "retired": 0}
+    verdicts = {"wins": 0, "losses": 0, "pending": 0}
+
+    async with aiosqlite.connect(DATABASE_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        # Get all active tokens with age + verdict info
+        cursor = await conn.execute("""
+            SELECT t.id, t.analysis_timestamp, t.market_cap_usd_current, t.market_cap_usd
+            FROM analyzed_tokens t
+            WHERE t.deleted_at IS NULL OR t.deleted_at = ''
+        """)
+        tokens = await cursor.fetchall()
+
+        # Get all verdict tags
+        cursor = await conn.execute(
+            "SELECT token_id, tag FROM token_tags WHERE tag IN ('verified-win', 'verified-loss')"
+        )
+        verdict_map = {}
+        for row in await cursor.fetchall():
+            verdict_map[row[0]] = row[1]
+
+        # Get tokens with open positions
+        cursor = await conn.execute(
+            "SELECT DISTINCT token_id FROM mtew_token_positions WHERE still_holding = 1"
+        )
+        tokens_with_positions = {row[0] for row in await cursor.fetchall()}
+
+        # Get position tracker settings (for daily budget + check interval)
+        cursor = await conn.execute(
+            "SELECT daily_credit_budget, check_interval_minutes FROM swab_settings LIMIT 1"
+        )
+        swab_row = await cursor.fetchone()
+        position_daily_budget = swab_row[0] if swab_row else 500
+        position_check_interval = swab_row[1] if swab_row else 5
+
+        # Position tracker stats
+        cursor = await conn.execute("""
+            SELECT
+                COUNT(*) as total_tracked,
+                SUM(CASE WHEN still_holding = 1 THEN 1 ELSE 0 END) as still_holding,
+                SUM(CASE WHEN still_holding = 0 THEN 1 ELSE 0 END) as exited,
+                AVG(CASE WHEN pnl_source = 'helius_enhanced' AND total_sold_usd > 0
+                    THEN total_sold_usd / NULLIF(total_bought_usd, 0) END) as avg_return,
+                SUM(CASE WHEN pnl_source = 'helius_enhanced' AND realized_pnl > 0 THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN pnl_source = 'helius_enhanced' AND realized_pnl <= 0 AND still_holding = 0 THEN 1 ELSE 0 END) as losses
+            FROM mtew_token_positions
+        """)
+        pos_row = await cursor.fetchone()
+        total_tracked = pos_row[0] or 0
+        still_holding = pos_row[1] or 0
+        exited = pos_row[2] or 0
+        avg_return = pos_row[3]
+        pos_wins = pos_row[4] or 0
+        pos_losses = pos_row[5] or 0
+        pos_total = pos_wins + pos_losses
+        win_rate = (pos_wins / pos_total * 100) if pos_total > 0 else 0
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_active = 0
+    tokens_scanned_today = 0
+    for token in tokens:
+        token_id = token[0]
+        ts_str = token[1]
+        current_mc = token[2] or token[3] or 0
+        verdict = verdict_map.get(token_id)
+
+        if not ts_str:
+            continue
+
+        try:
+            ts = str(ts_str)
+            if "T" in ts:
+                analysis_time = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            else:
+                analysis_time = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            age_hours = (now - analysis_time).total_seconds() / 3600
+            if analysis_time >= today_start:
+                tokens_scanned_today += 1
+        except Exception:
+            continue
+
+        # Count verdicts
+        if verdict == "verified-win":
+            verdicts["wins"] += 1
+        elif verdict == "verified-loss":
+            verdicts["losses"] += 1
+        else:
+            verdicts["pending"] += 1
+
+        # Retirement check (mirrors mc_tracker logic)
+        if current_mc < 1000 and age_hours > 24:
+            tiers["retired"] += 1
+            continue
+        if verdict and token_id not in tokens_with_positions:
+            tiers["retired"] += 1
+            continue
+        if not verdict and age_hours > 336:
+            tiers["retired"] += 1
+            continue
+
+        # Active — categorize by age tier
+        total_active += 1
+        if age_hours <= 6:
+            tiers["fresh"] += 1
+        elif age_hours <= 72:
+            tiers["maturing"] += 1
+        elif age_hours <= 168:
+            tiers["aging"] += 1
+        else:
+            tiers["old"] += 1
+
+    # Credit usage today
+    tracker = get_credit_tracker()
+    daily_stats = tracker.get_daily_usage()
+
+    # Per-job credit breakdown: daily totals + last run cost + last run time + status
+    job_names = ["auto_scan", "mc_tracker", "position_check"]
+    job_credits = {
+        name: {
+            "today": daily_stats.by_operation.get(name, 0),
+            "last_run": 0,
+            "last_run_at": None,
+            "last_run_context": None,
+        }
+        for name in job_names
+    }
+    # Find last run info from operation log
+    recent_ops = tracker.get_recent_operations(limit=50)
+    seen = set()
+    for op in recent_ops:
+        if op.operation in job_credits and op.operation not in seen:
+            job_credits[op.operation]["last_run"] = op.credits
+            job_credits[op.operation]["last_run_at"] = (op.timestamp.isoformat() + "Z") if op.timestamp else None
+            job_credits[op.operation]["last_run_context"] = op.context
+            seen.add(op.operation)
+        if len(seen) == len(job_credits):
+            break
+
+    # Get discovery interval from ingest settings
+    from meridinate.settings import CURRENT_INGEST_SETTINGS
+    discovery_interval = CURRENT_INGEST_SETTINGS.get("discovery_interval_minutes", 15)
+
+    result = {
+        "timers": timers,
+        "polling": {
+            "total_tokens": len(tokens),
+            "total_active": total_active,
+            "tokens_scanned_today": tokens_scanned_today,
+            "tiers": tiers,
+            "tier_intervals": {
+                "fresh": "2-5 min",
+                "maturing": "15 min - 1 hour",
+                "aging": "4 hours",
+                "old": "12-24 hours",
+            },
+            "verdicts": verdicts,
+        },
+        "positions": {
+            "total_tracked": total_tracked,
+            "still_holding": still_holding,
+            "exited": exited,
+            "win_rate": round(win_rate),
+            "avg_return": round(avg_return, 1) if avg_return else None,
+        },
+        "credits": {
+            "used_today": daily_stats.total_credits,
+            "position_daily_budget": position_daily_budget,
+            "by_job": job_credits,
+        },
+        "settings": {
+            "discovery_interval_minutes": discovery_interval,
+            "mc_check_interval_minutes": 2,
+            "position_check_interval_minutes": position_check_interval,
+        },
+        "realtime": await asyncio.to_thread(_get_realtime_stats),
+        "followup": _get_followup_stats(),
+        "clobr": _get_clobr_stats(),
+    }
+
+    _status_bar_cache.set("status_bar", result)
+    return result
+
+
+def _get_followup_stats() -> dict:
+    """Get follow-up tracker stats for the status bar."""
+    try:
+        from meridinate.services.followup_tracker import get_followup_tracker
+        tracker = get_followup_tracker()
+        return {
+            "running": tracker.is_running,
+            **tracker.stats,
+        }
+    except Exception:
+        return {"running": False, "active_tracking": 0}
+
+
+def _get_clobr_stats() -> dict:
+    """Get CLOBr enrichment stats for the status bar."""
+    from meridinate.settings import CURRENT_INGEST_SETTINGS, CLOBR_API_KEY
+    enabled = bool(CURRENT_INGEST_SETTINGS.get("clobr_enabled")) and bool(CLOBR_API_KEY)
+    result = {
+        "enabled": enabled,
+        "min_score": CURRENT_INGEST_SETTINGS.get("clobr_min_score", 30),
+        "has_key": bool(CLOBR_API_KEY),
+        "calls_today": 0,
+    }
+    if enabled:
+        try:
+            from meridinate.services.clobr_service import get_clobr_service
+            svc = get_clobr_service()
+            if svc:
+                result["calls_today"] = svc.calls_today
+        except Exception:
+            pass
+    return result
+
+
+def _get_realtime_stats() -> dict:
+    """Get real-time listener stats for the status bar."""
+    try:
+        from meridinate.services.realtime_listener import get_realtime_listener
+        listener = get_realtime_listener()
+        stats = {
+            "running": listener.is_running,
+            **listener.stats,
+        }
+
+        # Add cross-system metrics from database
+        try:
+            import sqlite3
+            from meridinate.settings import DATABASE_FILE
+            conn = sqlite3.connect(DATABASE_FILE)
+            cursor = conn.cursor()
+
+            # How many webhook tokens were picked up by auto-scan
+            cursor.execute("SELECT COUNT(*) FROM webhook_detections WHERE auto_scan_token_id IS NOT NULL")
+            picked_up = cursor.fetchone()[0]
+
+            # How many were rejected by webhook and saved auto-scan credits
+            cursor.execute("SELECT COUNT(*) FROM webhook_detections WHERE status = 'rejected' AND auto_scan_token_id IS NULL")
+            credits_saved = cursor.fetchone()[0]
+
+            # Average time to migration
+            cursor.execute("SELECT AVG(time_to_migration_minutes) FROM webhook_detections WHERE time_to_migration_minutes IS NOT NULL")
+            avg_migration = cursor.fetchone()[0]
+
+            # Conviction accuracy: high conviction tokens that became wins
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN wd.conviction_score >= 70 AND tt.tag = 'verified-win' THEN 1 ELSE 0 END) as high_conv_wins,
+                    SUM(CASE WHEN wd.conviction_score >= 70 AND tt.tag IS NOT NULL THEN 1 ELSE 0 END) as high_conv_total
+                FROM webhook_detections wd
+                LEFT JOIN token_tags tt ON tt.token_id = wd.auto_scan_token_id AND tt.tag IN ('verified-win', 'verified-loss')
+                WHERE wd.auto_scan_token_id IS NOT NULL
+            """)
+            acc_row = cursor.fetchone()
+            high_conv_wins = acc_row[0] or 0
+            high_conv_total = acc_row[1] or 0
+
+            conn.close()
+
+            stats["cross_system"] = {
+                "tokens_picked_up": picked_up,
+                "tokens_rejected_saved_credits": credits_saved,
+                "avg_migration_minutes": round(avg_migration, 1) if avg_migration else None,
+                "conviction_accuracy": round(high_conv_wins / high_conv_total * 100) if high_conv_total > 0 else None,
+            }
+        except Exception:
+            stats["cross_system"] = {}
+
+        return stats
+    except Exception:
+        return {"running": False}

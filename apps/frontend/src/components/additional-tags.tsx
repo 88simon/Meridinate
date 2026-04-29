@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getWalletTags, addWalletTag, removeWalletTag } from '@/lib/api';
+import { useState } from 'react';
+import { addWalletTag, removeWalletTag } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Tags } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,29 +13,13 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useWalletTags } from '@/contexts/WalletTagsContext';
-import { ADDITIONAL_TAGS, ADDITIONAL_TAGS_DISPLAY } from '@/lib/wallet-tags';
+import { MANUAL_WALLET_TAGS } from '@/lib/wallet-tags';
 
 interface AdditionalTagsPopoverProps {
   walletId?: number;
   walletAddress: string;
   compact?: boolean;
 }
-
-const NATIONALITY_OPTIONS = [
-  { value: '', label: 'Select...' },
-  { value: 'US', label: 'United States (US)' },
-  { value: 'CN', label: 'China (CN)' },
-  { value: 'KR', label: 'South Korea (KR)' },
-  { value: 'JP', label: 'Japan (JP)' },
-  { value: 'EU', label: 'European Union (EU)' },
-  { value: 'UK', label: 'United Kingdom (UK)' },
-  { value: 'SG', label: 'Singapore (SG)' },
-  { value: 'IN', label: 'India (IN)' },
-  { value: 'RU', label: 'Russia (RU)' },
-  { value: 'BR', label: 'Brazil (BR)' },
-  { value: 'CA', label: 'Canada (CA)' },
-  { value: 'AU', label: 'Australia (AU)' }
-];
 
 export function AdditionalTagsPopover({
   walletId,
@@ -45,68 +29,30 @@ export function AdditionalTagsPopover({
   const { tags: allTags } = useWalletTags(walletAddress);
   const [loading, setLoading] = useState(false);
 
-  // Extract only additional tags from context
-  const tags = new Set(
+  // Extract manual tags (tier 3) from context
+  const activeTags = new Set(
     allTags
-      .filter((t) => ADDITIONAL_TAGS.includes(t.tag.toLowerCase() as any))
-      .map((t) => t.tag.toLowerCase())
-  );
-
-  // Find current nationality tag (if any)
-  const currentNationality =
-    allTags
-      .find((t) =>
-        NATIONALITY_OPTIONS.some(
-          (n) => n.value && n.value === t.tag.toUpperCase()
-        )
+      .filter((t) =>
+        (MANUAL_WALLET_TAGS as readonly string[]).includes(t.tag)
       )
-      ?.tag.toUpperCase() || '';
+      .map((t) => t.tag)
+  );
 
   const toggleTag = async (tag: string) => {
     setLoading(true);
     try {
-      const tagLower = tag.toLowerCase();
-      if (tags.has(tagLower)) {
+      if (activeTags.has(tag)) {
         await removeWalletTag(walletAddress, tag);
         toast.success(`Removed ${tag} tag`);
       } else {
         await addWalletTag(walletAddress, tag, false);
         toast.success(`Added ${tag} tag`);
       }
-      // Trigger a custom event to notify the context to refresh
       window.dispatchEvent(
         new CustomEvent('walletTagsChanged', { detail: { walletAddress } })
       );
     } catch (error: any) {
       toast.error(error.message || `Failed to update ${tag} tag`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleNationalityChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    const newNationality = e.target.value;
-    setLoading(true);
-    try {
-      // Remove old nationality tag if exists
-      if (currentNationality) {
-        await removeWalletTag(walletAddress, currentNationality);
-      }
-      // Add new nationality tag if selected
-      if (newNationality) {
-        await addWalletTag(walletAddress, newNationality, false);
-        toast.success(`Set nationality to ${newNationality}`);
-      } else {
-        toast.success('Removed nationality tag');
-      }
-      // Trigger refresh
-      window.dispatchEvent(
-        new CustomEvent('walletTagsChanged', { detail: { walletAddress } })
-      );
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update nationality tag');
     } finally {
       setLoading(false);
     }
@@ -127,50 +73,26 @@ export function AdditionalTagsPopover({
           <Tags className={iconClass} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-56' onClick={(e) => e.stopPropagation()}>
+      <PopoverContent className='w-48' onClick={(e) => e.stopPropagation()}>
         <div className='space-y-3'>
-          <h4 className='text-sm font-semibold'>Additional Tags</h4>
+          <h4 className='text-sm font-semibold'>Manual Tags</h4>
           <div className='space-y-2'>
-            {ADDITIONAL_TAGS_DISPLAY.map((tagDisplay, index) => {
-              const tagLower = ADDITIONAL_TAGS[index];
-              return (
-                <div key={tagLower} className='flex items-center space-x-2'>
-                  <Checkbox
-                    id={`${tagLower}-${uniqueId}`}
-                    checked={tags.has(tagLower)}
-                    onCheckedChange={() => toggleTag(tagDisplay)}
-                    disabled={loading}
-                  />
-                  <Label
-                    htmlFor={`${tagLower}-${uniqueId}`}
-                    className='cursor-pointer text-sm'
-                  >
-                    {tagDisplay}
-                  </Label>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Nationality Dropdown */}
-          <div className='space-y-1.5 border-t pt-3'>
-            <Label htmlFor={`nationality-${uniqueId}`} className='text-sm'>
-              Nationality
-            </Label>
-            <select
-              id={`nationality-${uniqueId}`}
-              value={currentNationality}
-              onChange={handleNationalityChange}
-              onClick={(e) => e.stopPropagation()}
-              disabled={loading}
-              className='border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-3 text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
-            >
-              {NATIONALITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            {MANUAL_WALLET_TAGS.map((tag) => (
+              <div key={tag} className='flex items-center space-x-2'>
+                <Checkbox
+                  id={`${tag}-${uniqueId}`}
+                  checked={activeTags.has(tag)}
+                  onCheckedChange={() => toggleTag(tag)}
+                  disabled={loading}
+                />
+                <Label
+                  htmlFor={`${tag}-${uniqueId}`}
+                  className='cursor-pointer text-sm'
+                >
+                  {tag}
+                </Label>
+              </div>
+            ))}
           </div>
         </div>
       </PopoverContent>
@@ -178,42 +100,13 @@ export function AdditionalTagsPopover({
   );
 }
 
-// Hook to check if a wallet has specific additional tags
-export function useWalletBotTag(walletAddress: string) {
-  const [isBot, setIsBot] = useState(false);
-
-  const checkBotTag = async () => {
-    try {
-      const walletTags = await getWalletTags(walletAddress);
-      const hasBot = walletTags.some((t) => t.tag.toLowerCase() === 'bot');
-      setIsBot(hasBot);
-    } catch (error) {}
-  };
-
-  useEffect(() => {
-    checkBotTag();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletAddress]);
-
-  return isBot;
-}
-
-// Component to display wallet address with bot emoji if tagged
+/** @deprecated Bot indicator removed — replaced by tier-based auto-tags */
 export function WalletAddressWithBotIndicator({
-  walletAddress,
   children
 }: {
   walletAddress: string;
   children: React.ReactNode;
   onTagsChange?: () => void;
 }) {
-  const { tags } = useWalletTags(walletAddress);
-  const isBot = tags.some((t) => t.tag.toLowerCase() === 'bot');
-
-  return (
-    <>
-      {isBot && <span className='mr-1'>🤖</span>}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }

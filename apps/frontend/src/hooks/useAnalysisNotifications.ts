@@ -19,9 +19,29 @@ interface AnalysisStartData {
   token_symbol: string;
 }
 
+interface SwabRefreshCompleteData {
+  tokens_updated: number;
+  fast_lane_updated: number;
+  slow_lane_updated: number;
+  tokens_failed: number;
+}
+
+interface SwabPositionCheckCompleteData {
+  positions_checked: number;
+  positions_updated: number;
+}
+
 interface WebSocketMessage {
-  event: 'analysis_complete' | 'analysis_start';
-  data: AnalysisCompleteData | AnalysisStartData;
+  event:
+    | 'analysis_complete'
+    | 'analysis_start'
+    | 'swab_refresh_complete'
+    | 'swab_position_check_complete';
+  data:
+    | AnalysisCompleteData
+    | AnalysisStartData
+    | SwabRefreshCompleteData
+    | SwabPositionCheckCompleteData;
 }
 
 // singleton websocket connection to prevent duplicate notifications across components
@@ -36,7 +56,14 @@ let reconnectAttempts = 0;
 let lastErrorNotifiedAt = 0;
 let hasShownFailureToast = false;
 let messageCallbacks: Set<
-  (data: AnalysisCompleteData | AnalysisStartData, event: string) => void
+  (
+    data:
+      | AnalysisCompleteData
+      | AnalysisStartData
+      | SwabRefreshCompleteData
+      | SwabPositionCheckCompleteData,
+    event: string
+  ) => void
 > = new Set();
 let lastProcessedJobId: string | null = null;
 let lastProcessedTime = 0;
@@ -103,6 +130,42 @@ const globalMessageHandler = (event: MessageEvent) => {
       });
 
       messageCallbacks.forEach((cb) => cb(data, 'analysis_start'));
+    } else if (message.event === 'swab_refresh_complete') {
+      const data = message.data as SwabRefreshCompleteData;
+
+      toast.success('Token price refresh complete', {
+        description: `${data.tokens_updated} tokens updated${data.tokens_failed > 0 ? `, ${data.tokens_failed} failed` : ''}`,
+        duration: 4000,
+        id: 'swab-refresh-complete'
+      });
+
+      messageCallbacks.forEach((cb) => cb(data, 'swab_refresh_complete'));
+      window.dispatchEvent(new Event('meridinate:mc-refresh-complete'));
+    } else if (message.event === 'swab_position_check_complete') {
+      const data = message.data as SwabPositionCheckCompleteData;
+
+      if (data.positions_updated > 0) {
+        toast.success('Position check complete', {
+          description: `${data.positions_checked} positions checked, ${data.positions_updated} updated`,
+          duration: 4000,
+          id: 'swab-position-check'
+        });
+      }
+
+      messageCallbacks.forEach((cb) =>
+        cb(data, 'swab_position_check_complete')
+      );
+      window.dispatchEvent(new Event('meridinate:position-check-complete'));
+    } else if (message.event === 'scan_complete') {
+      const data = message.data as any;
+      toast.success('Auto-Scan complete', {
+        description: `${data.tokens_scanned} tokens scanned (${data.credits_used} credits)`,
+        duration: 5000,
+        id: 'scan-complete'
+      });
+      // Trigger message callbacks to refresh token list
+      messageCallbacks.forEach((cb) => cb(data, 'scan_complete'));
+      window.dispatchEvent(new Event('meridinate:scan-complete'));
     }
   } catch (error) {
     if (shouldLog()) {
@@ -301,8 +364,19 @@ const attachVisibilityListener = () => {
 export function useAnalysisNotifications(
   onComplete?: (data: AnalysisCompleteData) => void
 ) {
+  // Store onComplete in a ref so the effect doesn't re-run when the callback identity changes
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   const callbackRef = useRef<
-    | ((data: AnalysisCompleteData | AnalysisStartData, event: string) => void)
+    | ((
+        data:
+          | AnalysisCompleteData
+          | AnalysisStartData
+          | SwabRefreshCompleteData
+          | SwabPositionCheckCompleteData,
+        event: string
+      ) => void)
     | null
   >(null);
 
@@ -321,11 +395,15 @@ export function useAnalysisNotifications(
 
     // create callback for this component instance
     const callback = (
-      data: AnalysisCompleteData | AnalysisStartData,
+      data:
+        | AnalysisCompleteData
+        | AnalysisStartData
+        | SwabRefreshCompleteData
+        | SwabPositionCheckCompleteData,
       event: string
     ) => {
-      if (event === 'analysis_complete' && onComplete) {
-        onComplete(data as AnalysisCompleteData);
+      if (event === 'analysis_complete' && onCompleteRef.current) {
+        onCompleteRef.current(data as AnalysisCompleteData);
       }
     };
 
@@ -364,7 +442,8 @@ export function useAnalysisNotifications(
         }
       }
     };
-  }, [onComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return globalWs;
 }

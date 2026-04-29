@@ -30,7 +30,7 @@ from meridinate.observability import (
     set_job_id,
 )
 from meridinate import settings
-from meridinate.settings import CURRENT_API_SETTINGS, HELIUS_API_KEY, REDIS_ENABLED, REDIS_URL
+from meridinate.settings import CURRENT_API_SETTINGS, HELIUS_API_KEY, REDIS_ENABLED, REDIS_URL, API_BASE_URL
 from meridinate.middleware.rate_limit import ANALYSIS_RATE_LIMIT, conditional_rate_limit
 from meridinate.state import (
     ANALYSIS_EXECUTOR,
@@ -166,11 +166,11 @@ def run_token_analysis_sync(
         try:
             newly_marked_count = db.update_multi_token_wallet_metadata(token_id)
             if newly_marked_count > 0:
-                log_info(f"Marked {newly_marked_count} wallet(s) as NEW in multi-token panel")
+                log_info(f"Marked {newly_marked_count} wallet(s) as NEW in recurring wallets")
         except Exception as meta_err:
             log_error("Failed to update multi-token wallet metadata", error=str(meta_err))
 
-        # Track MTEW positions for win rate calculation
+        # Track positions for win rate calculation
         try:
             position_result = record_mtew_positions_for_token(
                 token_id=token_id,
@@ -180,10 +180,10 @@ def run_token_analysis_sync(
             )
             if position_result["positions_tracked"] > 0:
                 log_info(
-                    f"Recorded {position_result['positions_tracked']} MTEW position(s) for token {token_id}"
+                    f"Recorded {position_result['positions_tracked']} position(s) for token {token_id}"
                 )
         except Exception as pos_err:
-            log_error("Failed to record MTEW positions", error=str(pos_err))
+            log_error("Failed to record positions", error=str(pos_err))
 
         # Invalidate cached token list so the new analysis shows up immediately
         try:
@@ -201,24 +201,9 @@ def run_token_analysis_sync(
         except Exception as cache_err:
             log_error("Failed to invalidate multi-token wallets cache after analysis", error=str(cache_err))
 
-        # Get file paths
-        analysis_filepath = db.get_analysis_file_path(token_id, token_name, in_trash=False)
-        axiom_filepath = db.get_axiom_file_path(token_id, acronym, in_trash=False)
-
-        # Ensure directories exist
-        os.makedirs(os.path.dirname(analysis_filepath), exist_ok=True)
-        os.makedirs(os.path.dirname(axiom_filepath), exist_ok=True)
-
-        # Save files
-        with open(analysis_filepath, "w") as f:
-            json.dump(result, f, indent=2)
-        with open(axiom_filepath, "w") as f:
-            json.dump(axiom_export, f, indent=2)
-
-        # Update database with file paths
-        db.update_token_file_paths(token_id, analysis_filepath, axiom_filepath)
-
-        result_filename = os.path.basename(analysis_filepath)
+        # JSON file generation disabled — data is stored in SQLite database
+        # analysis_results/ and axiom_exports/ folders are no longer written to
+        result_filename = f"{token_id}_{token_name.lower().replace(' ', '-')}.json"
 
         # Update job with results
         update_analysis_job(
@@ -263,7 +248,7 @@ def run_token_analysis_sync(
             }
             # Use persistent session for connection reuse
             _http_session.post(
-                "http://localhost:5003/notify/analysis_complete",
+                f"{API_BASE_URL}/notify/analysis_complete",
                 json=notification_data,
                 timeout=1,
             )

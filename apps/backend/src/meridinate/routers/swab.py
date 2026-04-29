@@ -1,7 +1,7 @@
 """
-SWAB (Smart Wallet Archive Builder) Router
-===========================================
-API endpoints for SWAB position tracking, settings, and controls.
+Position Tracker Router
+=======================
+API endpoints for position tracking, settings, and controls.
 """
 
 from typing import Optional, List
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/swab")
 
 
 class SwabSettingsResponse(BaseModel):
-    """SWAB settings response model."""
+    """Position tracker settings response model."""
 
     auto_check_enabled: bool
     check_interval_minutes: int
@@ -36,17 +36,17 @@ class SwabSettingsResponse(BaseModel):
 
 
 class SwabSettingsUpdate(BaseModel):
-    """SWAB settings update request model."""
+    """Position tracker settings update request model."""
 
     auto_check_enabled: Optional[bool] = None
     check_interval_minutes: Optional[int] = Field(None, ge=5, le=1440)
-    daily_credit_budget: Optional[int] = Field(None, ge=0, le=100000)
+    daily_credit_budget: Optional[int] = Field(None, ge=0, le=10000000)
     stale_threshold_minutes: Optional[int] = Field(None, ge=5, le=1440)
     min_token_count: Optional[int] = Field(None, ge=1, le=50)
 
 
 class SwabStatsResponse(BaseModel):
-    """SWAB overview statistics response model."""
+    """Position tracker overview statistics response model."""
 
     total_positions: int
     holding: int
@@ -162,20 +162,20 @@ class WalletExpectancyResponse(BaseModel):
 # =============================================================================
 
 
-@router.get("/settings", response_model=SwabSettingsResponse, tags=["SWAB"])
+@router.get("/settings", response_model=SwabSettingsResponse, tags=["Position Tracker"])
 async def get_settings():
-    """Get SWAB configuration settings."""
+    """Get position tracker configuration settings."""
     try:
         settings = db.get_swab_settings()
         return SwabSettingsResponse(**settings)
     except Exception as e:
-        log_error(f"Error fetching SWAB settings: {e}")
+        log_error(f"Error fetching position settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/settings", response_model=SwabSettingsResponse, tags=["SWAB"])
+@router.put("/settings", response_model=SwabSettingsResponse, tags=["Position Tracker"])
 async def update_settings(settings: SwabSettingsUpdate):
-    """Update SWAB configuration settings."""
+    """Update position tracker configuration settings."""
     try:
         updated = db.update_swab_settings(
             auto_check_enabled=settings.auto_check_enabled,
@@ -189,16 +189,16 @@ async def update_settings(settings: SwabSettingsUpdate):
         from meridinate.scheduler import update_scheduler_interval
         update_scheduler_interval()
 
-        log_info(f"SWAB settings updated: {settings.dict(exclude_none=True)}")
+        log_info(f"Position tracker settings updated: {settings.dict(exclude_none=True)}")
         return SwabSettingsResponse(**updated)
     except Exception as e:
-        log_error(f"Error updating SWAB settings: {e}")
+        log_error(f"Error updating position settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/scheduler/status", tags=["SWAB"])
+@router.get("/scheduler/status", tags=["Position Tracker"])
 async def get_scheduler_status():
-    """Get SWAB scheduler status."""
+    """Get Position tracker scheduler status."""
     try:
         from meridinate.scheduler import get_scheduler_status
         return get_scheduler_status()
@@ -212,14 +212,14 @@ async def get_scheduler_status():
 # =============================================================================
 
 
-@router.get("/stats", response_model=SwabStatsResponse, tags=["SWAB"])
+@router.get("/stats", response_model=SwabStatsResponse, tags=["Position Tracker"])
 async def get_stats():
-    """Get SWAB overview statistics."""
+    """Get position tracker overview statistics."""
     try:
         stats = db.get_swab_stats()
         return SwabStatsResponse(**stats)
     except Exception as e:
-        log_error(f"Error fetching SWAB stats: {e}")
+        log_error(f"Error fetching position stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -228,7 +228,7 @@ async def get_stats():
 # =============================================================================
 
 
-@router.get("/positions", response_model=PositionsResponse, tags=["SWAB"])
+@router.get("/positions", response_model=PositionsResponse, tags=["Position Tracker"])
 async def get_positions(
     min_token_count: Optional[int] = Query(None, ge=1, le=50),
     status: Optional[str] = Query(None, regex="^(holding|sold|stale|all)$"),
@@ -241,7 +241,7 @@ async def get_positions(
     Get tracked positions with filters.
 
     Query parameters:
-    - min_token_count: Minimum tokens for MTEW to be included
+    - min_token_count: Minimum tokens for recurring wallet to be included
     - status: Filter by status ('holding', 'sold', 'stale', 'all')
     - pnl_min: Minimum PnL ratio
     - pnl_max: Maximum PnL ratio
@@ -259,25 +259,25 @@ async def get_positions(
         )
         return PositionsResponse(**result)
     except Exception as e:
-        log_error(f"Error fetching SWAB positions: {e}")
+        log_error(f"Error fetching positions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/wallets", response_model=list[WalletSummaryResponse], tags=["SWAB"])
+@router.get("/wallets", response_model=list[WalletSummaryResponse], tags=["Position Tracker"])
 async def get_wallet_summaries(
     min_token_count: Optional[int] = Query(None, ge=1, le=50),
 ):
     """
-    Get aggregated wallet summaries for SWAB.
+    Get aggregated wallet summaries for position tracking.
 
     Query parameters:
-    - min_token_count: Minimum tokens for MTEW to be included
+    - min_token_count: Minimum tokens for recurring wallet to be included
     """
     try:
         wallets = db.get_swab_wallet_summary(min_token_count=min_token_count)
         return [WalletSummaryResponse(**w) for w in wallets]
     except Exception as e:
-        log_error(f"Error fetching SWAB wallet summaries: {e}")
+        log_error(f"Error fetching tracked wallet summaries: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -286,7 +286,7 @@ async def get_wallet_summaries(
 # =============================================================================
 
 
-@router.post("/positions/{position_id}/stop", tags=["SWAB"])
+@router.post("/positions/{position_id}/stop", tags=["Position Tracker"])
 async def stop_position_tracking(position_id: int, request: StopTrackingRequest):
     """Stop tracking a specific position."""
     try:
@@ -303,7 +303,7 @@ async def stop_position_tracking(position_id: int, request: StopTrackingRequest)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/positions/{position_id}/resume", tags=["SWAB"])
+@router.post("/positions/{position_id}/resume", tags=["Position Tracker"])
 async def resume_position_tracking(position_id: int):
     """Resume tracking a previously stopped position."""
     try:
@@ -320,7 +320,7 @@ async def resume_position_tracking(position_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/wallets/{wallet_address}/stop", tags=["SWAB"])
+@router.post("/wallets/{wallet_address}/stop", tags=["Position Tracker"])
 async def stop_wallet_tracking(wallet_address: str, request: StopTrackingRequest):
     """Stop tracking all positions for a wallet."""
     try:
@@ -336,7 +336,7 @@ async def stop_wallet_tracking(wallet_address: str, request: StopTrackingRequest
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/positions/batch-stop", tags=["SWAB"])
+@router.post("/positions/batch-stop", tags=["Position Tracker"])
 async def batch_stop_position_tracking(request: BatchStopTrackingRequest):
     """Stop tracking multiple positions at once."""
     try:
@@ -370,7 +370,7 @@ async def batch_stop_position_tracking(request: BatchStopTrackingRequest):
 # =============================================================================
 
 
-@router.post("/check", response_model=CheckResultResponse, tags=["SWAB"])
+@router.post("/check", response_model=CheckResultResponse, tags=["Position Tracker"])
 async def trigger_position_check(
     max_positions: int = Query(50, ge=1, le=200),
     max_credits: Optional[int] = Query(None, ge=10, le=2000),
@@ -410,7 +410,7 @@ async def trigger_position_check(
             max_credits=max_credits,
         )
 
-        # Update SWAB credits used
+        # Update position tracker credits used
         db.update_swab_last_check(credits_used=result.get("credits_used", 0))
 
         # Log high-level operation for persistent history
@@ -432,7 +432,7 @@ async def trigger_position_check(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/update-pnl", tags=["SWAB"])
+@router.post("/update-pnl", tags=["Position Tracker"])
 async def trigger_pnl_update():
     """
     Update PnL ratios for all holding positions.
@@ -463,7 +463,7 @@ async def trigger_pnl_update():
 @router.get(
     "/expectancies",
     response_model=list[WalletExpectancyResponse],
-    tags=["SWAB"],
+    tags=["Position Tracker"],
 )
 async def get_wallet_expectancies(
     min_closed: int = Query(5, ge=1, le=100),
@@ -489,7 +489,7 @@ async def get_wallet_expectancies(
 @router.get(
     "/expectancies/{wallet_address}",
     response_model=WalletExpectancyResponse,
-    tags=["SWAB"],
+    tags=["Position Tracker"],
 )
 async def get_wallet_expectancy(wallet_address: str):
     """
@@ -505,36 +505,39 @@ async def get_wallet_expectancy(wallet_address: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/labels/update", tags=["SWAB"])
+@router.post("/labels/update", tags=["Position Tracker"])
 async def trigger_label_update():
     """
-    Trigger a batch update of all Smart/Dumb labels.
+    Trigger a batch update of Tier 2 computed wallet tags.
 
-    This recalculates expectancy for all eligible wallets and updates their labels.
+    Recalculates Consistent Winner/Loser, Diversified, Sniper for all eligible wallets.
     """
     try:
         # Get all wallets with sufficient closed positions
         expectancies = db.get_all_wallet_expectancies()
         wallet_addresses = [e["wallet_address"] for e in expectancies]
 
-        # Batch update labels
-        results = db.batch_update_wallet_labels(wallet_addresses)
-
-        # Count results
-        smart_count = sum(1 for label in results.values() if label == "smart")
-        dumb_count = sum(1 for label in results.values() if label == "dumb")
-        neutral_count = sum(1 for label in results.values() if label is None)
+        # Batch compute Tier 2 tags
+        winner_count = 0
+        loser_count = 0
+        for addr in wallet_addresses:
+            tags = db.compute_wallet_tier2_tags(addr)
+            tag_names = [t["tag"] for t in tags]
+            if "Consistent Winner" in tag_names:
+                winner_count += 1
+            if "Consistent Loser" in tag_names:
+                loser_count += 1
 
         log_info(
-            f"Label update complete: {smart_count} smart, {dumb_count} dumb, {neutral_count} neutral"
+            f"Label update complete: {winner_count} winners, {loser_count} losers out of {len(wallet_addresses)} wallets"
         )
 
         return {
             "success": True,
             "wallets_processed": len(wallet_addresses),
-            "smart_count": smart_count,
-            "dumb_count": dumb_count,
-            "neutral_count": neutral_count,
+            "smart_count": winner_count,
+            "dumb_count": loser_count,
+            "neutral_count": len(wallet_addresses) - winner_count - loser_count,
         }
     except Exception as e:
         log_error(f"Error during label update: {e}")
@@ -546,23 +549,23 @@ async def trigger_label_update():
 # =============================================================================
 
 
-@router.post("/purge", tags=["SWAB"])
+@router.post("/purge", tags=["Position Tracker"])
 async def purge_swab_data():
     """
-    Purge all SWAB position tracking data for a fresh start.
+    Purge all position tracking data for a fresh start.
 
     This deletes:
     - All records from mtew_token_positions
     - All wallet metrics
     - Smart/Dumb labels from wallets
 
-    Use this when you want to reset SWAB tracking entirely.
+    Use this when you want to reset position tracking entirely.
     """
     try:
         result = db.purge_swab_data()
 
         log_info(
-            f"SWAB data purged: {result['positions_deleted']} positions, {result['metrics_deleted']} metrics deleted"
+            f"Position data purged: {result['positions_deleted']} positions, {result['metrics_deleted']} metrics deleted"
         )
 
         return {
@@ -571,7 +574,7 @@ async def purge_swab_data():
             "metrics_deleted": result["metrics_deleted"],
         }
     except Exception as e:
-        log_error(f"Error purging SWAB data: {e}")
+        log_error(f"Error purging position data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -607,7 +610,7 @@ class ReconciliationResponse(BaseModel):
 @router.post(
     "/reconcile/{token_id}",
     response_model=ReconciliationResponse,
-    tags=["SWAB"],
+    tags=["Position Tracker"],
 )
 async def reconcile_token_positions(
     token_id: int,
@@ -809,7 +812,7 @@ async def reconcile_token_positions(
 @router.post(
     "/reconcile-all",
     response_model=ReconciliationResponse,
-    tags=["SWAB"],
+    tags=["Position Tracker"],
 )
 async def reconcile_all_positions(
     max_signatures: int = Query(50, ge=10, le=200),

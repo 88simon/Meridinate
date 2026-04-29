@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Copy, ExternalLink, Twitter } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useWalletIntelligence } from '@/contexts/wallet-intelligence-context';
 import { toast } from 'sonner';
 import {
   Tooltip,
@@ -63,6 +64,7 @@ export function WalletTopHoldersModal({
   open,
   onClose
 }: WalletTopHoldersModalProps) {
+  const { openWIR } = useWalletIntelligence();
   const [tokensData, setTokensData] =
     useState<WalletTopHolderTokensResponse | null>(null);
   const [activeTokenIndex, setActiveTokenIndex] = useState(0);
@@ -298,23 +300,13 @@ export function WalletTopHoldersModal({
                         </TableCell>
                         <TableCell>
                           <div className='flex items-center gap-1'>
-                            {solscanSettings ? (
-                              <a
-                                href={buildSolscanUrl(
-                                  holder.address,
-                                  solscanSettings
-                                )}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className='text-primary truncate font-mono text-xs hover:underline'
-                              >
-                                {holder.address}
-                              </a>
-                            ) : (
-                              <span className='font-mono text-xs'>
-                                {holder.address}
-                              </span>
-                            )}
+                            <span
+                              className='truncate font-mono text-xs cursor-pointer hover:text-blue-400 transition-colors'
+                              title='Click for Wallet Intelligence Report'
+                              onClick={() => openWIR(holder.address)}
+                            >
+                              {holder.address}
+                            </span>
                             {isCurrentWallet && (
                               <Badge variant='default' className='text-[10px]'>
                                 YOU

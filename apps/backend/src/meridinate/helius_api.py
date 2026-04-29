@@ -48,6 +48,9 @@ class HeliusAPI:
         self.enhanced_url = "https://api.helius.xyz/v0"
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
+        # Increase connection pool to handle concurrent wallet API calls
+        adapter = requests.adapters.HTTPAdapter(pool_connections=50, pool_maxsize=50)
+        self.session.mount("https://", adapter)
         self.api_credits_used = 0  # Track API credits used
 
         # SOL price caching to avoid excessive API calls
@@ -166,6 +169,159 @@ class HeliusAPI:
             print(f"Error fetching wallet balance for {wallet_address}: {str(e)}")
             return None, 0
 
+    # ========================================================================
+    # Wallet API (Beta) — https://api.helius.xyz/v1/wallet/
+    # ========================================================================
+
+    def _wallet_api_call(self, path: str, method: str = "GET", json_body: dict = None) -> dict:
+        """Make a call to the Helius Wallet API (v1)."""
+        url = f"https://api.helius.xyz/v1/{path}"
+        params = {"api-key": self.api_key}
+        try:
+            if method == "POST":
+                response = self.session.post(url, params=params, json=json_body, timeout=30)
+            else:
+                response = self.session.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                return {"error": "not_found", "status": 404}
+            raise Exception(f"Wallet API call failed ({path}): {str(e)}")
+        except Exception as e:
+            raise Exception(f"Wallet API call failed ({path}): {str(e)}")
+
+    def get_wallet_balances(self, wallet_address: str) -> tuple[Optional[Dict], int]:
+        """
+        Get comprehensive wallet balances using the Wallet API.
+
+        Returns all SPL token holdings with USD values, SOL balance, and total portfolio value
+        in a single call — replacing the old getBalance + CoinGecko SOL price approach.
+
+        Returns:
+            Tuple of (balances dict, credits_used)
+            balances dict: {totalUsdValue, balances: [{mint, symbol, name, balance, usdValue, ...}]}
+        """
+        try:
+            result = self._wallet_api_call(
+                f"wallet/{wallet_address}/balances?showNative=true&limit=100"
+            )
+            if "error" in result:
+                return None, 100
+
+            get_credit_tracker().record(
+                CreditOperation.WALLET_API_BALANCES,
+                credits=100,
+                wallet_address=wallet_address,
+            )
+            return result, 100
+        except Exception as e:
+            print(f"[Helius] Wallet API balances error for {wallet_address[:8]}: {str(e)}")
+            return None, 0
+
+    def get_wallet_funded_by(self, wallet_address: str) -> tuple[Optional[Dict], int]:
+        """
+        Get the original funding source of a wallet.
+
+        Returns the address that sent the first SOL transfer to this wallet,
+        useful for detecting wallet clusters (sybil detection).
+
+        Returns:
+            Tuple of (funded_by dict, credits_used)
+            funded_by dict: {funder, funderName, funderType, amount, date, ...}
+        """
+        try:
+            result = self._wallet_api_call(f"wallet/{wallet_address}/funded-by")
+            if "error" in result:
+                return None, 100
+
+            get_credit_tracker().record(
+                CreditOperation.WALLET_API_FUNDED_BY,
+                credits=100,
+                wallet_address=wallet_address,
+            )
+            return result, 100
+        except Exception as e:
+            print(f"[Helius] Wallet API funded-by error for {wallet_address[:8]}: {str(e)}")
+            return None, 0
+
+    def get_wallet_identity(self, wallet_address: str) -> tuple[Optional[Dict], int]:
+        """
+        Get identity info for a wallet (exchange, protocol, labeled entity).
+
+        Returns:
+            Tuple of (identity dict, credits_used)
+            identity dict: {address, type, name, category, tags}
+        """
+        try:
+            result = self._wallet_api_call(f"wallet/{wallet_address}/identity")
+            if "error" in result:
+                return None, 100
+
+            get_credit_tracker().record(
+                CreditOperation.WALLET_API_IDENTITY,
+                credits=100,
+                wallet_address=wallet_address,
+            )
+            return result, 100
+        except Exception as e:
+            print(f"[Helius] Wallet API identity error for {wallet_address[:8]}: {str(e)}")
+            return None, 0
+
+    def get_batch_wallet_identities(self, wallet_addresses: List[str]) -> tuple[Optional[List[Dict]], int]:
+        """
+        Batch lookup of wallet identities (up to 100 at once).
+
+        Returns:
+            Tuple of (list of identity dicts, credits_used)
+        """
+        try:
+            result = self._wallet_api_call(
+                "wallet/batch-identity",
+                method="POST",
+                json_body=wallet_addresses,
+            )
+            credits = 100  # batch call
+            get_credit_tracker().record(
+                CreditOperation.WALLET_API_BATCH_IDENTITY,
+                credits=credits,
+                context={"count": len(wallet_addresses)},
+            )
+            if isinstance(result, list):
+                return result, credits
+            return None, credits
+        except Exception as e:
+            print(f"[Helius] Wallet API batch-identity error: {str(e)}")
+            return None, 0
+
+    def get_wallet_transfers(
+        self, wallet_address: str, limit: int = 50, cursor: str = None
+    ) -> tuple[Optional[Dict], int]:
+        """
+        Get all incoming/outgoing transfers for a wallet with counterparty info.
+
+        Returns:
+            Tuple of (transfers dict, credits_used)
+            transfers dict: {data: [{signature, timestamp, direction, counterparty, mint, symbol, amount, ...}], pagination}
+        """
+        try:
+            path = f"wallet/{wallet_address}/transfers?limit={limit}"
+            if cursor:
+                path += f"&cursor={cursor}"
+            result = self._wallet_api_call(path)
+            if "error" in result:
+                return None, 100
+
+            get_credit_tracker().record(
+                CreditOperation.WALLET_API_TRANSFERS,
+                credits=100,
+                wallet_address=wallet_address,
+            )
+            return result, 100
+        except Exception as e:
+            print(f"[Helius] Wallet API transfers error for {wallet_address[:8]}: {str(e)}")
+            return None, 0
+
     def _rpc_call(self, method: str, params: list) -> dict:
         """Make a JSON-RPC call to Helius"""
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
@@ -271,13 +427,13 @@ class HeliusAPI:
                     "legacyMetadata": metadata,
                     "market_cap_usd": market_cap_usd,
                 }
-                # DAS API getAsset costs 1 credit - record to tracker
+                # DAS API getAsset costs 10 credits
                 get_credit_tracker().record(
                     CreditOperation.TOKEN_METADATA,
-                    credits=1,
+                    credits=10,
                     context={"mint_address": mint_address, "method": "das"},
                 )
-                return formatted, 1
+                return formatted, 10
         except Exception as das_error:
             print(f"Error fetching token metadata (DAS): {str(das_error)}")
 
@@ -548,10 +704,10 @@ class HeliusAPI:
             response.raise_for_status()
             result = response.json()
 
-            # getTokenAccountsByOwner costs 10 credits
+            # getTokenAccountsByOwner = standard RPC (1 credit)
             get_credit_tracker().record(
                 CreditOperation.TOKEN_ACCOUNTS,
-                credits=10,
+                credits=1,
                 wallet_address=owner_address,
                 context={"mint_address": mint_address},
             )
@@ -962,11 +1118,11 @@ class HeliusAPI:
 
                 # Make the RPC call
                 result = self._rpc_call("getTransactionsForAddress", params)
-                api_calls += 1  # 100 credits per call
-                # Record high-cost transaction fetch
+                api_calls += 1  # 50 credits per call
+                # Record transaction fetch
                 get_credit_tracker().record(
                     CreditOperation.TRANSACTIONS_FOR_ADDRESS,
-                    credits=100,
+                    credits=50,
                     context={"address": address, "batch_limit": batch_limit},
                 )
 
@@ -1246,10 +1402,18 @@ class HeliusAPI:
                             }
                         )
 
+            # Fee payer is the first account in the transaction (Solana spec)
+            accounts = transaction.get("message", {}).get("accountKeys", [])
+            fee_payer = None
+            if accounts:
+                first_account = accounts[0]
+                fee_payer = first_account.get("pubkey") if isinstance(first_account, dict) else first_account
+
             return {
                 "signature": signature,
                 "timestamp": timestamp,
                 "type": "UNKNOWN",  # We'll infer type from transfers
+                "feePayer": fee_payer,
                 "tokenTransfers": token_transfers,
                 "nativeTransfers": native_transfers,
             }
@@ -1384,6 +1548,106 @@ class HeliusAPI:
 
         window_end = first_tx_time + timedelta(hours=time_window_hours)
         print(f"[Helius] Analysis window: {first_tx_time} to {window_end}")
+
+        def creation_events_has_lp(events):
+            return any(e["type"] == "ADD_LIQUIDITY" for e in events)
+
+        # Extract creation timeline events from earliest transactions
+        creation_events = []
+        deployer_address = None
+        first_real_buy_found = False
+
+        for tx_idx, tx in enumerate(transactions[:20]):
+            if not tx.get("timestamp"):
+                continue
+            tx_time = datetime.utcfromtimestamp(tx["timestamp"])
+            token_transfers = tx.get("tokenTransfers", [])
+            native_transfers = tx.get("nativeTransfers", [])
+            signature = tx.get("signature", "")
+
+            # Find the largest SOL sender in this transaction
+            largest_sol_sender = None
+            largest_sol_amount = 0
+            for nt in native_transfers:
+                amt = nt.get("amount", 0)
+                sender = nt.get("fromUserAccount")
+                if sender and amt > largest_sol_amount:
+                    largest_sol_amount = amt
+                    largest_sol_sender = sender
+
+            # First transaction = token creation
+            # Use feePayer (Solana spec: first account = transaction initiator) as primary deployer signal
+            if tx_idx == 0:
+                fee_payer = tx.get("feePayer")
+                deployer_candidate = fee_payer or largest_sol_sender
+                if deployer_candidate and (not fee_payer or self.is_wallet_on_curve(deployer_candidate)):
+                    deployer_address = deployer_candidate
+                elif largest_sol_sender and self.is_wallet_on_curve(largest_sol_sender):
+                    deployer_address = largest_sol_sender
+
+                if not deployer_address:
+                    continue
+
+                # Check if tokens were minted from None (PumpFun style: create + first buy in one tx)
+                has_mint_from_none = any(
+                    t.get("mint") == mint_address and not t.get("fromUserAccount")
+                    for t in token_transfers
+                )
+                creation_events.append({
+                    "type": "CREATE",
+                    "timestamp": tx_time.isoformat(),
+                    "wallet": deployer_address,
+                    "signature": signature,
+                    "sol_amount": largest_sol_amount / 1e9,
+                })
+                # If this is a PumpFun-style combined create+buy, also count as first buy
+                if has_mint_from_none and largest_sol_amount > 100000:
+                    # The deployer is also the first buyer on PumpFun
+                    creation_events.append({
+                        "type": "FIRST_BUY",
+                        "timestamp": tx_time.isoformat(),
+                        "wallet": largest_sol_sender,
+                        "signature": signature,
+                        "sol_amount": largest_sol_amount / 1e9,
+                        "usd_amount": (largest_sol_amount / 1e9) * 200,
+                    })
+                    first_real_buy_found = True
+                continue
+
+            if first_real_buy_found:
+                break
+
+            # Subsequent transactions: classify as LP add or real buy
+            has_mint_transfer = any(
+                t.get("mint") == mint_address for t in token_transfers
+            )
+            if not has_mint_transfer or not largest_sol_sender:
+                continue
+
+            is_on_curve = self.is_wallet_on_curve(largest_sol_sender)
+
+            if largest_sol_sender == deployer_address and not creation_events_has_lp(creation_events):
+                creation_events.append({
+                    "type": "ADD_LIQUIDITY",
+                    "timestamp": tx_time.isoformat(),
+                    "wallet": largest_sol_sender,
+                    "signature": signature,
+                    "sol_amount": largest_sol_amount / 1e9,
+                })
+            elif is_on_curve:
+                creation_events.append({
+                    "type": "FIRST_BUY",
+                    "timestamp": tx_time.isoformat(),
+                    "wallet": largest_sol_sender,
+                    "signature": signature,
+                    "sol_amount": largest_sol_amount / 1e9,
+                    "usd_amount": (largest_sol_amount / 1e9) * 200,
+                })
+                first_real_buy_found = True
+
+        if deployer_address:
+            print(f"[Helius] Deployer: {deployer_address[:12]}...")
+        print(f"[Helius] Creation events: {len(creation_events)} events captured")
 
         # Track buyers within time window
         buyers = {}  # wallet_address -> {first_buy, total_usd, tx_count}
@@ -1552,6 +1816,8 @@ class HeliusAPI:
             "total_transactions_analyzed": len(transactions),
             "api_credits_used": total_credits,
             "top_holders": top_holders_data,
+            "deployer_address": deployer_address,
+            "creation_events": creation_events,
         }
 
     def _extract_buy_info(self, tx: dict, mint_address: str, debug_first: bool = False) -> tuple:
@@ -1627,7 +1893,7 @@ class HeliusAPI:
 
                     if buyer_wallet and largest_sol_payment > 0:
                         sol_amount = largest_sol_payment / 1e9
-                        usd_amount = sol_amount * 200  # 1 SOL ≈ $200 USD
+                        usd_amount = sol_amount * self._get_sol_price_usd()
 
                         if debug_first:
                             print(

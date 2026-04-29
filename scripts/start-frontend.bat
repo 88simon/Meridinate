@@ -38,10 +38,19 @@ if not exist "package.json" (
     exit /b 1
 )
 
-echo Starting Next.js development server...
+echo Building Next.js for production...
 echo Working directory: %CD%
 echo.
 
-pnpm dev
+call npx next build
+if errorlevel 1 (
+    echo.
+    echo Build failed. Falling back to dev mode...
+    npx next dev
+) else (
+    echo.
+    echo Starting Next.js production server...
+    npx next start
+)
 
 pause

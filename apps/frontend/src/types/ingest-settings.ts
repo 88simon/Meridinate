@@ -37,6 +37,14 @@ export type IngestSettings = components['schemas']['IngestSettings'] & {
   dormant_threshold_hours?: number;
   low_liquidity_threshold?: number;
 
+  // CLOBr enrichment settings
+  clobr_enabled?: boolean;
+  clobr_min_score?: number;
+
+  // Real-time detection settings
+  realtime_watch_window_seconds?: number;
+  realtime_mc_min_at_close?: number;
+
   // Run tracking (new)
   last_discovery_run_at?: string | null;
   last_refresh_run_at?: string | null;
@@ -83,6 +91,10 @@ export type IngestSettingsUpdate =
     stale_threshold_hours?: number;
     dormant_threshold_hours?: number;
     low_liquidity_threshold?: number;
+
+    // CLOBr enrichment settings
+    clobr_enabled?: boolean;
+    clobr_min_score?: number;
 
     // Legacy fields (backward compatibility)
     ingest_enabled?: boolean;
@@ -183,6 +195,10 @@ export const DEFAULT_INGEST_SETTINGS: IngestSettings = {
   dormant_threshold_hours: 72,
   low_liquidity_threshold: 20000,
 
+  // CLOBr enrichment
+  clobr_enabled: false,
+  clobr_min_score: 50,
+
   // Performance scoring settings
   score_enabled: false,
   performance_prime_threshold: 65,
@@ -240,6 +256,9 @@ export const INGEST_LIMITS = {
   stale_threshold_hours: { min: 1, max: 24 },
   dormant_threshold_hours: { min: 1, max: 168 },
   low_liquidity_threshold: { min: 0, max: 500000 },
+
+  // CLOBr enrichment
+  clobr_min_score: { min: 0, max: 100 },
 
   // Performance scoring
   performance_prime_threshold: { min: 0, max: 100 },

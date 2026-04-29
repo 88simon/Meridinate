@@ -5,8 +5,8 @@ import withPWA from '@ducanh2912/next-pwa';
 
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
-  // Enable standalone output for Docker builds
-  output: 'standalone',
+  // Standalone output disabled — not needed for local development
+  // output: 'standalone',
   images: {
     remotePatterns: [
       {

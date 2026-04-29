@@ -170,11 +170,11 @@ async def notify_swab_refresh_complete(
     tokens_failed: int,
 ):
     """
-    Send SWAB-driven refresh completion notification to all connected clients.
+    Send position-driven refresh completion notification to all connected clients.
 
     Args:
         tokens_updated: Total tokens successfully updated
-        fast_lane_updated: Fast-lane tokens updated (SWAB exposure or high MC)
+        fast_lane_updated: Fast-lane tokens updated (position exposure or high MC)
         slow_lane_updated: Slow-lane tokens updated
         tokens_failed: Tokens that failed to update
     """
@@ -190,14 +190,14 @@ async def notify_swab_refresh_complete(
     }
     await mgr.broadcast(message)
     logger.info(
-        f"[Notify] SWAB refresh complete: {tokens_updated} updated "
+        f"[Notify] MC refresh complete: {tokens_updated} updated "
         f"(fast={fast_lane_updated}, slow={slow_lane_updated}), {tokens_failed} failed"
     )
 
 
 async def notify_swab_position_check_complete(positions_checked: int, positions_updated: int):
     """
-    Send SWAB position check completion notification to all connected clients.
+    Send position check completion notification to all connected clients.
 
     Args:
         positions_checked: Number of positions checked
@@ -212,4 +212,4 @@ async def notify_swab_position_check_complete(positions_checked: int, positions_
         },
     }
     await mgr.broadcast(message)
-    logger.info(f"[Notify] SWAB position check complete: {positions_checked} checked, {positions_updated} updated")
+    logger.info(f"[Notify] Position check complete: {positions_checked} checked, {positions_updated} updated")

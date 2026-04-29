@@ -36,6 +36,10 @@ dist/
 # Config files (contains API keys)
 apps/backend/config.json
 
+# Generated data files (stored in SQLite, not files)
+apps/backend/data/analysis_results/
+apps/backend/data/axiom_exports/
+
 # IDE
 .vscode/
 .idea/

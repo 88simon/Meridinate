@@ -6,11 +6,9 @@ export interface ApiSettings {
   maxCreditsPerAnalysis: number;
   maxRetries: number;
   bypassLimits?: boolean;
-}
-
-export interface WebhookInfo {
-  webhookID: string;
-  webhookURL: string;
-  accountAddresses?: string[];
-  webhookType?: string;
+  // Intel Agent settings
+  intelMaxTokens?: number;
+  intelHousekeeperMaxTokens?: number;
+  intelForensicsWalletCount?: number;
+  intelModel?: string;
 }

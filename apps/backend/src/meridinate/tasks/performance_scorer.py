@@ -255,7 +255,7 @@ def score_token(token_address: str) -> Optional[Dict]:
     except Exception:
         pass
 
-    # Get high-win-rate wallet count (from MTEW analysis if available)
+    # Get high-win-rate wallet count (from position tracking if available)
     high_win_rate_count = 0
     try:
         from meridinate.analyzed_tokens_db import get_db_connection

@@ -12,19 +12,43 @@ export type Product = {
 };
 
 //Info: The following data is used for the sidebar navigation.
-// Order: Ingestion, Scanned Tokens, Codex (button), Trash, Settings (modal)
+// Order: Wallet Leaderboard (HOME), Token Leaderboard, Token Pipeline, Codex (button), Trash, Settings (modal)
 export const navItems: NavItem[] = [
   {
-    title: 'Ingestion',
-    url: '/dashboard/ingestion',
-    icon: 'ingest',
-    shortcut: ['i', 'i'],
+    title: 'Wallet Leaderboard',
+    url: '/dashboard/wallets',
+    icon: 'tracking',
+    shortcut: ['w', 'w'],
     isActive: false,
     items: []
   },
   {
-    title: 'Scanned Tokens',
-    url: '/dashboard/tokens',
+    title: 'Token Leaderboard',
+    url: '/dashboard/token-leaderboard',
+    icon: 'chart',
+    shortcut: ['l', 'l'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Quick DD',
+    url: '/dashboard/quick-dd',
+    icon: 'search',
+    shortcut: ['q', 'q'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Rug Analysis',
+    url: '/dashboard/rug-analysis',
+    icon: 'shield',
+    shortcut: ['r', 'a'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Command Center',
+    url: '/dashboard/bot-tracker',
     icon: 'product',
     shortcut: ['t', 't'],
     isActive: false,

@@ -1,7 +1,7 @@
 """
-MTEW Position Tracker Task
-==========================
-Periodically checks if MTEWs still hold their positions in analyzed tokens
+Position Tracker Task
+=====================
+Periodically checks if recurring wallets still hold their positions in analyzed tokens
 and calculates PnL metrics for win rate tracking.
 
 This task is designed to be run by APScheduler or manually triggered.
@@ -9,6 +9,8 @@ Cost: ~10 credits per position check (getTokenAccountsByOwner)
 """
 
 import asyncio
+import json
+import statistics
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -25,7 +27,7 @@ async def check_mtew_positions(
     max_credits: int = 500,
 ) -> Dict[str, Any]:
     """
-    Check stale MTEW positions and update their holding status.
+    Check stale positions and update their holding status.
 
     Detects balance changes and performs post-detection lookup to get
     transaction details for accurate multi-buy/sell tracking.
@@ -50,7 +52,7 @@ async def check_mtew_positions(
     )
 
     if not positions:
-        log_info("No stale MTEW positions to check")
+        log_info("No stale positions to check")
         return {
             "positions_checked": 0,
             "still_holding": 0,
@@ -60,9 +62,10 @@ async def check_mtew_positions(
             "errors": 0,
             "credits_used": 0,
             "duration_ms": 0,
+            "wallets_recalculated": 0,
         }
 
-    log_info(f"Checking {len(positions)} stale MTEW positions")
+    log_info(f"Checking {len(positions)} stale positions")
 
     # Track statistics
     still_holding_count = 0
@@ -330,14 +333,12 @@ async def check_mtew_positions(
             log_error(f"Error checking position for {wallet_address[:8]}.../{token_address[:8]}...: {e}")
             error_count += 1
 
-    # Recalculate wallet metrics and update Smart/Dumb labels for affected wallets
+    # Update Tier 2 computed tags for affected wallets
     for wallet_address in wallets_to_recalculate:
         try:
-            db.calculate_wallet_metrics(wallet_address)
-            # Update Smart/Dumb label based on new expectancy
-            db.update_wallet_smart_dumb_label(wallet_address)
+            db.compute_wallet_tier2_tags(wallet_address)
         except Exception as e:
-            log_error(f"Error calculating metrics for {wallet_address[:8]}...: {e}")
+            log_error(f"Error computing tags for {wallet_address[:8]}...: {e}")
 
     duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -356,6 +357,26 @@ async def check_mtew_positions(
         },
     )
 
+    # Recompute real PnL (v2) for wallets that had balance changes
+    v2_updated = 0
+    if wallets_to_recalculate and total_credits + len(wallets_to_recalculate) * 25 <= max_credits:
+        try:
+            from meridinate.services.pnl_calculator_v2 import compute_and_store_wallet_pnl_v2
+            for wallet_addr in wallets_to_recalculate:
+                try:
+                    pnl_result = await loop.run_in_executor(
+                        None,
+                        lambda addr=wallet_addr: compute_and_store_wallet_pnl_v2(addr, HELIUS_API_KEY)
+                    )
+                    total_credits += pnl_result.get("credits_used", 0)
+                    v2_updated += pnl_result.get("positions_updated", 0)
+                except Exception:
+                    pass
+        except Exception as e:
+            log_error(f"PnL v2 recompute failed: {e}")
+
+    duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
     result = {
         "positions_checked": len(positions),
         "still_holding": still_holding_count,
@@ -366,11 +387,13 @@ async def check_mtew_positions(
         "credits_used": total_credits,
         "duration_ms": duration_ms,
         "wallets_recalculated": len(wallets_to_recalculate),
+        "v2_pnl_updated": v2_updated,
     }
 
     log_info(
         f"Position check complete: {still_holding_count} holding, {sold_count} sold, "
         f"{buys_detected} buys, {sells_detected} sells detected, "
+        f"{v2_updated} v2 PnL updates, "
         f"{error_count} errors, {total_credits} credits in {duration_ms}ms"
     )
 
@@ -384,10 +407,10 @@ def record_mtew_positions_for_token(
     top_holders: Optional[List[Dict]] = None,
 ) -> Dict[str, Any]:
     """
-    Record positions for all MTEWs in a specific token.
+    Record positions for all recurring wallets in a specific token.
 
     Called after token analysis completes to track positions for
-    wallets that are or just became MTEWs.
+    wallets that are or just became recurring wallets.
 
     Args:
         token_id: Token ID from analyzed_tokens
@@ -398,7 +421,7 @@ def record_mtew_positions_for_token(
     Returns:
         Dict with positions_tracked count
     """
-    # Get all MTEWs for this token (existing and newly minted)
+    # Get all recurring wallets for this token (existing and newly qualifying)
     mtew_wallets = db.get_multi_token_wallets_for_token(token_id)
 
     if not mtew_wallets:
@@ -491,9 +514,9 @@ def record_mtew_positions_for_token(
 
     if positions_tracked > 0:
         log_info(
-            f"Recorded {positions_tracked} MTEW position(s) for token {token_id} "
+            f"Recorded {positions_tracked} position(s) for token {token_id} "
             f"at entry MC ${entry_market_cap:,.2f}" if entry_market_cap else
-            f"Recorded {positions_tracked} MTEW position(s) for token {token_id}"
+            f"Recorded {positions_tracked} position(s) for token {token_id}"
         )
 
     return {
@@ -583,7 +606,7 @@ async def update_all_pnl_ratios() -> Dict[str, Any]:
 
 def get_position_tracking_stats() -> Dict[str, Any]:
     """
-    Get statistics about MTEW position tracking.
+    Get statistics about position tracking.
 
     Returns:
         Dict with position counts, win rates, etc.
@@ -645,3 +668,334 @@ def get_position_tracking_stats() -> Dict[str, Any]:
         "unique_tokens": unique_tokens,
         "stale_positions": stale_positions,
     }
+
+
+# ============================================================================
+# Phase 3: Position-Derived Signals
+# ============================================================================
+
+
+def compute_smart_money_flow(token_id: int) -> Dict[str, Any]:
+    """
+    Compute smart money flow direction for a token.
+
+    Cross-references positions with wallet tags to find "Consistent Winner"
+    and "Sniper" tagged wallets, then classifies their activity.
+
+    A wallet that recently exited (still_holding=0) = selling.
+    A wallet still holding = holding.
+    A wallet with a recent entry_timestamp (within last 24h) and still holding = buying.
+
+    Stores the result as JSON in analyzed_tokens.smart_money_flow.
+
+    Args:
+        token_id: Token ID from analyzed_tokens
+
+    Returns:
+        {"smart_buying": N, "smart_selling": N, "smart_holding": N,
+         "flow_direction": "bullish"|"bearish"|"neutral"}
+    """
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get all positions for this token that belong to smart wallets
+        # Smart wallets = those tagged "Consistent Winner" or "Sniper"
+        cursor.execute("""
+            SELECT
+                p.wallet_address,
+                p.still_holding,
+                p.entry_timestamp,
+                p.exit_detected_at,
+                p.position_checked_at
+            FROM mtew_token_positions p
+            INNER JOIN wallet_tags wt ON wt.wallet_address = p.wallet_address
+            WHERE p.token_id = ?
+            AND wt.tag IN ('Consistent Winner', 'Sniper')
+        """, (token_id,))
+
+        rows = cursor.fetchall()
+
+        # Deduplicate by wallet_address (a wallet may have both tags)
+        seen_wallets: Dict[str, Dict] = {}
+        for row in rows:
+            wallet = row[0]
+            if wallet not in seen_wallets:
+                seen_wallets[wallet] = {
+                    "still_holding": row[1],
+                    "entry_timestamp": row[2],
+                    "exit_detected_at": row[3],
+                    "position_checked_at": row[4],
+                }
+
+        smart_buying = 0
+        smart_selling = 0
+        smart_holding = 0
+
+        for wallet, data in seen_wallets.items():
+            if not data["still_holding"]:
+                # Exited position = selling
+                smart_selling += 1
+            else:
+                # Still holding - check if this is a recent entry (buying) vs long hold
+                entry_ts = data["entry_timestamp"]
+                is_recent_entry = False
+                if entry_ts:
+                    try:
+                        # Parse entry timestamp and check if within last 24 hours
+                        entry_dt = datetime.fromisoformat(str(entry_ts).replace("Z", "+00:00"))
+                        delta = datetime.now(entry_dt.tzinfo) if entry_dt.tzinfo else datetime.now()
+                        hours_since_entry = (delta - entry_dt).total_seconds() / 3600
+                        is_recent_entry = hours_since_entry < 24
+                    except (ValueError, TypeError):
+                        pass
+
+                if is_recent_entry:
+                    smart_buying += 1
+                else:
+                    smart_holding += 1
+
+        # Determine flow direction
+        total_smart = smart_buying + smart_selling + smart_holding
+        if total_smart == 0:
+            flow_direction = "neutral"
+        elif smart_buying > smart_selling:
+            flow_direction = "bullish"
+        elif smart_selling > smart_buying:
+            flow_direction = "bearish"
+        else:
+            flow_direction = "neutral"
+
+        result = {
+            "smart_buying": smart_buying,
+            "smart_selling": smart_selling,
+            "smart_holding": smart_holding,
+            "flow_direction": flow_direction,
+        }
+
+        # Store on analyzed_tokens
+        cursor.execute(
+            "UPDATE analyzed_tokens SET smart_money_flow = ? WHERE id = ?",
+            (json.dumps(result), token_id),
+        )
+
+    log_info(
+        f"Smart money flow for token {token_id}: "
+        f"{smart_buying} buying, {smart_selling} selling, {smart_holding} holding "
+        f"-> {flow_direction}"
+    )
+
+    return result
+
+
+def compute_hold_duration_stats(token_id: int) -> Dict[str, Any]:
+    """
+    Compute hold duration distribution for a token.
+
+    For each exited position, computes duration = exit_detected_at - entry_timestamp (in hours).
+    This reveals whether a token has "quick flip" patterns vs "diamond hand" holders.
+
+    Stores avg_hold_hours on analyzed_tokens.
+
+    Args:
+        token_id: Token ID from analyzed_tokens
+
+    Returns:
+        {"avg_hold_hours": float, "median_hold_hours": float,
+         "pct_exited_under_2h": float, "pct_holding_over_24h": float}
+    """
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get all positions for this token with both entry and exit timestamps
+        cursor.execute("""
+            SELECT
+                entry_timestamp,
+                exit_detected_at,
+                still_holding
+            FROM mtew_token_positions
+            WHERE token_id = ?
+            AND entry_timestamp IS NOT NULL
+        """, (token_id,))
+
+        rows = cursor.fetchall()
+
+        durations_hours: List[float] = []
+        total_positions = 0
+        holding_over_24h = 0
+
+        for row in rows:
+            entry_ts_str = row[0]
+            exit_ts_str = row[1]
+            still_holding = row[2]
+            total_positions += 1
+
+            if not still_holding and exit_ts_str:
+                # Exited position - compute actual duration
+                try:
+                    entry_dt = datetime.fromisoformat(str(entry_ts_str).replace("Z", "+00:00"))
+                    exit_dt = datetime.fromisoformat(str(exit_ts_str).replace("Z", "+00:00"))
+                    # Ensure both are naive or both aware for subtraction
+                    if entry_dt.tzinfo and not exit_dt.tzinfo:
+                        entry_dt = entry_dt.replace(tzinfo=None)
+                    elif exit_dt.tzinfo and not entry_dt.tzinfo:
+                        exit_dt = exit_dt.replace(tzinfo=None)
+                    duration_h = (exit_dt - entry_dt).total_seconds() / 3600
+                    if duration_h >= 0:
+                        durations_hours.append(duration_h)
+                except (ValueError, TypeError):
+                    pass
+            elif still_holding and entry_ts_str:
+                # Still holding - compute duration so far for the 24h+ metric
+                try:
+                    entry_dt = datetime.fromisoformat(str(entry_ts_str).replace("Z", "+00:00"))
+                    now = datetime.now(entry_dt.tzinfo) if entry_dt.tzinfo else datetime.now()
+                    hold_h = (now - entry_dt).total_seconds() / 3600
+                    if hold_h > 24:
+                        holding_over_24h += 1
+                except (ValueError, TypeError):
+                    pass
+
+        # Compute stats from exited positions
+        if durations_hours:
+            avg_hold = statistics.mean(durations_hours)
+            median_hold = statistics.median(durations_hours)
+            exited_under_2h = sum(1 for d in durations_hours if d < 2)
+            pct_exited_under_2h = exited_under_2h / len(durations_hours)
+        else:
+            avg_hold = 0.0
+            median_hold = 0.0
+            pct_exited_under_2h = 0.0
+
+        # pct_holding_over_24h is across ALL positions (exited + holding)
+        if total_positions > 0:
+            # Count exited positions that lasted over 24h too
+            exited_over_24h = sum(1 for d in durations_hours if d > 24)
+            pct_holding_over_24h = (exited_over_24h + holding_over_24h) / total_positions
+        else:
+            pct_holding_over_24h = 0.0
+
+        result = {
+            "avg_hold_hours": round(avg_hold, 2),
+            "median_hold_hours": round(median_hold, 2),
+            "pct_exited_under_2h": round(pct_exited_under_2h, 4),
+            "pct_holding_over_24h": round(pct_holding_over_24h, 4),
+        }
+
+        # Store avg_hold_hours on analyzed_tokens
+        cursor.execute(
+            "UPDATE analyzed_tokens SET avg_hold_hours = ? WHERE id = ?",
+            (round(avg_hold, 2), token_id),
+        )
+
+    log_info(
+        f"Hold duration stats for token {token_id}: "
+        f"avg={avg_hold:.1f}h, median={median_hold:.1f}h, "
+        f"{pct_exited_under_2h:.0%} exited <2h, {pct_holding_over_24h:.0%} holding >24h"
+    )
+
+    return result
+
+
+def compute_entry_timing_scores() -> Dict[str, float]:
+    """
+    Compute entry timing scores for all wallets across ALL tokens.
+
+    For each wallet, calculates how early they bought relative to the token's
+    first transaction (analyzed_tokens.first_buy_timestamp).
+
+    Uses early_buyer_wallets.first_buy_timestamp vs analyzed_tokens.first_buy_timestamp
+    to compute delta in seconds. Averages across all tokens for each wallet.
+
+    Wallets with avg_entry_seconds < 60 across 3+ tokens are potential
+    "Lightning Buyer" bots or insiders.
+
+    Stores avg_entry_seconds on early_buyer_wallets rows.
+
+    Returns:
+        Dict of {wallet_address: avg_entry_seconds}
+    """
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        # Get all wallet/token pairs with both timestamps available
+        cursor.execute("""
+            SELECT
+                ebw.wallet_address,
+                ebw.first_buy_timestamp,
+                t.first_buy_timestamp AS token_first_buy,
+                ebw.token_id,
+                ebw.id AS ebw_id
+            FROM early_buyer_wallets ebw
+            JOIN analyzed_tokens t ON t.id = ebw.token_id
+            WHERE ebw.first_buy_timestamp IS NOT NULL
+            AND t.first_buy_timestamp IS NOT NULL
+            AND (t.deleted_at IS NULL OR t.deleted_at = '')
+        """)
+
+        rows = cursor.fetchall()
+
+        # Accumulate deltas per wallet
+        wallet_deltas: Dict[str, List[float]] = {}
+        # Track individual row updates for per-row avg_entry_seconds
+        row_deltas: Dict[int, float] = {}
+
+        for row in rows:
+            wallet = row[0]
+            wallet_buy_ts = row[1]
+            token_first_ts = row[2]
+            ebw_id = row[4]
+
+            try:
+                wallet_dt = datetime.fromisoformat(str(wallet_buy_ts).replace("Z", "+00:00"))
+                token_dt = datetime.fromisoformat(str(token_first_ts).replace("Z", "+00:00"))
+                # Ensure both are naive or both aware for subtraction
+                if wallet_dt.tzinfo and not token_dt.tzinfo:
+                    wallet_dt = wallet_dt.replace(tzinfo=None)
+                elif token_dt.tzinfo and not wallet_dt.tzinfo:
+                    token_dt = token_dt.replace(tzinfo=None)
+                delta_seconds = (wallet_dt - token_dt).total_seconds()
+                if delta_seconds < 0:
+                    delta_seconds = 0  # Bought before first recorded tx (edge case)
+
+                if wallet not in wallet_deltas:
+                    wallet_deltas[wallet] = []
+                wallet_deltas[wallet].append(delta_seconds)
+                row_deltas[ebw_id] = delta_seconds
+            except (ValueError, TypeError):
+                pass
+
+        # Compute per-wallet averages
+        wallet_avg: Dict[str, float] = {}
+        for wallet, deltas in wallet_deltas.items():
+            wallet_avg[wallet] = round(statistics.mean(deltas), 2)
+
+        # Store per-row delta on early_buyer_wallets
+        update_pairs = [(round(delta, 2), ebw_id) for ebw_id, delta in row_deltas.items()]
+        if update_pairs:
+            cursor.executemany(
+                "UPDATE early_buyer_wallets SET avg_entry_seconds = ? WHERE id = ?",
+                update_pairs,
+            )
+
+        # Tag lightning buyers (avg < 60s across 3+ tokens)
+        lightning_count = 0
+        for wallet, avg_seconds in wallet_avg.items():
+            token_count = len(wallet_deltas[wallet])
+            if avg_seconds < 60 and token_count >= 3:
+                lightning_count += 1
+                # Add Lightning Buyer tag if not already present
+                try:
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO wallet_tags (wallet_address, tag, tier, source, updated_at)
+                        VALUES (?, 'Lightning Buyer', 2, 'computed:entry-timing', CURRENT_TIMESTAMP)
+                    """, (wallet,))
+                except Exception:
+                    pass  # Tag may already exist
+
+    log_info(
+        f"Entry timing scores computed for {len(wallet_avg)} wallets across "
+        f"{sum(len(d) for d in wallet_deltas.values())} positions. "
+        f"{lightning_count} lightning buyers detected."
+    )
+
+    return wallet_avg

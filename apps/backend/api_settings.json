@@ -1,9 +1,14 @@
 {
-  "transactionLimit": 700,
+  "transactionLimit": 10000,
   "minUsdFilter": 50.0,
   "walletCount": 100,
   "apiRateDelay": 100,
-  "maxCreditsPerAnalysis": 1000,
+  "maxCreditsPerAnalysis": 10000,
   "maxRetries": 3,
-  "topHoldersLimit": 20
+  "topHoldersLimit": 20,
+  "intelMaxTokens": 8192,
+  "intelHousekeeperMaxTokens": 8192,
+  "intelForensicsWalletCount": 10,
+  "intelModel": "claude-sonnet-4-20250514",
+  "bypassLimits": true
 }

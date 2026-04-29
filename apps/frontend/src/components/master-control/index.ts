@@ -2,12 +2,9 @@
 export { InfoTooltip } from './InfoTooltip';
 export { NumericStepper } from './NumericStepper';
 export { ScanningTab } from './scanning-tab';
-export { IngestionTab } from './ingestion-tab';
-export { SwabTab } from './swab-tab';
 export { SchedulerTab } from './scheduler-tab';
-export { WebhooksTab } from './webhooks-tab';
-export { SystemTab } from './system-tab';
-export type { ApiSettings, WebhookInfo } from './types';
+export { IntelTab } from './intel-tab';
+export type { ApiSettings } from './types';
 export {
   fetchWithRetry,
   formatTimestamp,

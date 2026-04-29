@@ -44,12 +44,16 @@ export async function fetchWithRetry(
 }
 
 /**
- * Format timestamp for display
+ * Format timestamp for display (handles UTC timestamps from SQLite)
  */
 export function formatTimestamp(ts: string | null): string {
   if (!ts) return 'Never';
   try {
-    return new Date(ts).toLocaleString();
+    // SQLite stores UTC timestamps without timezone indicator
+    // Add 'Z' if not present to ensure proper local timezone conversion
+    const normalized =
+      ts.includes('Z') || ts.includes('+') ? ts : ts.replace(' ', 'T') + 'Z';
+    return new Date(normalized).toLocaleString();
   } catch {
     return ts;
   }

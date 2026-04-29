@@ -8,11 +8,13 @@ import {
   CreditUsageStats,
   AggregatedOperation,
   LatestToken,
-  OperationLogEntry
+  OperationLogEntry,
+  API_BASE_URL
 } from '@/lib/api';
 
 export interface StatusBarData {
   tokensScanned: number;
+  tokensScannedToday: number;
   creditsUsedToday: number;
   latestAnalysis: LatestToken | null;
   recentOperations: AggregatedOperation[];
@@ -23,8 +25,6 @@ export interface StatusBarData {
 interface UseStatusBarDataOptions {
   /** Poll interval in milliseconds (default: 30000 = 30s) */
   pollInterval?: number;
-  /** Number of tokens scanned (passed from parent for efficiency) */
-  tokensScanned?: number;
   /** Whether to enable polling (default: true) */
   enablePolling?: boolean;
 }
@@ -42,10 +42,11 @@ const DEFAULT_POLL_INTERVAL = 30000; // 30 seconds
 export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
   const {
     pollInterval = DEFAULT_POLL_INTERVAL,
-    tokensScanned = 0,
     enablePolling = true
   } = options;
 
+  const [tokensScanned, setTokensScanned] = useState(0);
+  const [tokensScannedToday, setTokensScannedToday] = useState(0);
   const [creditStats, setCreditStats] = useState<CreditUsageStats | null>(null);
   const [recentOperations, setRecentOperations] = useState<
     AggregatedOperation[]
@@ -71,10 +72,11 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
   // Fetch all status bar data
   const fetchData = useCallback(async () => {
     try {
-      const [stats, operationLog, latest] = await Promise.all([
+      const [stats, operationLog, latest, statusBar] = await Promise.all([
         getCreditStatsToday(),
         getOperationLog(30), // Fetch last 30 persisted operations
-        getLatestToken()
+        getLatestToken(),
+        fetch(`${API_BASE_URL}/api/stats/status-bar`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
 
       if (isMounted.current) {
@@ -82,6 +84,10 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
         // Convert OperationLogEntry[] to AggregatedOperation[] for compatibility
         setRecentOperations(operationLog.operations.map(toAggregatedOperation));
         setLatestToken(latest);
+        if (statusBar?.polling) {
+          setTokensScanned(statusBar.polling.total_tokens ?? 0);
+          setTokensScannedToday(statusBar.polling.tokens_scanned_today ?? 0);
+        }
         setLastUpdated(new Date());
         setIsLoading(false);
       }
@@ -122,37 +128,55 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
     };
   }, [fetchData, pollInterval, enablePolling]);
 
-  // Visibility change revalidation
+  // Debounced focus/visibility revalidation — both events fire together on tab switch,
+  // so we debounce to a single fetch instead of triggering 6 API calls (3 × 2 events).
+  const revalidateTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
+    const debouncedRevalidate = () => {
+      if (revalidateTimerRef.current) {
+        clearTimeout(revalidateTimerRef.current);
+      }
+      revalidateTimerRef.current = setTimeout(() => {
+        fetchData();
+        revalidateTimerRef.current = null;
+      }, 300);
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Refresh when tab becomes visible
-        fetchData();
+        debouncedRevalidate();
       }
     };
 
+    const handleFocus = () => {
+      debouncedRevalidate();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    // Revalidate when background jobs complete (credits changed)
+    window.addEventListener('meridinate:scan-complete', debouncedRevalidate);
+    window.addEventListener('meridinate:mc-refresh-complete', debouncedRevalidate);
+    window.addEventListener('meridinate:position-check-complete', debouncedRevalidate);
+    window.addEventListener('meridinate:settings-changed', debouncedRevalidate);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchData]);
-
-  // Focus revalidation
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchData();
-    };
-
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('meridinate:scan-complete', debouncedRevalidate);
+      window.removeEventListener('meridinate:mc-refresh-complete', debouncedRevalidate);
+      window.removeEventListener('meridinate:position-check-complete', debouncedRevalidate);
+      window.removeEventListener('meridinate:settings-changed', debouncedRevalidate);
+      if (revalidateTimerRef.current) {
+        clearTimeout(revalidateTimerRef.current);
+      }
     };
   }, [fetchData]);
 
   return {
     tokensScanned,
+    tokensScannedToday,
     creditsUsedToday: creditStats?.total_credits ?? 0,
     latestAnalysis: latestToken,
     recentOperations,

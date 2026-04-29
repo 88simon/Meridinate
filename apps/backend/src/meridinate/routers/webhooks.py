@@ -3,10 +3,10 @@ Webhooks router - webhook management endpoints
 
 Provides REST endpoints for creating and managing Helius webhooks.
 
-SWAB Integration:
-When a token transfer is received where a tracked MTEW wallet is the sender
+Position Tracking Integration:
+When a token transfer is received where a tracked wallet is the sender
 (fromUserAccount), this indicates a potential sell. The callback will:
-1. Look up if the wallet has an active MTEW position for that token
+1. Look up if the wallet has an active position for that token
 2. Get current token price from DexScreener
 3. Calculate USD value of the sell
 4. Record the position sell with accurate price data
@@ -22,7 +22,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 
 from meridinate import analyzed_tokens_db as db
-from meridinate.settings import HELIUS_API_KEY
+from meridinate.observability import log_error, log_info
+from meridinate.settings import HELIUS_API_KEY, API_BASE_URL
 from meridinate.state import WEBHOOK_EXECUTOR
 from meridinate.utils.models import CreateWebhookRequest
 from meridinate.helius_api import WebhookManager, HeliusAPI
@@ -53,7 +54,7 @@ async def create_webhook(payload: CreateWebhookRequest):
         raise HTTPException(status_code=400, detail="No wallets found for this token")
 
     wallet_addresses = [w["wallet_address"] for w in wallets]
-    callback_url = payload.webhook_url or "http://localhost:5003/webhooks/callback"
+    callback_url = payload.webhook_url or f"{API_BASE_URL}/webhooks/callback"
 
     def worker():
         try:
@@ -62,10 +63,10 @@ async def create_webhook(payload: CreateWebhookRequest):
                 webhook_url=callback_url, wallet_addresses=wallet_addresses, transaction_types=["TRANSFER", "SWAP"]
             )
             webhook_id = result.get("webhookID")
-            print(f"[Webhook] Created webhook {webhook_id} for token {payload.token_id}")
+            log_info(f"[Webhook] Created webhook {webhook_id} for token {payload.token_id}")
             return result
         except Exception as exc:
-            print(f"[Webhook] Error creating webhook: {exc}")
+            log_error(f"[Webhook] Error creating webhook: {exc}")
             return None
 
     WEBHOOK_EXECUTOR.submit(worker)
@@ -91,7 +92,7 @@ async def list_webhooks():
         webhooks = await _run_webhook_task(worker)
         return {"total": len(webhooks), "webhooks": webhooks}
     except Exception as exc:
-        print(f"[Webhook] Error listing webhooks: {exc}")
+        log_error(f"[Webhook] Error listing webhooks: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -118,7 +119,7 @@ async def delete_webhook(webhook_id: str):
     def worker():
         manager = WebhookManager(HELIUS_API_KEY)
         manager.delete_webhook(webhook_id)
-        print(f"[Webhook] Deleted webhook {webhook_id}")
+        log_info(f"[Webhook] Deleted webhook {webhook_id}")
 
     WEBHOOK_EXECUTOR.submit(worker)
     return {"status": "queued", "message": f"Webhook {webhook_id} deletion queued"}
@@ -127,15 +128,15 @@ async def delete_webhook(webhook_id: str):
 @router.post("/webhooks/create-swab", status_code=202)
 async def create_swab_webhook(request: Request):
     """
-    Create a Helius webhook for all active SWAB positions.
+    Create a Helius webhook for all active tracked positions.
 
-    This creates a single webhook monitoring all MTEW wallets that have
+    This creates a single webhook monitoring all tracked wallets that have
     active (still holding) positions. When any of these wallets sends
     tokens, the webhook callback will detect potential sells and update
     positions in real-time.
 
     Request body (optional):
-    - webhook_url: Custom callback URL (default: http://localhost:5003/webhooks/callback)
+    - webhook_url: Custom callback URL (default: {API_BASE_URL}/webhooks/callback)
 
     Returns:
     - status: "queued" or "error"
@@ -144,21 +145,21 @@ async def create_swab_webhook(request: Request):
     """
     _require_helius()
 
-    # Get all active SWAB wallets
+    # Get all active tracked wallets
     wallet_addresses = db.get_active_swab_wallets()
 
     if not wallet_addresses:
         raise HTTPException(
             status_code=400,
-            detail="No active SWAB positions found. Analyze tokens and enable position tracking first."
+            detail="No active tracked positions found. Analyze tokens and enable position tracking first."
         )
 
     # Parse optional callback URL from request body
     try:
         body = await request.json()
-        callback_url = body.get("webhook_url", "http://localhost:5003/webhooks/callback")
+        callback_url = body.get("webhook_url", f"{API_BASE_URL}/webhooks/callback")
     except Exception:
-        callback_url = "http://localhost:5003/webhooks/callback"
+        callback_url = f"{API_BASE_URL}/webhooks/callback"
 
     def worker():
         try:
@@ -169,20 +170,20 @@ async def create_swab_webhook(request: Request):
                 transaction_types=["TRANSFER", "SWAP"]
             )
             webhook_id = result.get("webhookID")
-            print(
-                f"[Webhook/SWAB] Created webhook {webhook_id} "
-                f"monitoring {len(wallet_addresses)} MTEW wallets"
+            log_info(
+                f"[Webhook] Created webhook {webhook_id} "
+                f"monitoring {len(wallet_addresses)} tracked wallets"
             )
             return result
         except Exception as exc:
-            print(f"[Webhook/SWAB] Error creating webhook: {exc}")
+            log_error(f"[Webhook] Error creating webhook: {exc}")
             return None
 
     WEBHOOK_EXECUTOR.submit(worker)
 
     return {
         "status": "queued",
-        "message": "SWAB webhook creation queued",
+        "message": "Position tracking webhook creation queued",
         "wallets_count": len(wallet_addresses),
         "webhook_url": callback_url,
         "wallets_preview": wallet_addresses[:5] if len(wallet_addresses) > 5 else wallet_addresses,
@@ -196,7 +197,7 @@ def _process_swab_buy(
     signature: str,
 ) -> Optional[str]:
     """
-    Process a potential SWAB position buy (DCA or re-entry) detected via webhook.
+    Process a potential position buy (DCA or re-entry) detected via webhook.
 
     When a tracked wallet receives tokens, we update their cost basis with
     accurate real-time price data.
@@ -213,7 +214,7 @@ def _process_swab_buy(
     # Look up if this wallet has ANY position for this token (including sold)
     position = db.get_position_by_token_address(wallet_address, token_mint)
     if not position:
-        return None  # Not a tracked MTEW position
+        return None  # Not a tracked position
 
     token_id = position["token_id"]
     token_symbol = position.get("token_symbol", "???")
@@ -225,11 +226,11 @@ def _process_swab_buy(
         helius = HeliusAPI(HELIUS_API_KEY)
         token_price = helius.get_token_price_from_dexscreener(token_mint)
     except Exception as e:
-        print(f"[Webhook/SWAB] Failed to get price for {token_symbol}: {e}")
+        log_error(f"[Webhook] Failed to get price for {token_symbol}: {e}")
         token_price = None
 
     if not token_price:
-        print(f"[Webhook/SWAB] No price available for {token_symbol}, skipping buy update")
+        log_info(f"[Webhook] No price available for {token_symbol}, skipping buy update")
         return None
 
     # Calculate USD value of the buy
@@ -252,18 +253,18 @@ def _process_swab_buy(
 
         if success:
             buy_type = "RE-ENTRY" if not was_holding else "DCA"
-            print(
-                f"[Webhook/SWAB] {buy_type} {wallet_address[:8]}... "
+            log_info(
+                f"[Webhook] {buy_type} {wallet_address[:8]}... "
                 f"bought {tokens_bought:.2f} {token_symbol} for ${usd_amount:.2f} "
                 f"(tx: {signature[:12]}...)"
             )
             return f"{buy_type}: {tokens_bought:.2f} {token_symbol} for ${usd_amount:.2f}"
         else:
-            print(f"[Webhook/SWAB] Failed to record buy for {wallet_address[:8]}...")
+            log_error(f"[Webhook] Failed to record buy for {wallet_address[:8]}...")
             return None
 
     except Exception as e:
-        print(f"[Webhook/SWAB] Error recording buy: {e}")
+        log_error(f"[Webhook] Error recording buy: {e}")
         return None
 
 
@@ -274,7 +275,7 @@ def _process_swab_sell(
     signature: str,
 ) -> Optional[str]:
     """
-    Process a potential SWAB position sell detected via webhook.
+    Process a potential position sell detected via webhook.
 
     This is the webhook-first approach: we capture the sell in real-time
     with accurate price data before the transaction scrolls out of history.
@@ -291,7 +292,7 @@ def _process_swab_sell(
     # Look up if this wallet has an active position for this token
     position = db.get_active_position_by_token_address(wallet_address, token_mint)
     if not position:
-        return None  # Not a tracked MTEW position
+        return None  # Not a tracked position
 
     token_id = position["token_id"]
     token_symbol = position.get("token_symbol", "???")
@@ -307,12 +308,12 @@ def _process_swab_sell(
         token_price = helius.get_token_price_from_dexscreener(token_mint)
         current_mc = helius.get_market_cap_from_dexscreener(token_mint)
     except Exception as e:
-        print(f"[Webhook/SWAB] Failed to get price for {token_symbol}: {e}")
+        log_error(f"[Webhook] Failed to get price for {token_symbol}: {e}")
         token_price = None
         current_mc = None
 
     if not token_price:
-        print(f"[Webhook/SWAB] No price available for {token_symbol}, skipping position update")
+        log_info(f"[Webhook] No price available for {token_symbol}, skipping position update")
         return None
 
     # Calculate USD value received from the sell (tokens_sold * current_price)
@@ -351,18 +352,18 @@ def _process_swab_sell(
                 pnl_ratio = exit_price / avg_entry_price
                 pnl_str = f" PnL: {pnl_ratio:.2f}x"
 
-            print(
-                f"[Webhook/SWAB] {exit_type} {wallet_address[:8]}... "
+            log_info(
+                f"[Webhook] {exit_type} {wallet_address[:8]}... "
                 f"sold {tokens_sold:.2f} {token_symbol} for ${usd_received:.2f}{pnl_str} "
                 f"(tx: {signature[:12]}...)"
             )
             return f"{exit_type}: {tokens_sold:.2f} {token_symbol} for ${usd_received:.2f}"
         else:
-            print(f"[Webhook/SWAB] Failed to record sell for {wallet_address[:8]}...")
+            log_error(f"[Webhook] Failed to record sell for {wallet_address[:8]}...")
             return None
 
     except Exception as e:
-        print(f"[Webhook/SWAB] Error recording sell: {e}")
+        log_error(f"[Webhook] Error recording sell: {e}")
         return None
 
 
@@ -371,7 +372,7 @@ async def webhook_callback(request: Request):
     """
     Receive webhook notifications from Helius.
 
-    Processes token transfers to detect SWAB position updates in real-time:
+    Processes token transfers to detect position updates in real-time:
     - SELL: When tracked wallet sends tokens (fromUserAccount), capture exit price
     - BUY/DCA: When tracked wallet receives tokens (toUserAccount), update cost basis
     - RE-ENTRY: When a sold position buys again, reactivate and record buy
@@ -395,7 +396,7 @@ async def webhook_callback(request: Request):
         native_transfers = tx.get("nativeTransfers", [])
         token_transfers = tx.get("tokenTransfers", [])
 
-        # Process token transfers for SWAB position updates
+        # Process token transfers for position updates
         for transfer in token_transfers:
             from_wallet = transfer.get("fromUserAccount")
             to_wallet = transfer.get("toUserAccount")
@@ -405,7 +406,7 @@ async def webhook_callback(request: Request):
             if not token_mint or token_amount <= 0:
                 continue
 
-            # If wallet is sending tokens (potential sell), check SWAB
+            # If wallet is sending tokens (potential sell), check positions
             if from_wallet:
                 result = _process_swab_sell(
                     wallet_address=from_wallet,
@@ -416,7 +417,7 @@ async def webhook_callback(request: Request):
                 if result:
                     swab_updates += 1
 
-            # If wallet is receiving tokens (potential buy/DCA), check SWAB
+            # If wallet is receiving tokens (potential buy/DCA), check positions
             if to_wallet:
                 result = _process_swab_buy(
                     wallet_address=to_wallet,
@@ -454,7 +455,7 @@ async def webhook_callback(request: Request):
                     recipient_address=recipient,
                 )
             except Exception as exc:
-                print(f"[Webhook] Failed to save activity: {exc}")
+                log_error(f"[Webhook] Failed to save activity: {exc}")
 
     return {
         "status": "success",

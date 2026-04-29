@@ -6,6 +6,44 @@
 
 ---
 
+## April 14-28, 2026 — Full-Stack Optimization + New Intelligence Systems
+
+### Backend Optimization
+- Resolved all 14 issues from backend audit handoff document
+- Removed ~2,500 lines dead code (PnL v1, pnl_backfill, analysis_worker, wallet_analyzer, tier-1 enrichment, legacy functions)
+- Fixed credit tracking: getTokenAccountsByOwner 10x overcount, getTransactionsForAddress 2x overcount, DAS API undercount
+- Fixed hardcoded SOL price ($200 → live CoinGecko), MC Tracker interval bug (120→2), 3 event loop blocking locations
+- Added scheduler mutual exclusion (max_instances=1, coalesce=True), conditional leaderboard rebuild
+- Added 2 missing DB indexes (deployer_address, deleted_at), fixed 3 N+1 query patterns
+- Added status bar caching (15s TTL), LRU eviction (maxsize=500), SELECT * payload reduction
+
+### Frontend Optimization
+- Fixed WebSocket reconnect-on-every-render, moved SortHeader to module scope
+- Added visibility guards to bot-tracker polling, conditional RealtimeTokenFeed polling
+- React.memo on StarButton, memoized labelMap, fixed WalletTagsContext dep
+- Deleted entire features/ directory, auth routes, forms, 23 unused npm packages (~800KB gzipped)
+- Deleted 15+ dead components, 7 dead API functions, dead UI table components
+
+### New Systems
+- **CLOBr Integration** — Liquidity score + market depth enrichment during MC Tracker cycle
+- **Quick DD** — Paste any token for instant full-pipeline due diligence (parallel pipeline, 5-15 seconds)
+- **LP Trust Analyzer** — Fast pool creator detection (2-3 credits vs 100+), multi-DEX support
+- **Rug Score Detector** — 7-signal fake chart detection (0-100), zero extra credits
+- **Rug Labeling** — FAKE/REAL/UNSURE dropdown labels on Token Leaderboard
+- **Rug Analysis Agent** — AI exploration of labeled data to discover new detection patterns
+- **Forward Funding Trace** — Trace where wallets sent money (reveals sybil networks)
+- **PanelStack** — Unified slide-out panel orchestrator for WIR, TIR, Codex
+
+### UI Improvements
+- "Run Now" button + scan progress bar in status bar
+- Tokens Scanned Today counter on all pages
+- Token names in Codex for starred tokens
+- Clickable Best Trade/Worst Trade → opens TIR
+- All WIR token trades clickable → opens TIR
+- CLOBr Liquidity section in TIR, Rug Risk section in TIR
+
+---
+
 ## Quick Summary (Dec 1, 2025)
 - **Scheduler Panel** - Sidebar toggle showing scheduled jobs with live countdowns and running job elapsed time.
 - **ToS Column** - "Type of Scan" in Scanned Tokens table (Manual vs TIP badge).

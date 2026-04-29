@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   updateSolscanSettings,
@@ -168,6 +168,11 @@ export function ScanningTab({
             bypassLimits={bypassLimits}
           />
         </div>
+
+        <p className='text-[10px] text-amber-400/80 mt-2 flex items-center gap-1'>
+          <Zap className='h-3 w-3' />
+          ~{Math.round(apiSettings.walletCount * (apiSettings.transactionLimit / 500 + 1))} credits/token at current settings ({apiSettings.walletCount} wallets × ~{Math.round(apiSettings.transactionLimit / 500 + 1)} calls each, capped at {apiSettings.maxCreditsPerAnalysis.toLocaleString()}/analysis)
+        </p>
 
         {/* Advanced Settings */}
         <details className='mt-4'>

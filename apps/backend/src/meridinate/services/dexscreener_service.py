@@ -204,6 +204,33 @@ class DexScreenerService:
             except Exception:
                 pass
 
+        # Extract transaction counts
+        txns = pair.get("txns", {})
+        txns_h24 = txns.get("h24", {})
+        buys_24h = txns_h24.get("buys", 0)
+        sells_24h = txns_h24.get("sells", 0)
+
+        # Extract price changes
+        price_change = pair.get("priceChange", {})
+
+        # Extract quote token and socials
+        quote_token = pair.get("quoteToken", {})
+        info = pair.get("info", {})
+        has_socials = bool(info.get("socials")) or bool(info.get("websites"))
+
+        # Detect Meteora pools (free — data already in this response)
+        meteora_pools = [
+            {
+                "pair_address": p.get("pairAddress"),
+                "dex_id": p.get("dexId"),
+                "created_at": p.get("pairCreatedAt"),
+                "liquidity_usd": p.get("liquidity", {}).get("usd", 0),
+                "volume_24h": p.get("volume", {}).get("h24", 0),
+            }
+            for p in pairs
+            if "meteora" in (p.get("dexId") or "").lower()
+        ]
+
         return {
             "token_address": pair.get("baseToken", {}).get("address"),
             "token_name": pair.get("baseToken", {}).get("name"),
@@ -216,6 +243,20 @@ class DexScreenerService:
             "dex_id": pair.get("dexId"),
             "age_hours": age_hours,
             "created_at": created_at,
+            # New fields for pipeline filters
+            "quote_token": quote_token.get("symbol"),
+            "buys_24h": buys_24h,
+            "sells_24h": sells_24h,
+            "net_buys_24h": buys_24h - sells_24h,
+            "txs_24h": buys_24h + sells_24h,
+            "price_change_m5": price_change.get("m5"),
+            "price_change_h1": price_change.get("h1"),
+            "price_change_h6": price_change.get("h6"),
+            "price_change_h24": price_change.get("h24"),
+            "has_socials": has_socials,
+            # Meteora detection (free — from same API response)
+            "meteora_pools": meteora_pools,
+            "has_meteora_pool": len(meteora_pools) > 0,
         }
 
     def fetch_recent_migrated_tokens(

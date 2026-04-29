@@ -16,6 +16,7 @@ interface NumericStepperProps {
   step: number;
   tooltip?: string;
   bypassLimits?: boolean;
+  disabled?: boolean;
 }
 
 export function NumericStepper({
@@ -27,14 +28,15 @@ export function NumericStepper({
   max,
   step,
   tooltip,
-  bypassLimits = false
+  bypassLimits = false,
+  disabled = false
 }: NumericStepperProps) {
   // When bypassLimits is true, only enforce min >= 0
   const effectiveMin = bypassLimits ? 0 : min;
   const effectiveMax = bypassLimits ? undefined : max;
 
   return (
-    <div className='space-y-1'>
+    <div className={`space-y-1 ${disabled ? 'opacity-50' : ''}`}>
       <Label className='flex items-center text-xs'>
         {label}
         {tooltip && <InfoTooltip>{tooltip}</InfoTooltip>}
@@ -44,6 +46,7 @@ export function NumericStepper({
           variant='outline'
           size='icon'
           className='h-7 w-7'
+          disabled={disabled}
           onClick={() => onChange(Math.max(effectiveMin, value - step))}
         >
           <ChevronLeft className='h-3 w-3' />
@@ -51,6 +54,7 @@ export function NumericStepper({
         <Input
           type='number'
           value={value}
+          disabled={disabled}
           onChange={(e) => {
             const v = parseInt(e.target.value) || effectiveMin;
             onChange(
@@ -65,6 +69,7 @@ export function NumericStepper({
           variant='outline'
           size='icon'
           className='h-7 w-7'
+          disabled={disabled}
           onClick={() =>
             onChange(
               effectiveMax ? Math.min(effectiveMax, value + step) : value + step

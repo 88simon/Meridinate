@@ -1,7 +1,8 @@
 'use client';
 
+import type { TokenDetail } from '@/types/token';
+import { useWalletIntelligence } from '@/contexts/wallet-intelligence-context';
 import {
-  TokenDetail,
   formatTimestamp,
   downloadAxiomJson,
   getTokenAnalysisHistory,
@@ -11,7 +12,11 @@ import {
   refreshWalletBalances,
   getSolscanSettings,
   buildSolscanUrl,
-  SolscanSettings
+  SolscanSettings,
+  API_BASE_URL,
+  addWalletTag,
+  removeWalletTag,
+  getWalletTags
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +28,8 @@ import {
   History,
   Twitter,
   RefreshCw,
-  Info
+  Info,
+  Star
 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -110,12 +116,73 @@ export function TokenDetailsModal({
   open,
   onClose
 }: TokenDetailsModalProps) {
+  const { openWIR } = useWalletIntelligence();
   // Token data state - starts with cached data if available
   const [token, setToken] = useState<TokenDetail | null>(() =>
     tokenId ? getCachedTokenDetails(tokenId) : null
   );
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Wallet PnL data for this token
+  const [walletPnl, setWalletPnl] = useState<Record<string, {
+    total_pnl_usd: number;
+    realized_pnl_usd: number;
+    unrealized_pnl_usd: number;
+    total_bought_usd: number;
+    total_sold_usd: number;
+    current_holdings: number;
+    current_holdings_usd: number;
+    status: string;
+  }>>({});
+
+  // Starred wallets (Watchlist tag = shows in Codex)
+  const [starredWallets, setStarredWallets] = useState<Set<string>>(new Set());
+
+  // Load starred status for wallets when token loads
+  useEffect(() => {
+    if (!token?.wallets || !open) return;
+    const checkStarred = async () => {
+      const starred = new Set<string>();
+      // Check first 20 wallets to avoid too many API calls
+      for (const w of token.wallets.slice(0, 20)) {
+        try {
+          const tags = await getWalletTags(w.wallet_address);
+          if (tags.some((t: any) => t.tag === 'Watchlist')) {
+            starred.add(w.wallet_address);
+          }
+        } catch {}
+      }
+      setStarredWallets(starred);
+    };
+    checkStarred();
+  }, [token?.wallets, open]);
+
+  const toggleStar = async (walletAddress: string) => {
+    const isStarred = starredWallets.has(walletAddress);
+    try {
+      if (isStarred) {
+        await removeWalletTag(walletAddress, 'Watchlist');
+        setStarredWallets((prev) => { const next = new Set(prev); next.delete(walletAddress); return next; });
+        toast.success('Removed from Watchlist');
+      } else {
+        await addWalletTag(walletAddress, 'Watchlist', false);
+        setStarredWallets((prev) => new Set(prev).add(walletAddress));
+        toast.success('Added to Watchlist (visible in Codex)');
+      }
+    } catch {
+      toast.error('Failed to update Watchlist');
+    }
+  };
+
+  // Fetch wallet PnL when token loads
+  useEffect(() => {
+    if (!tokenId || !open) return;
+    fetch(`${API_BASE_URL}/api/tokens/${tokenId}/wallet-pnl`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.pnl) setWalletPnl(data.pnl); })
+      .catch(() => {});
+  }, [tokenId, open]);
 
   // Fetch token details when modal opens or tokenId changes
   useEffect(() => {
@@ -481,6 +548,181 @@ export function TokenDetailsModal({
               </div>
             </div>
 
+            {/* Creation Timeline */}
+            {(() => {
+              const events = token.creation_events_json
+                ? (typeof token.creation_events_json === 'string'
+                  ? JSON.parse(token.creation_events_json)
+                  : token.creation_events_json)
+                : [];
+              if (events.length === 0 && !token.deployer_address) return null;
+              return (
+                <div className='rounded-lg border p-3'>
+                  <div className='text-xs font-medium mb-2'>Token Creation Timeline</div>
+                  <div className='space-y-1.5'>
+                    {events.map((event: { type: string; timestamp: string; wallet: string; sol_amount?: number; usd_amount?: number; token_amount?: number; signature?: string }, idx: number) => (
+                      <div key={idx} className='flex items-center gap-2 text-[11px]'>
+                        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                          event.type === 'CREATE' ? 'bg-purple-500' :
+                          event.type === 'ADD_LIQUIDITY' ? 'bg-blue-500' :
+                          'bg-green-500'
+                        }`} />
+                        <span className='text-muted-foreground w-20 shrink-0'>
+                          {event.type === 'CREATE' ? 'Created' :
+                           event.type === 'ADD_LIQUIDITY' ? 'LP Added' :
+                           'First Buy'}
+                        </span>
+                        <span className='text-muted-foreground w-28 shrink-0'>
+                          {new Date(event.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                        <span className='font-mono text-[10px] truncate'>
+                          {event.wallet?.slice(0, 8)}...{event.wallet?.slice(-4)}
+                        </span>
+                        {event.type === 'CREATE' && (
+                          <span className='rounded bg-purple-500/20 px-1.5 py-0.5 text-[9px] text-purple-400'>Deployer</span>
+                        )}
+                        {event.sol_amount && event.sol_amount > 0 && (
+                          <span className='text-muted-foreground'>
+                            {event.sol_amount.toFixed(2)} SOL
+                          </span>
+                        )}
+                        {event.usd_amount && event.usd_amount > 0 && (
+                          <span className='text-muted-foreground'>
+                            ~${event.usd_amount.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {events.length === 0 && token.deployer_address && (
+                      <div className='flex items-center gap-2 text-[11px]'>
+                        <span className='h-1.5 w-1.5 rounded-full shrink-0 bg-purple-500' />
+                        <span className='text-muted-foreground'>Deployer:</span>
+                        <span className='font-mono text-[10px]'>
+                          {token.deployer_address.slice(0, 8)}...{token.deployer_address.slice(-4)}
+                        </span>
+                        <span className='rounded bg-purple-500/20 px-1.5 py-0.5 text-[9px] text-purple-400'>Deployer</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Analytics Signals */}
+            {(() => {
+              const hasAnySignal = token.holder_velocity != null || token.mc_volatility != null ||
+                token.smart_money_flow || token.avg_hold_hours != null || token.deployer_is_top_holder != null ||
+                token.webhook_detected_at != null;
+              if (!hasAnySignal) return null;
+
+              const smartFlow = token.smart_money_flow
+                ? (typeof token.smart_money_flow === 'string' ? JSON.parse(token.smart_money_flow) : token.smart_money_flow)
+                : null;
+
+              return (
+                <div className='rounded-lg border p-3'>
+                  <div className='text-xs font-medium mb-2'>Analytics Signals</div>
+                  <div className='space-y-1.5 text-[11px]'>
+                    {token.holder_velocity != null && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>Holder Concentration Velocity</span>
+                        <span className={token.holder_velocity > 5 ? 'text-red-400' : token.holder_velocity < -5 ? 'text-green-400' : ''}>
+                          {token.holder_velocity > 0 ? '+' : ''}{token.holder_velocity.toFixed(1)}%/hr
+                        </span>
+                      </div>
+                    )}
+                    {token.deployer_is_top_holder != null && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>Deployer Still Top Holder</span>
+                        <span className={token.deployer_is_top_holder ? 'text-amber-400' : 'text-green-400'}>
+                          {token.deployer_is_top_holder ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    )}
+                    {token.early_buyer_holder_overlap != null && token.early_buyer_holder_overlap > 0 && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>Early Buyer / Top Holder Overlap</span>
+                        <span className={token.early_buyer_holder_overlap > 3 ? 'text-red-400' : ''}>
+                          {token.early_buyer_holder_overlap} wallets
+                        </span>
+                      </div>
+                    )}
+                    {token.fresh_wallet_pct != null && token.fresh_wallet_pct > 0 && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>Fresh Wallet %</span>
+                        <span className={token.fresh_wallet_pct > 50 ? 'text-red-400' : ''}>
+                          {token.fresh_wallet_pct.toFixed(0)}%
+                        </span>
+                      </div>
+                    )}
+                    {token.mc_volatility != null && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>MC Volatility</span>
+                        <span className={token.mc_volatility > 50 ? 'text-amber-400' : ''}>
+                          {token.mc_volatility.toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
+                    {token.mc_recovery_count != null && token.mc_recovery_count > 0 && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>MC Recovery Count</span>
+                        <span className='text-green-400'>{token.mc_recovery_count}x recovered</span>
+                      </div>
+                    )}
+                    {smartFlow && (smartFlow.smart_buying > 0 || smartFlow.smart_selling > 0 || smartFlow.smart_holding > 0) && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>Smart Money Flow</span>
+                        <span className={
+                          smartFlow.flow_direction === 'bullish' ? 'text-green-400' :
+                          smartFlow.flow_direction === 'bearish' ? 'text-red-400' : 'text-muted-foreground'
+                        }>
+                          {smartFlow.smart_buying || 0} buying · {smartFlow.smart_selling || 0} selling · {smartFlow.smart_holding || 0} holding
+                        </span>
+                      </div>
+                    )}
+                    {token.avg_hold_hours != null && token.avg_hold_hours > 0 && (
+                      <div className='flex justify-between'>
+                        <span className='text-muted-foreground'>Avg Hold Duration</span>
+                        <span>{token.avg_hold_hours < 2 ? `${(token.avg_hold_hours * 60).toFixed(0)}m` : `${token.avg_hold_hours.toFixed(1)}h`}</span>
+                      </div>
+                    )}
+                    {token.webhook_detected_at && (
+                      <>
+                        <div className='border-t border-border my-1.5' />
+                        <div className='flex justify-between'>
+                          <span className='text-muted-foreground'>Webhook First Detected</span>
+                          <span className='text-emerald-400'>
+                            {new Date(token.webhook_detected_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </div>
+                        {token.webhook_conviction_score != null && (
+                          <div className='flex justify-between'>
+                            <span className='text-muted-foreground'>Birth Conviction Score</span>
+                            <span className={
+                              token.webhook_conviction_score >= 70 ? 'text-green-400' :
+                              token.webhook_conviction_score >= 40 ? 'text-yellow-400' : 'text-red-400'
+                            }>
+                              {token.webhook_conviction_score}/100
+                            </span>
+                          </div>
+                        )}
+                        {token.time_to_migration_minutes != null && (
+                          <div className='flex justify-between'>
+                            <span className='text-muted-foreground'>Time to Migration</span>
+                            <span>
+                              {token.time_to_migration_minutes < 60
+                                ? `${token.time_to_migration_minutes.toFixed(1)} min`
+                                : `${(token.time_to_migration_minutes / 60).toFixed(1)} hrs`}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Tabs for Current Analysis and History */}
             <Tabs defaultValue='current' className='mt-3'>
               <TabsList className='grid w-full grid-cols-2'>
@@ -544,6 +786,31 @@ export function TokenDetailsModal({
                             </Button>
                           </div>
                         </TableHead>
+                        <TableHead className='text-right'>
+                          <div className='flex items-center justify-end gap-1'>
+                            <span>Token uPnL/PnL</span>
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              className='h-5 w-5 p-0'
+                              onClick={async () => {
+                                if (!tokenId) return;
+                                toast.info('Computing PnL for all wallets...');
+                                try {
+                                  const res = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/compute-wallet-pnl`, { method: 'POST' });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setWalletPnl(data.pnl);
+                                    toast.success(`PnL computed for ${data.wallets_computed} wallets (${data.credits_used} credits)`);
+                                  }
+                                } catch { toast.error('Failed to compute PnL'); }
+                              }}
+                              title='Compute/refresh uPnL and PnL for all wallets'
+                            >
+                              <RefreshCw className='h-3 w-3' />
+                            </Button>
+                          </div>
+                        </TableHead>
                         <TableHead className='text-right'>Tags</TableHead>
                         <TableHead>First Buy Time</TableHead>
                         <TableHead className='text-right'>
@@ -557,7 +824,7 @@ export function TokenDetailsModal({
                       {token.wallets.length === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={8}
+                            colSpan={9}
                             className='text-muted-foreground py-12 text-center'
                           >
                             No wallets found
@@ -568,7 +835,7 @@ export function TokenDetailsModal({
                           {currentPaddingTop > 0 && (
                             <TableRow aria-hidden='true'>
                               <TableCell
-                                colSpan={8}
+                                colSpan={9}
                                 className='p-0'
                                 style={{ height: currentPaddingTop }}
                               />
@@ -586,7 +853,13 @@ export function TokenDetailsModal({
                                 <TableCell className='font-mono text-xs'>
                                   <div className='flex flex-col gap-0.5'>
                                     <div className='flex items-center gap-2'>
-                                      {wallet.wallet_address}
+                                      <span
+                                        className='cursor-pointer hover:text-blue-400 transition-colors'
+                                        title='Click for Wallet Intelligence Report'
+                                        onClick={() => openWIR(wallet.wallet_address)}
+                                      >
+                                        {wallet.wallet_address}
+                                      </span>
                                       <a
                                         href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
                                         target='_blank'
@@ -610,6 +883,15 @@ export function TokenDetailsModal({
                                         }
                                       >
                                         <Copy className='h-3 w-3' />
+                                      </Button>
+                                      <Button
+                                        variant='ghost'
+                                        size='sm'
+                                        className='h-6 w-6 p-0'
+                                        onClick={() => toggleStar(wallet.wallet_address)}
+                                        title={starredWallets.has(wallet.wallet_address) ? 'Remove from Watchlist' : 'Add to Watchlist'}
+                                      >
+                                        <Star className={`h-3 w-3 ${starredWallets.has(wallet.wallet_address) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                                       </Button>
                                     </div>
                                     <WalletTagLabels
@@ -679,6 +961,41 @@ export function TokenDetailsModal({
                                   </div>
                                 </TableCell>
                                 <TableCell className='text-right'>
+                                  {(() => {
+                                    const pnl = walletPnl[wallet.wallet_address];
+                                    if (!pnl) return <span className='text-muted-foreground text-xs'>—</span>;
+                                    const val = pnl.total_pnl_usd;
+                                    const isHolding = pnl.status === 'holding';
+                                    const color = val > 0 ? 'text-green-400' : val < 0 ? 'text-red-400' : 'text-muted-foreground';
+                                    const label = isHolding ? 'uPnL' : pnl.status === 'exited' ? 'Exited' : 'PnL';
+                                    return (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className='flex flex-col items-end'>
+                                              <span className={`font-mono text-xs font-medium ${color}`}>
+                                                {val >= 0 ? '+' : ''}${Math.abs(val).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                              </span>
+                                              <span className={`text-[9px] ${isHolding ? 'text-blue-400' : 'text-muted-foreground'}`}>
+                                                {label}{isHolding && pnl.current_holdings_usd ? ` ($${pnl.current_holdings_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })} held)` : ''}
+                                              </span>
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <div className='space-y-0.5 text-xs'>
+                                              <p>Spent: ${pnl.total_bought_usd?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                                              {isHolding && <p>Holdings Value: ${pnl.current_holdings_usd?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>}
+                                              {pnl.unrealized_pnl_usd !== 0 && <p>Unrealized: ${pnl.unrealized_pnl_usd?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>}
+                                              {pnl.realized_pnl_usd !== 0 && <p>Realized: ${pnl.realized_pnl_usd?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>}
+                                              <p className='text-muted-foreground italic'>{isHolding ? 'Still holding tokens' : 'No longer holds this token'}</p>
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    );
+                                  })()}
+                                </TableCell>
+                                <TableCell className='text-right'>
                                   <div className='flex justify-end gap-2'>
                                     <WalletTags
                                       walletAddress={wallet.wallet_address}
@@ -723,7 +1040,7 @@ export function TokenDetailsModal({
                           {currentPaddingBottom > 0 && (
                             <TableRow aria-hidden='true'>
                               <TableCell
-                                colSpan={8}
+                                colSpan={9}
                                 className='p-0'
                                 style={{ height: currentPaddingBottom }}
                               />
@@ -844,6 +1161,9 @@ export function TokenDetailsModal({
                                     </div>
                                   </TableHead>
                                   <TableHead className='text-right'>
+                                    Token uPnL/PnL
+                                  </TableHead>
+                                  <TableHead className='text-right'>
                                     Tags
                                   </TableHead>
                                   <TableHead>First Buy Time</TableHead>
@@ -862,7 +1182,7 @@ export function TokenDetailsModal({
                                 {run.wallets.length === 0 ? (
                                   <TableRow>
                                     <TableCell
-                                      colSpan={8}
+                                      colSpan={9}
                                       className='text-muted-foreground py-8 text-center text-sm'
                                     >
                                       No wallets in this run
@@ -877,7 +1197,13 @@ export function TokenDetailsModal({
                                       <TableCell className='font-mono text-[11px]'>
                                         <div className='flex flex-col gap-0.5'>
                                           <div className='flex items-center gap-1'>
-                                            {wallet.wallet_address}
+                                            <span
+                                              className='cursor-pointer hover:text-blue-400 transition-colors'
+                                              title='Click for Wallet Intelligence Report'
+                                              onClick={() => openWIR(wallet.wallet_address)}
+                                            >
+                                              {wallet.wallet_address}
+                                            </span>
                                             <a
                                               href={`https://twitter.com/search?q=${encodeURIComponent(wallet.wallet_address)}`}
                                               target='_blank'
@@ -973,6 +1299,21 @@ export function TokenDetailsModal({
                                             />
                                           </Button>
                                         </div>
+                                      </TableCell>
+                                      <TableCell className='text-right'>
+                                        {(() => {
+                                          const pnl = walletPnl[wallet.wallet_address];
+                                          if (!pnl) return <span className='text-muted-foreground text-[10px]'>—</span>;
+                                          const val = pnl.total_pnl_usd;
+                                          const isHolding = pnl.status === 'holding';
+                                          const color = val > 0 ? 'text-green-400' : val < 0 ? 'text-red-400' : 'text-muted-foreground';
+                                          return (
+                                            <div className='flex flex-col items-end'>
+                                              <span className={`font-mono text-[10px] font-medium ${color}`}>{val >= 0 ? '+' : ''}${Math.abs(val).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                              <span className={`text-[8px] ${isHolding ? 'text-blue-400' : 'text-muted-foreground'}`}>{isHolding ? 'uPnL' : 'Exited'}</span>
+                                            </div>
+                                          );
+                                        })()}
                                       </TableCell>
                                       <TableCell className='text-right'>
                                         <div className='flex justify-end gap-1'>

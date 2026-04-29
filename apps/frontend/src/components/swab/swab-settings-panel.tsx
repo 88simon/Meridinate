@@ -64,18 +64,18 @@ export function SwabSettingsPanel({
         onClick={(e) => e.stopPropagation()}
       >
         <div className='flex items-center justify-between border-b p-4'>
-          <h2 className='text-lg font-semibold'>SWAB Configuration</h2>
+          <h2 className='text-lg font-semibold'>Position Tracker Configuration</h2>
           <Button variant='ghost' size='icon' onClick={onClose}>
             <X className='h-4 w-4' />
           </Button>
         </div>
 
         <div className='space-y-6 p-4'>
-          {/* MTEW → SWAB Gate - Most important setting, shown first */}
+          {/* Tracking Gate - Most important setting, shown first */}
           <div className='bg-primary/5 -mx-4 space-y-2 border-b px-4 pb-4'>
-            <label className='text-sm font-medium'>MTEW → SWAB Gate</label>
+            <label className='text-sm font-medium'>Tracking Gate</label>
             <p className='text-muted-foreground mb-2 text-xs'>
-              Only MTEWs appearing in <strong>{minTokenCount}+</strong> analyzed
+              Only recurring wallets appearing in <strong>{minTokenCount}+</strong> analyzed
               tokens get tracked
             </p>
             <input

@@ -1,1115 +1,488 @@
-# Meridinate - Complete Project Blueprint
+# Meridinate - Project Blueprint
 
-**Created:** November 17, 2025
-**Purpose:** Comprehensive handoff documentation for AI assistants and future development
-**User:** Simon (non-technical background - use precise terminology and explanations)
-**Project Status:** ✅ Monorepo migration 100% complete, production-ready
-
----
-
-## Table of Contents
-
-1. [Project Essence](#project-essence)
-2. [Current Project Status](#current-project-status)
-3. [Directory Structure](#directory-structure)
-4. [Feature Mapping & Technical Terminology](#feature-mapping--technical-terminology)
-5. [User Terminology Guide](#user-terminology-guide)
-6. [Technical Stack](#technical-stack)
-7. [How to Start the Project](#how-to-start-the-project)
-8. [Project Roadmap](#project-roadmap)
-9. [Common Operations](#common-operations)
+**Updated:** April 28, 2026
+**User:** Simon (non-technical background, vibecoder)
+**Purpose:** Solana token intelligence platform with AI-powered analysis, Meteora stealth-sell detection, automated wallet/token investigation, and an evolving bot-operator intelligence layer
 
 ---
 
-## Project Essence
+## What is Meridinate?
 
-### What is Meridinate?
+Meridinate is a comprehensive Solana token intelligence platform. It scans newly launched tokens, identifies early buyers, tracks wallets across multiple tokens, builds leaderboards, detects coordinated rug patterns (bundling, Meteora stealth-selling, sybil clusters), and uses AI agents to investigate the data and produce actionable intelligence reports. The approved direction for the Intel layer is to evolve those reports into structured bot-operator intelligence: trust/avoid/watch classification, allowlist and denylist discovery, and reviewable recommendations that can become bot-active after user approval.
 
-**Meridinate** is a **professional-grade Solana token analysis toolkit** designed to identify profitable early investment opportunities in newly launched Solana tokens by analyzing "early bidder" wallets - addresses that purchased tokens within the first few minutes of launch.
-
-### Core Value Proposition
-
-**Problem Solved:** Identifying which new Solana tokens have potential before they gain mainstream attention.
-
-**How it Works:**
-1. **Token Analysis** - User provides a Solana token address
-2. **Early Bidder Detection** - System identifies wallets that bought within the first 5-10 minutes
-3. **Wallet Profiling** - Analyzes these early bidders' historical performance across multiple tokens
-4. **Multi-Token Wallet Identification** - Finds "smart money" wallets that consistently appear as early bidders in multiple successful tokens
-5. **Real-time Monitoring** - Tracks market cap changes and wallet activities via WebSocket notifications
-
-### Business Model Context
-
-This is a **personal analysis tool** for Simon's cryptocurrency investment research, not a SaaS product. It integrates with:
-- **Helius API** (Solana blockchain data)
-- **DexScreener** (market cap and price data)
-- **Defined.fi** (optional: additional token research)
+**Core Pipeline (8 Stages + AI Layer):**
+0. Real-Time Detection (Helius WebSocket) — detects PumpFun token creation instantly, scores conviction
+0.5. Follow-Up Tracker — monitors MC trajectory for noteworthy tokens via DexScreener (free)
+1. Token Discovery (DexScreener) — polls for migrated tokens every 15 min, applies pipeline filters
+1.5. CLOBr Enrichment (optional, toggle in Settings) — fetches liquidity score for mature tokens during MC Tracker cycle, market depth for position-tracked tokens. Zero Helius credits. 12 req/min, 100K calls/month on Premium.
+2. Token Analysis (Helius) — fetches early buyers, deployer, metadata, top holders (~30-80 credits)
+3. MC Tracker (DexScreener) — age-decay polling, auto-verdicts (win/loss), win/loss tier labels
+4. Token Scorer — momentum + smart money + risk scores (0-100 each) + fresh/bundle/stealth metrics
+5. Position Tracker (Helius) — monitors wallet holdings, detects buys/sells, computes real PnL
+6. Wallet Intelligence — funding trees, clusters, deployer profiling, tip detection (Nozomi/Jito)
+7. Analytics — 40+ feature extraction, trajectory data, conviction accuracy, Meteora LP analysis
+8. AI Intel Agents — Housekeeper (wallet reliability verification) + Investigator (bot-operator classification: allowlist/denylist/watch) + structured recommendations + forensics mode
 
 ---
 
-## Current Project Status
+## Architecture
 
-### Migration Status: 100% Complete ✅
+### Stack
+- **Backend:** FastAPI (Python 3.11) on port 5003
+- **Frontend:** Next.js 15 (production build) on port 3000
+- **Database:** SQLite (single file at `apps/backend/data/db/analyzed_tokens.db`)
+- **APIs:** Helius (Solana data, paid credits), DexScreener (market data, free), PumpFun (token metadata, free), CLOBr (liquidity scores + market depth, paid Premium)
+- **Real-Time:** Helius Enhanced WebSocket for PumpFun token creation streaming
 
-**What Just Happened:** Complete restructure from dual-repository setup to professional enterprise-grade monorepo with unified CI/CD pipeline (November 2025)
+### Pages
+| Page | URL | Purpose |
+|------|-----|---------|
+| Wallet Leaderboard | `/dashboard/wallets` (HOME) | Full-DB wallet search with faceted filters, pagination, tag/tier filtering, leaderboard cache |
+| Token Leaderboard | `/dashboard/token-leaderboard` | Full-DB token search with scoring, Meteora detection, bundle/stealth columns, TIR side panel |
+| Command Center | `/dashboard/bot-tracker` | Combined RTTF token births + Bot Tracker live trade feed + intelligence panels (positions, heat map, signals, alerts, convergence) + pipeline controls |
+| Intel Agent | `/dashboard/intel` | Bot-operator intelligence: Housekeeper (wallet reliability) + Investigator (allowlist/denylist/watch classification) + per-action recommendations + Forensics mode + export bundles |
+| Bot Probe | `/dashboard/bot-probe` | Deep bot reverse engineering: full transaction history, FIFO round-trips, strategy profiling, bot comparison |
+| Wallet Profile | `/dashboard/wallets/[address]` | Per-wallet drill-down with per-token PnL and external links |
+| Codex | Sidebar panel | Starred wallets and tokens (favorites hub) with nametags |
+| Tag Reference | Sidebar panel | Context-aware reference guide (wallet tags / token signals / RTTF labels) |
+| Quick DD | `/dashboard/quick-dd` | Paste any token for instant full-pipeline due diligence with progress tracking |
+| Rug Analysis | `/dashboard/rug-analysis` | AI-powered exploration of fake chart patterns using manually labeled training data |
+| Settings | Modal from sidebar | Pipeline + Analysis + Intel tabs with real-time credit estimates |
 
-#### After (New Structure) ✅
-```
-C:\Meridinate\
-├── apps/               # Application code
-│   ├── backend/        # FastAPI + Python
-│   └── frontend/       # Next.js + React
-├── tools/              # Development tools (AutoHotkey, browser scripts)
-├── docs/               # Documentation
-└── scripts/            # Startup scripts
-```
+### Intelligence Panels (slide-out, accessible from any page)
+| Panel | Width | Purpose |
+|-------|-------|---------|
+| WIR (Wallet Intelligence Report) | 600px | Wallet profile, funding tree, PnL, token trades. Opens from any wallet address click |
+| TIR (Token Intelligence Report) | 750px | Token scores, risk signals, Meteora analysis, tracked wallets, early buyers. Opens from token row click |
 
-### What Works Right Now ✅
+PanelStack system manages all slide-out panels (WIR, TIR, Codex) with shared backdrop and automatic left-to-right stacking. First panel opened sits at right edge, subsequent panels dock to its left. Click outside all panels to close everything. Click same address twice to toggle closed.
 
-- ✅ **Backend (FastAPI)** - Runs on port 5003, all 46 API endpoints functional
-- ✅ **Frontend (Next.js)** - Runs on port 3000, dashboard and token analysis working
-- ✅ **AutoHotkey** - Desktop automation action wheel functional
-- ✅ **Database** - SQLite with 7 tables, all data preserved
-- ✅ **WebSocket** - Real-time notifications working
-- ✅ **Start Scripts** - Master launcher (`scripts/start.bat`) launches all services with automatic process cleanup, uses venv Python explicitly
-- ✅ **Market Cap Refresh** - "Refresh all visible market caps" button fully functional
-- ✅ **Multi-Token Early Wallets UI** - Nationality dropdown and tagging system work without row highlighting issues, NEW badge indicators for recently added wallets and tokens, sortable columns for all data fields, compressed layout with 40-50% vertical space savings and fixed column widths, unified filter system with wallet tags/token status/balance/token count/top holder filters, smart search with prefix support (token:/tag:/wallet:) and fuzzy matching for typos, both filters and search persist to localStorage and URL for shareable links, bunny icon branding element next to title
-- ✅ **Legacy cleanup** - Old root `backend/` and `frontend/` folders removed
-- ✅ **Wallet Balances Refresh** - Single/bulk refresh shows last-updated time and green/red trend arrows
-- ✅ **Token Table Performance** - Memoized rows + manual virtualization keep scrolling/selection smooth, sticky table header keeps column names visible during scroll
-- ✅ **CI/CD Pipeline** - Unified monorepo workflow at `.github/workflows/monorepo-ci.yml` with all checks passing
-- ✅ **UI/UX Enhancements** - GMGN.ai integration, enhanced status bar with detailed metrics, MeridinateLogo component in header, Gunslinger/Gambler tags, removed wallet count cap, horizontal pagination arrows
-- ✅ **Top Holders Feature** - Configurable limit (5-20, default 10) via settings UI in Actions column header, automatically fetched during analysis, cached in database, instant modal display with Twitter/Copy icons, manual refresh updates data and credits, uses dedicated or fallback API key, dynamic modal title reflects selected limit, aligned with Helius API cap, sticky refresh button remains visible when scrolling through holder list
-- ✅ **Wallet Top Holders Feature** - Clickable "TOP HOLDER" tag with notification badge in Multi-Token Early Wallets table, tabbed modal showing all tokens where wallet is a top holder, Chrome-style tabs with rank badges, wallet highlighted in holder list, cached lookups for performance
-- ✅ **Top Holders Performance Optimizations (Nov 2025)** - Batch endpoint for badge counts (98% bandwidth reduction, 50 requests to 1), client-side refetch callbacks replace router.refresh() for instant updates without page reload, DEFAULT_API_SETTINGS includes topHoldersLimit for cold start compatibility
-- ✅ **Token Details Modal Instant Opening (Nov 2025)** - Modal opens immediately with loading skeleton instead of blocking on network fetch, in-memory cache (30s TTL) for prefetched token data, modal state lifted from TokensTable to page.tsx to prevent table re-renders on open, background refresh ensures fresh data while showing cached content instantly
-- ✅ **Token Ingestion Pipeline (Nov 2025)** - Automated token discovery: Discovery (DexScreener, free) with direct promotion to full analysis. Tier-1 enrichment deprecated. Feature-flagged scheduler jobs, credit budgets, threshold filters. UI page at `/dashboard/ingestion` for queue management and manual triggers.
-- ✅ **Settings Modal (Nov 2025, updated Dec 2025)** - 4-tab hub: Scheduler (Token Discovery + Token Health Check subsections), Scanning (manual scan + Solscan/Action Wheel), Webhooks (CRUD), System (feature flags/scheduler status). Accessible from sidebar. Uses stale-while-revalidate pattern with session storage caching for instant render on subsequent opens.
-- ✅ **Live Credits Bar (Nov 2025)** - Extended status bar with live credit tracking: polls every 30s with focus/visibility revalidation, clickable "API Credits Today" opens popover showing recent operations. Status bar displayed on both Scanned Tokens and Ingestion pages.
-- ✅ **Persisted Operation Log (Nov 2025)** - Recent Operations history now survives restarts via `operation_log` SQLite table. Stores last 100 high-level operations (Token Analysis, Position Check, Discovery, Promotion) with credits, call count, and context. Frontend fetches last 30 via `/api/stats/credits/operation-log`.
-- ✅ **Sidebar Navigation Reorder (Nov 2025)** - New order: Ingestion, Scanned Tokens, Codex, Trash, Settings. Renamed "Analyzed Tokens" to "Scanned Tokens" and "Master Control" to "Settings" throughout UI.
-- ✅ **Performance Scoring (Nov 2025, deprecated Dec 2025)** - Rule-based token categorization system. Scores 0-100 based on MC momentum, liquidity, volume, holder quality, age, and PnL. Buckets: Prime (>=65), Monitor (40-64), Cull (<40). Note: Performance Scoring settings removed from UI Dec 2025 in favor of label-based filtering.
-- ✅ **Scheduler Panel (Dec 2025)** - Sidebar toggle opens slide-out panel showing all scheduled jobs (SWAB Position Check, Discovery, Hot Refresh) with live countdowns. Running jobs display with elapsed time. Panel shifts content like Codex (not overlay). Auto-refresh: 5s when jobs running, 30s otherwise.
-- ~~✅ **ToS Column (Dec 2025, removed)**~~ - "Type of Scan" column removed from Scanned Tokens table Dec 2025. Source information now conveyed through Labels column (auto:Manual, auto:TIP).
-- ✅ **Filter Persistence (Dec 2025)** - Scanned Tokens table filters (search text, label filter) persist to localStorage. Filters restore on return navigation without page reload.
-- ✅ **SWAB-Driven MC Refresh (Dec 2025)** - Market cap refresh prioritized by SWAB exposure. Fast-lane (30m): tokens with open SWAB positions, active webhooks, or MC >= $100k. Slow-lane (4h): lower-priority tokens. Per-row Fast/Slow badge with countdown to next refresh. Global MC Refresh Schedule banner shows lane statistics. Separate from SWAB Position Check job (5m interval).
-- ✅ **Token Labels System (Dec 2025)** - Auto-generated labels (auto:SWAB-Tracked, auto:No-Positions, auto:MC>100k, auto:Dormant, auto:Exited) plus manual tags (tag:*). Labels column with filter dropdown in Scanned Tokens table.
-- ✅ **Scheduler Tab Consolidation (Dec 2025)** - Unified Scheduler tab replaces separate Ingestion and Tracking tabs in Settings modal. Two subsections: Token Discovery Scheduler (discovery thresholds, interval, auto-promote) and Token Health Check Scheduler (MC refresh settings, drop conditions, SWAB position check). Performance Scoring settings removed from UI. First Filtered Buy column removed from table; now shown in View Details modal info grid. ToS column removed (Labels column conveys source).
-- ✅ **Frontend SWR Caching (Dec 2025)** - Stale-while-revalidate pattern across panels: Ingestion page, Scheduler tab, Scheduled Jobs panel, Codex panel. Session storage caching for instant render on subsequent opens. Background refresh with small spinner instead of full-page loading splash. Shorter timeouts (4s/1 retry) for faster feedback. Graceful degradation shows cached data during fetch failures.
+### Global Status Bar (always visible, top of every page)
+- Next Token Discovery (countdown + last run credits) — click to pause/resume + "Run Now" button (triggers auto-scan immediately)
+- Scan progress bar (shows current/total tokens + credits during active scan)
+- Real-Time WebSocket status (ON/OFF + detection counts)
+- Follow-Up Tracker (active tracking count + DexScreener rate)
+- Next Token Price & Verdict Check (countdown + credits) — click to pause/resume
+- Next Wallet Position Check (countdown + position stats) — click to pause/resume
+- Tokens Being Polled (tier breakdown on hover)
+- Helius Credits Today (used/budget + per-job breakdown)
+- CLOBr enrichment status (ON/OFF + calls today, when enabled)
+- Tokens Scanned Today counter in bottom status bar
+- Paused pipelines show yellow "PAUSED" instead of countdown
+- 3 scheduler jobs total: Token Discovery, MC Tracker, Position Checker (Tier-1 removed)
 
 ---
 
-## Directory Structure
+## Automated Systems
 
-### Complete Monorepo Layout
+### Stage 0: Real-Time Token Detection (Helius WebSocket)
+Streams PumpFun token creation events in real-time. Zero credits for detection.
+- Conviction scoring from deployer history, safety checks, wallet tags
+- Crime coin detection: 60-second watch window analyzes bundling, fresh buyers, funding convergence
+- Market viability check at window close (DexScreener MC vs configurable threshold)
+- Noteworthy tokens saved to `webhook_detections` table
+- Labels: HIGH CONVICTION, WATCHING, WEAK, REJECTED
+- Cross-links with auto-scan when same token is analyzed later
 
-```
-C:\Meridinate\                                    # PROJECT ROOT
-│
-├── apps/                                         # APPLICATION CODE
-│   │
-│   ├── backend/                                  # FASTAPI BACKEND (Python 3.11)
-│   │   ├── src/                                  # Source code
-│   │   │   └── meridinate/                       # Python package (IMPORTANT: package name is "meridinate")
-│   │   │       ├── tasks/                        # Background task modules
-│   │   │       │   ├── performance_scorer.py     # Token performance scoring engine
-│   │   │       │   ├── ingest_tasks.py           # Ingestion pipeline tasks
-│   │   │       │   └── position_tracker.py       # SWAB position tracking
-│   │   │       ├── routers/                      # API endpoint handlers (9 routers)
-│   │   │       │   ├── analysis.py               # Token analysis endpoints (includes Redis queue)
-│   │   │       │   ├── tokens.py                 # Token data retrieval
-│   │   │       │   ├── wallets.py                # Wallet-related endpoints
-│   │   │       │   ├── watchlist.py              # Watchlist management
-│   │   │       │   ├── tags.py                   # Wallet tagging system
-│   │   │       │   ├── ingest.py                 # Token ingestion pipeline endpoints
-│   │   │       │   ├── metrics.py                # System metrics (Prometheus)
-│   │   │       │   ├── webhooks.py               # Webhook handlers
-│   │   │       │   └── settings_debug.py         # Debug settings
-│   │   │       ├── workers/                      # Background task workers
-│   │   │       │   └── analysis_worker.py        # arq worker for async token analysis
-│   │   │       ├── middleware/                   # FastAPI middleware
-│   │   │       │   └── rate_limit.py             # slowapi rate limiting
-│   │   │       ├── models/                       # Pydantic data models
-│   │   │       │   └── ingest_settings.py        # Ingest settings schema + defaults (single source of truth)
-│   │   │       ├── config/                       # Configuration modules
-│   │   │       │   └── ingest_config.py          # DexScreener API config constants
-│   │   │       ├── services/                     # Business logic
-│   │   │       ├── database/                     # Future: DB utilities
-│   │   │       ├── observability/                # Logging/monitoring
-│   │   │       │   └── metrics.py                # Prometheus metrics collector
-│   │   │       ├── analyzed_tokens_db.py         # Database operations (main DB file)
-│   │   │       ├── helius_api.py                 # Helius API client
-│   │   │       ├── settings.py                   # Configuration management
-│   │   │       ├── debug_config.py               # Debug configuration
-│   │   │       ├── secure_logging.py             # Logging utilities
-│   │   │       ├── websocket.py                  # WebSocket connection manager
-│   │   │       └── main.py                       # FastAPI app entry point
-│   │   ├── tests/                                # Backend tests
-│   │   ├── data/                                 # DATA FILES (gitignored)
-│   │   │   ├── db/                               # SQLite database
-│   │   │   │   └── analyzed_tokens.db            # Main database (24 columns, 5 tables)
-│   │   │   ├── backups/                          # Database backups
-│   │   │   ├── analysis_results/                 # Analysis result JSON files (authoritative path)
-│   │   │   └── axiom_exports/                    # Axiom.xyz exported data (authoritative path)
-│   │   ├── logs/                                 # Log files (gitignored)
-│   │   ├── docker/                               # Docker configuration
-│   │   │   ├── Dockerfile                        # Multi-stage production image
-│   │   │   └── docker-compose.yml                # Container orchestration
-│   │   ├── docker-compose.yml                    # Redis container for task queue (root level)
-│   │   ├── .env.example                          # Environment variable template
-│   │   ├── scripts/                              # Utility scripts
-│   │   │   ├── backup_db.py                      # Database backup
-│   │   │   └── [10+ other utility scripts]
-│   │   ├── .venv/                                # Python virtual environment (Python 3.11+)
-│   │   ├── config.json                           # API keys (Helius) - NEVER commit
-│   │   ├── api_settings.json                     # API configuration
-│   │   ├── monitored_addresses.json              # Wallet addresses
-│   │   ├── requirements.txt                      # Python dependencies
-│   │   ├── pyproject.toml                        # Modern Python config
-│   │   └── README.md                             # Backend documentation
-│   │
-│   └── frontend/                                 # NEXT.JS FRONTEND (React 18, Next.js 15)
-│       ├── src/
-│       │   ├── app/                              # Next.js App Router (routing)
-│       │   │   ├── dashboard/                    # Main dashboard (authenticated)
-│       │   │   │   ├── layout.tsx                # Dashboard layout wrapper
-│       │   │   │   ├── page.tsx                  # Dashboard home
-│       │   │   │   ├── tokens/                   # Token analysis pages
-│       │   │   │   │   ├── page.tsx              # Token list + Multi-Token Early Wallets section
-│       │   │   │   │   ├── tokens-table.tsx      # Analyzed tokens data table
-│       │   │   │   │   └── [id]/                 # Dynamic route for token details
-│       │   │   │   │       └── page.tsx          # Individual token detail page
-│       │   │   │   └── trash/                    # Deleted tokens view
-│       │   │   │       └── page.tsx
-│       │   │   ├── auth/                         # Clerk authentication
-│       │   │   │   ├── sign-in/
-│       │   │   │   └── sign-up/
-│       │   │   ├── layout.tsx                    # Root layout
-│       │   │   └── page.tsx                      # Landing page
-│       │   ├── components/                       # Reusable UI components
-│       │   │   ├── ui/                           # shadcn/ui components
-│       │   │   ├── master-control/               # Split settings modal components
-│       │   │   │   ├── scanning-tab.tsx          # Scanning settings tab
-│       │   │   │   ├── scheduler-tab.tsx         # Unified Scheduler tab (Discovery + Health Check)
-│       │   │   │   ├── webhooks-tab.tsx          # Webhooks management tab
-│       │   │   │   ├── system-tab.tsx            # Feature flags tab
-│       │   │   │   ├── ingestion-tab.tsx         # Legacy (kept for reference)
-│       │   │   │   ├── swab-tab.tsx              # Legacy (kept for reference)
-│       │   │   │   └── NumericStepper.tsx        # Shared numeric input component
-│       │   │   ├── wallet-tags.tsx               # Wallet tagging UI
-│       │   │   ├── additional-tags.tsx           # Additional tag components (bot, whale, insider, gunslinger, gambler)
-│       │   │   ├── meridinate-logo.tsx           # MeridinateLogo SVG component (light/dark variants)
-│       │   │   ├── status-bar.tsx                # Bottom status bar with metrics and API credits
-│       │   │   └── layout/                       # Layout components (header, sidebar, dashboard-wrapper)
-│       │   ├── lib/                              # Utility libraries
-│       │   │   ├── api.ts                        # API client (all backend calls)
-│       │   │   ├── generated/
-│       │   │   │   └── api-types.ts              # Auto-generated TypeScript types from OpenAPI
-│       │   │   └── debug.ts                      # Debug utilities
-│       │   ├── hooks/                            # React custom hooks
-│       │   │   ├── useAnalysisNotifications.ts   # WebSocket notifications hook
-│       │   │   └── useStatusBarData.ts           # Status bar data with polling + focus revalidation
-│       │   ├── contexts/                         # React Context providers
-│       │   │   └── WalletTagsContext.tsx         # Wallet tags state management
-│       │   ├── types/                            # TypeScript type definitions
-│       │   │   └── ingest-settings.ts            # Ingest settings types (mirrors backend models)
-│       │   ├── config/                           # App configuration
-│       │   └── constants/                        # App constants
-│       ├── public/                               # Static assets (images, fonts)
-│       ├── tests/                                # E2E and unit tests
-│       ├── scripts/                              # Build scripts
-│       │   └── sync-api-types.ts                 # OpenAPI type generation script
-│       ├── .env.local                            # Environment variables (NEVER commit)
-│       ├── .env.local.example                    # Template for .env.local
-│       ├── package.json                          # NPM dependencies
-│       ├── next.config.ts                        # Next.js configuration
-│       ├── tailwind.config.ts                    # Tailwind CSS config
-│       └── README.md                             # Frontend documentation
-│
-├── tools/                                        # DEVELOPMENT TOOLS
-│   ├── autohotkey/                               # Desktop automation (Windows only)
-│   │   ├── action_wheel.ahk                      # Main action wheel interface (Right-click menu)
-│   │   ├── action_wheel_settings.ini             # AHK configuration
-│   │   ├── lib/                                  # AHK libraries
-│   │   │   └── Gdip_All.ahk                      # Graphics library
-│   │   └── tools/                                # AHK utilities
-│   │       └── test_mouse_buttons.ahk
-│   │
-│   └── browser/                                  # Browser extensions
-│       └── userscripts/                          # Tampermonkey scripts
-│           └── defined-fi-autosearch.user.js     # Auto-search on Defined.fi
-│
-├── scripts/                                      # BUILD & DEPLOYMENT SCRIPTS
-│   ├── start.bat                                 # Master launcher (all 3 services) [Windows]
-│   ├── start.sh                                  # Master launcher (backend + frontend) [Unix]
-│   ├── start-backend.bat                         # Backend only [Windows]
-│   └── start-frontend.bat                        # Frontend only [Windows]
-│
-├── docs/                                         # DOCUMENTATION (historical + active)
-│   ├── migration/                                # Historical migration notes
-│   ├── progress/                                 # Dev logs & checklists
-│   ├── security/                                 # Security policies/guides
-│   ├── ci-cd/                                    # CI/CD guides
-│   ├── async-tasks-rate-limiting-design.md       # Design doc for async task system
-│   └── async-tasks-rate-limiting-implementation.md  # Implementation guide
-│
-├── .gitignore                                    # Git ignore rules
-├── README.md                                     # Main project README
-├── PROJECT_BLUEPRINT.md                          # This file
-└── LICENSE                                       # MIT License
+### Stage 0.5: Follow-Up Tracker (DexScreener, free)
+Monitors MC trajectory for noteworthy tokens after watch window closes.
+- Adaptive observation: extends on uptrend, cuts on flatline/crash
+- Stores trajectory as `[{timestamp, mc, minutes_since_creation}]`
+- Updates conviction labels as MC changes
+- Configurable: duration (30 min - 8 hours), check interval (30s - 10 min)
+- Rate limit awareness: tracks DexScreener calls/min, warns at 50/min
 
-### Key Files You Must Know
+### Stage 1: Token Discovery (DexScreener, every 15 min)
+Discovers tokens from DexScreener, applies pipeline filters, immediately runs Helius analysis.
+- Configurable filters: launchpad, address suffix, MC, volume, liquidity, age, keywords, socials
+- Cross-references with webhook detections (no longer skips rejected tokens)
+- PumpFun API call after scan for cashback status + true ATH
+- WebSocket notification on completion
 
-| File Path | Purpose | CRITICAL Notes |
-|-----------|---------|----------------|
-| `apps/backend/src/meridinate/main.py` | FastAPI app entry point | Import pattern: `python -m meridinate.main` |
-| `apps/backend/src/meridinate/analyzed_tokens_db.py` | All database operations | 65KB file, handles 6 tables |
-| `apps/backend/config.json` | API keys (Helius) | **NEVER commit** - contains sensitive data |
-| `apps/backend/data/db/analyzed_tokens.db` | SQLite database | Main data store, 24 columns (added top_holders_json, top_holders_updated_at) |
-| `apps/backend/src/meridinate/routers/wallets.py` | Wallet endpoints | Handles balance refresh, now tracks prev/current and timestamps |
-| `apps/frontend/src/lib/api.ts` | API client | All backend API calls; includes `fetchWithRetry` utility (12s timeout, 2 retries, exponential backoff) |
-| `apps/frontend/src/lib/generated/api-types.ts` | TypeScript types | Auto-generated from OpenAPI, DO NOT edit manually |
-| `apps/frontend/src/app/dashboard/tokens/page.tsx` | Main token dashboard | Where Simon spends most time |
-| `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` | Token table component | Memoized rows, virtualized rendering for performance |
-| `apps/frontend/src/app/dashboard/tokens/token-details-modal.tsx` | Token detail modal | Shows per-wallet balance trend/timestamp, links to GMGN.ai |
-| `apps/frontend/src/app/dashboard/tokens/[id]/token-details-view.tsx` | Token detail page | Shows per-wallet balance trend/timestamp, links to GMGN.ai |
-| `apps/frontend/src/app/dashboard/tokens/top-holders-modal.tsx` | Top holders modal | Shows top N holders for a single token with dynamic title |
-| `apps/frontend/src/app/dashboard/tokens/wallet-top-holders-modal.tsx` | Wallet top holders modal | Tabbed modal showing all tokens where a wallet is a top holder |
-| `apps/frontend/src/components/status-bar.tsx` | Bottom status bar | Live credit tracking with popover for recent events, polls + focus revalidation |
-| `apps/frontend/src/hooks/useStatusBarData.ts` | Status bar data hook | Fetches credit stats, transactions, latest token with polling and focus revalidation |
-| `apps/frontend/src/components/meridinate-logo.tsx` | MeridinateLogo component | Reusable SVG logo with light/dark variants |
-| `apps/frontend/src/components/layout/header.tsx` | Main header | Contains logo, branding, navigation, user controls |
-| `apps/frontend/src/components/layout/app-sidebar.tsx` | Sidebar navigation | Collapsible sidebar with nav items: Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings |
-| `apps/frontend/src/components/scheduled-jobs-panel.tsx` | Scheduler panel | Slide-out panel showing scheduled jobs with live countdowns and running job status |
-| `apps/frontend/src/components/master-control-modal.tsx` | Settings modal | Orchestrates 5 tabs; actual tab logic in `master-control/` |
-| `apps/frontend/src/components/master-control/` | Tab components | Split tab implementations: scanning, ingestion, swab, webhooks, system |
-| `apps/backend/src/meridinate/models/ingest_settings.py` | Ingest settings schema | Pydantic models + defaults; single source of truth for settings shape |
-| `apps/backend/tests/routers/test_ingest_settings.py` | Ingest settings tests | Tests for settings save/load, bypass_limits, persistence |
-| `scripts/start.bat` | Master launcher | Starts all 3 services (AHK, backend, frontend), uses venv Python explicitly |
-| `scripts/start-backend.bat` | Backend launcher | Starts backend only, uses venv Python explicitly (line 60) |
-| `scripts/start-debug.bat` | Diagnostic tool | Troubleshooting startup issues |
-| `apps/backend/src/meridinate/workers/analysis_worker.py` | arq background worker | Async token analysis task processor (disabled by default) |
-| `apps/backend/src/meridinate/middleware/rate_limit.py` | Rate limiting middleware | slowapi tiered rate limits (disabled by default) |
-| `apps/backend/docker-compose.yml` | Redis container config | For async task queue (use `docker-compose up -d redis`) |
-| `apps/backend/.env.example` | Environment template | Redis and rate limiting configuration |
-| `docs/async-tasks-rate-limiting-implementation.md` | Implementation guide | Deployment instructions for async tasks & rate limiting |
-| `apps/backend/data/analysis_results/` | Analysis result JSONs | Source of truth for job results (legacy copies removed) |
-| `apps/backend/data/axiom_exports/` | Axiom export JSONs | Source of truth (legacy copies removed) |
+### Stage 2: Token Analysis (Helius, ~30-80 credits per token)
+Full on-chain analysis of each discovered token.
+- Metadata: name, symbol, mint/freeze authority
+- Deployer extraction from feePayer (Solana spec), cross-referenced with PumpFun creator
+- Early buyer detection: up to 100 wallets spending $50+ in first 500 transactions
+- Top holders: largest 20 holders with supply percentages
+- Creation timeline: CREATE → ADD_LIQUIDITY → FIRST_BUY events
+
+### Stage 3: MC Tracker (DexScreener, every 2 min, free)
+Decay-based market cap polling. Newer tokens checked more frequently.
+- Age intervals: 0-1h=2min, 1-6h=5min, 6-24h=15min, 1-3d=1h, 3-7d=4h, 7d+=12h
+- ATH estimation from 5-minute price change data
+- Auto-verdicts: verified-win (ATH >= 3x + break-even), verified-loss (90%+ drop, dead, stale 14d)
+- Win multiplier labels: win:3x through win:100x
+- MC trajectory metrics: volatility (coefficient of variation), recovery count
+- Retirement rules: dead/finalized/stale tokens stop polling
+
+### Stage 4: Token Scorer (Helius, 0-3 credits per token)
+Three scores per token, all 0-100:
+- **Momentum**: MC growth, ATH proximity, liquidity health
+- **Smart Money**: Consistent Winner, Sniper (not Sniper Bot), High Value wallet counts
+- **Risk**: Mint authority, freeze authority, holder concentration, holder velocity, deployer holding, early buyer overlap
+- **Composite**: Weighted average (default 40/35/25) — adjustable in UI
+- Holder distribution refreshed hourly (top1%, top10%, holder count)
+- Derived signals: holder velocity, deployer still holding, early buyer/holder overlap
+
+### Stage 5: Position Tracker (Helius, ~10 credits per check, every 5 min)
+Monitors recurring wallet positions across all tokens.
+- Detects balance changes via Helius `getTokenAccountsByOwner`
+- Finds actual buy/sell transactions when balance changes
+- Smart money flow computation (bullish/bearish/neutral per token)
+- Hold duration stats (avg hold time, quick flip %, diamond hands %)
+- Entry timing scores (Lightning Buyer tag for <60s entries across 3+ tokens)
+
+### Stage 6: Wallet Intelligence (database, zero credits)
+- **Funding trees**: 1-hop (direct funder) and 3-hop (deep trace) via Helius
+- **Cluster detection**: wallets sharing a common funder
+- **Fresh wallet detection**: tiered (Fresh <1h, <24h, <3d, <7d)
+- **Wallet correlation matrix**: co-appearance across 3+ tokens
+- **Deployer network**: deployers sharing funding source
+- **Deployer profiling**: Serial Deployer, Winning/Rug/High-Value Deployer
+- **Sniper Bot detection**: avg entry <30s across 5+ tokens, 80%+ under 60s
+
+### Stage 7: Analytics & ML (database, zero credits)
+- **Feature extractor**: 40+ features per token for ML classification
+- **MC trajectory**: stored as last 20 readings, volatility + recovery metrics
+- **Cross-system metrics**: webhook conviction vs actual outcome, time-to-migration
+- **Conviction accuracy dashboard**: report card comparing birth predictions to verdicts
+- **Token lifecycle records**: complete birth → trajectory → analysis → verdict story
+
+### Real PnL Calculation v2 (~21 credits per wallet-token pair)
+- Per-token-account approach: `getTokenAccountsByOwner` → `getSignaturesForAddress` on token account → parse buy/sell
+- Computes actual SOL spent/received from real blockchain transactions
+- No estimates anywhere — all read points filter for `pnl_source = 'helius_enhanced'`
+- Wallets without real PnL show $0, not fabricated numbers
+- Auto-computes for new recurring wallets after each auto-scan cycle
+- Position tracker triggers v2 recompute after balance change detection
+- SOL price from CoinGecko (reliable), dust filter skips trades < 0.01 SOL
+- PnL Backfill Manager: start/stop/progress UI on Command Center page
+- Recomputes behavioral tags (Consistent Winner/Loser) from real PnL data
 
 ---
 
-## Feature Mapping & Technical Terminology
+## Tag System
 
-### User View → Technical Implementation
+### Wallet Tags (3 Tiers)
+| Tier | Tags | Source |
+|------|------|--------|
+| 1 (Auto) | Exchange, Protocol, Cluster, Fresh (<1h/24h/3d/7d), High Value, Low Value, Active Trader, Holder, Deployer, Serial Deployer, Winning Deployer, Rug Deployer, High-Value Deployer, Correlated Wallet, Deployer Network, Sniper Bot | Helius / auto-detection |
+| 2 (Computed) | Consistent Winner, Consistent Loser, Diversified, Sniper, Lightning Buyer | Meridinate behavioral analysis |
+| 3 (Manual) | Insider, KOL, Watchlist | User-assigned |
 
-When Simon says...  →  Technical term & Implementation
+### Token Labels
+| Category | Labels |
+|----------|--------|
+| Source | auto:Manual, auto:TIP |
+| Positions | auto:Position-Tracked, auto:No-Positions, auto:Exited |
+| Performance | auto:Mooning, auto:Climbing, auto:Stable, auto:Declining, auto:Dead, auto:ATH |
+| Signals | signal:Smart-Money, signal:Cluster-Alert, signal:Insider-Heavy, signal:Bot-Heavy, signal:Whale-Backed, signal:Smart-Bullish, signal:Smart-Bearish |
+| Win Multiplier | win:3x, win:5x, win:10x, win:25x, win:50x, win:100x |
+| Status | auto:Discarded |
 
-#### **"Multi-Token Early Wallets Section"**
-- **Technical Term:** Multi-Token Early Wallets Data Table Component
-- **Branding:** Features bunny icon (optimized PNG via Next.js Image component) next to section title
-- **What it is:** A React component that displays wallets appearing as early bidders in multiple analyzed tokens
-- **Location:** `apps/frontend/src/app/dashboard/tokens/page.tsx`
-- **Backend API:** `GET /api/multitokens/wallets` (router: `wallets.py`)
-- **Database Query:** Joins `early_buyer_wallets` table with `analyzed_tokens` table
-- **Database Tracking:** `multi_token_wallet_metadata` table tracks which wallets are newly added
-- **UI Component Type:** Data table (not a "panel" - panels are usually sidebar/floating elements)
-
-**Features:**
-- **NEW Badge Indicators (Nov 2025):**
-  - Green "NEW" badge appears next to wallet addresses that just crossed the 2-token threshold
-  - Green "NEW" badge appears inside the token name box for the specific token that caused the wallet to become multi-token
-  - Badges persist until the next token analysis completes
-  - Backend tracks via `marked_at_analysis_id` field to identify which token triggered multi-token status
-
-- **Sortable Columns (Nov 2025):**
-  - Wallet Address - Sort by NEW status first, then alphabetically
-  - Balance (USD) - Sort by wallet balance amount (high/low)
-  - Tokens - Sort by token count (number of tokens wallet appears in)
-  - Token Names - Sort by whether wallet has a NEW token
-  - Click column header to toggle ascending/descending
-  - Sorting persists across collapsed/expanded modes and pagination
-  - Works with virtualized rendering in expanded mode
-
-- **Compressed Layout (Nov 2025):**
-  - Vertical space optimized: reduced padding (p-6 to p-3), margins, gaps, and row heights (80px to 60px)
-  - Text sizes reduced throughout (headings: text-xl to text-base, body: text-sm to text-xs)
-  - Button heights compressed (h-7 to h-6, h-8 to h-6)
-  - Refresh balance button moved to left of balance values (horizontal layout instead of vertical stack)
-  - Fixed column widths with table-fixed layout to prevent column drift on sort/scroll:
-    - Wallet Address: 320px (includes address, NEW badge, Twitter/Copy buttons)
-    - Balance (USD): 220px (refresh button + balance + timestamp)
-    - Tags: 140px (wallet tags + additional tags popover)
-    - Tokens: 80px (token count badge)
-    - Token Names: auto (flexible, displays token name badges)
-  - Table minimum width: 1000px with horizontal scroll if needed
-  - Achieves 40-50% vertical space reduction per row while maintaining readability
-
-**Correct Terminology:**
-- ✅ "Multi-Token Early Wallets table"
-- ✅ "Multi-Token Early Wallets section"
-- ❌ "Multi-Token Wallets panel" (old terminology - now called "Multi-Token Early Wallets section")
-
-#### **"Token List" / "Main Dashboard" / "Scanned Tokens"**
-- **Technical Term:** Scanned Tokens Dashboard Page
-- **What it is:** The main authenticated page showing all scanned tokens
-- **Location:** `apps/frontend/src/app/dashboard/tokens/page.tsx`
-- **Route:** `/dashboard/tokens`
-- **Sidebar Label:** "Scanned Tokens" (renamed from "Analyzed Tokens" Nov 2025)
-- **Components:**
-  - `TokensTable` - Data table showing scanned tokens with bunny icon for "View Details" button
-  - Multi-Token Early Wallets section (expandable)
-  - Action buttons (Refresh, Export, etc.)
-
-#### **"Analyzing a Token"**
-- **Technical Term:** Token Analysis Request
-- **What happens:**
-  1. User enters Solana token address (e.g., `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr`)
-  2. Frontend calls `POST /api/analyze/{token_address}`
-  3. Backend fetches token data from Helius API
-  4. Identifies early bidders (first 5-10 minutes of trading)
-  5. Stores results in `analyzed_tokens` table
-  6. Returns analysis results + sends WebSocket notification
-  7. Frontend refreshes token list automatically
-- **Location:** `apps/backend/src/meridinate/routers/analysis.py`
-- **Database Tables:**
-  - `analyzed_tokens` - Token metadata
-  - `early_buyer_wallets` - Wallet addresses + purchase data
-  - `analysis_runs` - Historical analysis runs
-  - `token_tags` - Token classification tags (GEM/DUD)
-  - `wallet_tags` - Wallet categorization tags
-
-#### **"Action Wheel"**
-- **Technical Term:** AutoHotkey Context Menu / Radial Menu
-- **What it is:** A Windows desktop automation script that provides a circular menu when right-clicking
-- **Location:** `tools/autohotkey/action_wheel.ahk`
-- **Functionality:**
-  - Quick token analysis from clipboard
-  - Open GMGN.ai/DexScreener for selected token
-  - Copy wallet addresses
-- **Platform:** Windows only (AutoHotkey v2)
-
-#### **"Token Explorer Links"**
-- **Technical Term:** External Token Explorer Integration
-- **What it is:** Hyperlinks from token addresses/names to GMGN.ai token pages
-- **Format:** `https://gmgn.ai/sol/token/{address}?min=0.1&isInputValue=true`
-- **Locations:**
-  - Token Names in multi-token wallets panel
-  - Address column in token table
-  - "View on GMGN" links in token detail modal/page
-- **Previous:** Used Solscan (replaced Nov 2025)
-
-**Correct Terminology:**
-- ✅ "AutoHotkey action wheel"
-- ✅ "Right-click context menu"
-- ✅ "Radial menu interface"
-- ❌ "Action button" (it's a full menu system, not a single button)
-
-#### **"Tagging Wallets"**
-- **Technical Term:** Wallet Tagging System
-- **What it is:** Categorization system for wallet addresses (e.g., "insider", "bot", "smart money", "gunslinger", "gambler")
-- **Location (Backend):** `apps/backend/src/meridinate/routers/tags.py`
-- **Location (Frontend):** `apps/frontend/src/components/wallet-tags.tsx`, `apps/frontend/src/components/additional-tags.tsx`
-- **Additional Tags:** Bot, Whale, Insider, Gunslinger, Gambler (managed via popover in Tags column)
-- **Database Table:** `wallet_tags`
-- **Context Provider:** `WalletTagsContext.tsx` (React Context for state management)
-
-#### **"Token Classification (GEM/DUD)"**
-- **Technical Term:** Token Tagging System
-- **What it is:** Fire-and-forget classification system for tokens using tags ("gem" for promising tokens, "dud" for poor performers)
-- **Architecture:** Uses same pattern as wallet tags - no optimistic locking, instant UI updates, simple add/remove operations
-- **Location (Backend):** `apps/backend/src/meridinate/routers/tokens.py` (token tag endpoints)
-- **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/tokens-table.tsx` (GEM/DUD buttons)
-- **Database Table:** `token_tags` (token_id, tag, created_at)
-- **API Endpoints:**
-  - `GET /api/tokens/{token_id}/tags` - Get all tags for a token
-  - `POST /api/tokens/{token_id}/tags` - Add a tag to a token
-  - `DELETE /api/tokens/{token_id}/tags` - Remove a tag from a token
-- **How it works:**
-  1. Click GEM button - Removes "dud" tag if exists, adds "gem" tag
-  2. Click DUD button - Removes "gem" tag if exists, adds "dud" tag
-  3. Click again - Removes the tag (clears classification)
-  4. Optimistic UI updates - Changes appear instantly before API confirms
-  5. Cache invalidation - Both `tokens_history` and `multi_early_buyer_wallets` caches cleared
-- **Display Locations:**
-  - Token Table - Buttons in market cap cell, badges next to token name
-  - Multi-Token Early Wallets Section - Badges shown inline with token names
-- **Legacy Field:** `gem_status` column kept for backwards compatibility during migration
-
-#### **"Top Holders Feature"**
-- **Technical Term:** Token Holder Analysis System with Configurable Limit
-- **What it is:** Displays the top N largest wallet holders (configurable 5-20, default 10) of a specific token with real-time balance data
-- **Location (Backend):** `apps/backend/src/meridinate/helius_api.py` (lines 393-599), `apps/backend/src/meridinate/routers/tokens.py` (lines 558-660)
-- **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/top-holders-modal.tsx`
-- **Database Columns:** `top_holders_json`, `top_holders_updated_at` in `analyzed_tokens` table
-- **API Endpoints:**
-  - `GET /api/tokens/{token_address}/top-holders?limit={N}` - Fetch and refresh top N holders (limit: 5-20, aligned with Helius API cap)
-  - `POST /api/settings` - Update topHoldersLimit setting (persisted to api_settings.json)
-- **Configuration:**
-  - Settings UI in Actions column header of tokens table (gear icon)
-  - Dropdown with preset values: 5, 10, 15, 20
-  - Default: 10 holders (now included in DEFAULT_API_SETTINGS for cold start compatibility)
-  - Persisted to backend api_settings.json file
-  - API key: uses HELIUS_TOP_HOLDERS_API_KEY if set, otherwise falls back to main HELIUS_API_KEY
-- **How it works:**
-  1. User configures limit via settings UI or uses default of 10
-  2. Automatically fetches during token analysis using `getTokenLargestAccounts` RPC with configured limit
-  3. Resolves token account addresses to wallet owner addresses using `getAccountInfo`
-  4. Filters out program-derived addresses (PDAs) - only shows on-curve wallets
-  5. Calculates token balance in USD using DexScreener price API
-  6. Fetches total wallet balance in USD via Helius API
-  7. Stores in database as JSON with timestamp
-  8. Modal opens instantly with cached data, dynamically showing "Top N Token Holders" title
-  9. Manual refresh button updates data using configured limit and adds credits to cumulative total
-- **Data Displayed:**
-  - Wallet address (clickable with Solscan filters applied)
-  - Token balance in USD (calculated from token price)
-  - Total wallet balance in USD
-  - Twitter search link for each wallet
-  - Copy to clipboard button
-- **API Credits:** Adds 11-21 credits per fetch (1 for token accounts + up to 10 for owner lookups + 1 for metadata + up to 10 for wallet balances)
-- **UI Features:**
-  - Inline Twitter and Copy icons (same pattern as multi-token wallets panel)
-  - Bottom-center refresh button
-  - Last updated timestamp
-  - Token name and symbol displayed prominently
-  - Dynamic modal title ("Top N Token Holders" where N = configured limit)
-  - Graceful fallback if no data available
-
-#### **"Wallet Top Holders Feature" (Nov 2025)**
-- **Technical Term:** Multi-Token Top Holder Analysis System with Tabbed Interface
-- **What it is:** Shows all tokens where a specific wallet is a top holder, with Chrome-style tabs and notification badges
-- **Location (Backend):** `apps/backend/src/meridinate/routers/wallets.py` (endpoints: `GET /wallets/{wallet_address}/top-holder-tokens`, `POST /wallets/batch-top-holder-counts`)
-- **Location (Frontend):**
-  - `apps/frontend/src/app/dashboard/tokens/wallet-top-holders-modal.tsx` - Tabbed modal component
-  - `apps/frontend/src/app/dashboard/tokens/page.tsx` - TOP HOLDER tag in Multi-Token Early Wallets table
-- **API Endpoints:**
-  - `GET /wallets/{wallet_address}/top-holder-tokens` - Returns all tokens where wallet is a top holder (full data for modal)
-  - `POST /wallets/batch-top-holder-counts` - Returns only counts for multiple wallets (optimized for badge display, 98% bandwidth reduction)
-- **How it works:**
-  1. For each wallet in Multi-Token Early Wallets table, backend searches all `top_holders_json` fields
-  2. Returns list of tokens where wallet address appears, with wallet rank and holder data
-  3. Frontend displays clickable "TOP HOLDER" tag with red notification badge showing count
-  4. Clicking tag opens tabbed modal with Chrome-style tabs (one tab per token)
-  5. Each tab shows full top holders list for that token, with current wallet highlighted
-  6. Response is cached for 5 minutes to optimize performance
-- **Data Returned Per Token:**
-  - `token_id`, `token_name`, `token_symbol`, `token_address`
-  - `top_holders` - Full list of holders from `top_holders_json`
-  - `top_holders_limit` - Number of holders in the list
-  - `wallet_rank` - Position of wallet in top holders (1-indexed)
-  - `last_updated` - Timestamp of last refresh
-- **UI Features:**
-  - Purple "TOP HOLDER" tag with red circular notification badge (shows count)
-  - First clickable tag in Multi-Token Early Wallets table
-  - Chrome-style horizontal tabs with token names
-  - Rank badge on each tab (e.g., "#3")
-  - Highlighted row for the selected wallet in holders table
-  - "YOU" badge next to wallet address
-  - Token name, symbol, and rank prominently displayed
-  - Solscan/Twitter/Copy buttons for all holders
-  - Last updated timestamp at bottom
-- **Performance Optimizations:**
-  - Lazy-loaded modal component (dynamic import)
-  - 5-minute cache for top holder lookups
-  - Batch endpoint for badge counts - single POST request instead of N GET requests (98% bandwidth reduction for 50 wallets)
-  - Returns only counts, not full holder lists, for badge display (3,000 holder records reduced to 50 numbers)
-  - Client-side refetch callbacks replace router.refresh() for instant updates without full page reload
-  - Optimistic UI updates with local state before server sync
-
-#### **"Performance Scoring / Token Categorization" (Nov 2025)**
-- **What it is:** Rule-based scoring engine that classifies tokens into quality buckets (Prime/Monitor/Cull) based on performance metrics.
-- **Location (Backend):**
-  - `tasks/performance_scorer.py` - Scoring engine with configurable rule weights
-  - `analyzed_tokens_db.py` - Schema for `token_performance_snapshots` table and performance columns
-  - `routers/tokens.py` - Score/performance endpoints
-  - `routers/ingest.py` - Control cohort endpoints
-- **Location (Frontend):**
-  - `tokens-table.tsx` - Score/Bucket columns with CTL badge, bucket filter dropdown
-  - `master-control-modal.tsx` - Performance Scoring settings in Ingestion tab
-- **Database:**
-  - New table: `token_performance_snapshots` (price, MC, volume, liquidity, holder metrics over time)
-  - New columns on `analyzed_tokens` and `token_ingest_queue`: `performance_score`, `performance_bucket`, `score_explanation`, `score_timestamp`, `is_control_cohort`
-- **Scoring Rules (configurable via `score_weights` in settings):**
-  - MC momentum: +15 if >=50% up, +10 if >=30% up, -10 if >=35% down
-  - Liquidity: +10 if >=30% up, -15 if >=40% down
-  - Volume: +10 if >=100k, -10 if <10k
-  - Holder quality: +12 if >=3 high-win-rate wallets, +6 if 1-2, -8 if top holder >45%
-  - Age/lock: -10 if <1h old and LP unlocked
-  - PnL feedback: +8 if positive, -8 if negative
-- **Buckets:** Prime (>=65), Monitor (40-64), Cull (<40), Excluded (flagged)
-- **API Endpoints:**
-  - `POST /api/tokens/score` - Recompute scores for token list
-  - `GET /api/tokens/{address}/performance` - Recent snapshots + bucket history
-  - `GET /api/tokens/prime-for-promotion` - List Prime tokens not yet promoted
-  - `POST /api/ingest/control-cohort` - Run control cohort selection
-  - `GET /api/ingest/control-cohort` - List control cohort tokens
-- **Settings:** `score_enabled`, `performance_prime_threshold`, `performance_monitor_threshold`, `control_cohort_daily_quota`, `score_weights`
-
-#### **"Token Ingestion Pipeline" (Nov 2025)**
-- **What it is:** Automated token discovery system that ingests tokens from DexScreener and promotes directly to full analysis.
-- **Architecture:** Simplified two-step flow (Discovery → Analysis):
-    - **Discovery (free):** Configurable-interval DexScreener fetch of recently migrated tokens, stores MC/volume/liquidity snapshots in `token_ingest_queue` table.
-    - **Tier-1 (deprecated):** Enrichment step removed; tokens promote directly from Discovery to Analysis.
-    - **Promotion:** Manual or auto-promote discovered tokens to full analysis (early bidder detection, MTEW positions, SWAB webhooks).
-- **Location (Backend):**
-  - `routers/ingest.py` - 8 REST endpoints for settings, queue, triggers
-  - `tasks/ingest_tasks.py` - Discovery/promotion logic
-  - `services/dexscreener_service.py` - DexScreener API client
-  - `scheduler.py` - Feature-flagged scheduler jobs
-- **Location (Frontend):** `app/dashboard/ingestion/page.tsx` - Queue management UI with stats, filters, manual triggers. SWR caching for instant render, independent parallel fetches, stale data preservation, job completion polling with toast notification.
-- **Database:** `token_ingest_queue` table (address, name, symbol, tier, status, MC/volume snapshots, timestamps)
-- **Settings:** `ingest_settings.json` - thresholds, batch sizes, credit budgets, feature flags (`discovery_enabled`, `auto_promote_enabled`, `hot_refresh_enabled`)
-- **API Endpoints:**
-  - `GET/POST /api/ingest/settings` - View/update settings
-  - `GET /api/ingest/queue` - List queue with filters
-  - `GET /api/ingest/queue/stats` - Queue statistics
-  - `POST /api/ingest/run-discovery` - Trigger Discovery ingestion (alias: `/run-tier0`)
-  - `POST /api/ingest/run-tier1` - Deprecated (no-op)
-  - `POST /api/ingest/promote` - Promote tokens to full analysis
-  - `POST /api/ingest/discard` - Mark tokens discarded
-  - `POST /api/ingest/refresh-hot` - Refresh MC/volume for recent tokens
-  - `POST /api/ingest/auto-promote` - Trigger auto-promotion
-- **Key Behavior:** Promotion runs full `TokenAnalyzer.analyze_token()`, saves to `analyzed_tokens` with `ingest_source`/`ingest_tier` metadata, records MTEW positions, registers SWAB webhooks.
-
-#### **"SWAB - Smart Wallet Archive Builder" (Nov 2025)**
-- **What it is:** Tracks MTEW wallets across tokens, detecting buys/sells and computing PnL.
-- **Where:** Backend (`routers/swab.py`, `routers/webhooks.py`, `tasks/position_tracker.py`, `analyzed_tokens_db.py`, `helius_api.py`); Frontend (`components/swab/*`, `lib/api.ts`).
-- **How PnL works:**  
-  - Holding: `current_mc / entry_mc` (unrealized, updates with price).  
-  - Sold: exit price ÷ avg entry (frozen); FPnL shows `current_mc / entry_mc` (what-if).  
-- **Data flow:**  
-  - Webhook-first: Helius webhooks → `/webhooks/callback` → `_process_swab_sell` records sells with live DexScreener price (no credits).  
-  - Fallback: `get_recent_token_transaction` scans recent signatures (credit-cost, limited window).  
-  - Reconciliation: `/api/swab/reconcile[...]` tries to fix positions with `total_sold_usd=0`; limited to ~100 signatures for active wallets.  
-- **Limits:** If webhook wasn’t active before a sell, or the sell is older than the signature window, PnL falls back to MC ratios. Reconciliation can miss active wallets; price-based PnL requires webhook/live capture.
-  - Filter popover for status, wallet, token filtering
-
-#### **"Multi-Token Early Wallets Filter and Search System" (Nov 2025)**
-- **Technical Term:** Unified Filter and Smart Search Interface for Multi-Token Early Wallets Table
-- **What it is:** Comprehensive filtering and search system with smart prefix support, fuzzy matching, and persistent state
-- **Location (Frontend):** `apps/frontend/src/app/dashboard/tokens/page.tsx`
-- **Components:**
-  - Filter popover with multiple categories
-  - Smart search bar with info popover documentation
-  - Active filter chips display
-  - Badge counter on filter button
-- **Filter Categories:**
-  - Wallet Tags - Filter by Bot, Whale, Insider, Gunslinger, Gambler (OR logic within category)
-  - Token Status - Has GEMs, Has DUDs, Has untagged, All GEMs, All DUDs (OR logic within category)
-  - Balance Range - Min/Max USD range with quick presets (>$1k, >$10k, >$100k)
-  - Token Count Range - Min/Max number of tokens with quick presets (2+, 5+, 10+)
-  - Top Holder Status - Is top holder checkbox
-- **Filter Logic:**
-  - OR logic within each category (e.g., "Has GEMs" OR "Has DUDs")
-  - AND logic across categories (e.g., "Has GEMs" AND "Balance > $1k")
-  - Combines with search using AND logic
-- **Smart Search Features:**
-  - Prefix-based searching for precision:
-    - `token:Ant` - Search only token names
-    - `tag:bot` - Search only wallet tags
-    - `wallet:5e8S` - Search only wallet addresses
-    - `gem` or `dud` - Search by token status
-  - General search (no prefix) - Searches all fields simultaneously
-  - Multiple terms supported with AND logic (e.g., `gem token:Ant`)
-  - Fuzzy matching with 70% similarity threshold for typo tolerance
-  - Real-time filtering with proper dependency management
-- **Search Algorithm:**
-  - Custom fuzzy match function calculates character-order similarity
-  - Exact substring matches score 100%
-  - Boosts score if target starts with query
-  - Examples: "clot" matches "CLOUT" (80%), "veloity" matches "VELOCITY" (87%)
-- **Persistence:**
-  - Filters persist to localStorage (key: `mtwFilters`)
-  - Search query persists to localStorage (key: `mtwSearch`)
-  - Both sync to URL query parameters for shareable filtered views
-  - URL format: `?mtwFilters=...&search=...`
-  - Auto-loads from both sources on page mount
-- **UI Features:**
-  - Centered layout - Filters button and search bar positioned at top-center
-  - Info icon next to search bar opens popover with usage guide
-  - Active filter chips below search bar with individual remove buttons
-  - Clear all filters option when multiple active
-  - Badge counter shows number of active filters
-  - Search clear button (X) appears when text is present
-- **Performance:**
-  - Debounced filtering prevents lag during typing
-  - Proper React memoization with stable object references
-  - Wallet tags fetched via batch API endpoint (`POST /wallets/batch-tags`)
-  - Filters and search combined in single pass through data
-
-#### **"Market Cap Tracking"**
-- **Technical Term:** Market Capitalization Monitoring
-- **What it stores:**
-  - `market_cap_usd` - At time of analysis
-  - `market_cap_usd_current` - Latest refreshed value
-  - `market_cap_ath` - All-time high
-  - `market_cap_ath_timestamp` - When ATH occurred
-  - `market_cap_updated_at` - Last refresh timestamp
-  - `next_refresh_at` - Computed next refresh time (based on lane)
-  - `is_fast_lane` - Whether token qualifies for fast refresh
-- **Refresh mechanism:** SWAB-driven automatic + manual
-  - **Fast-lane (30m):** Tokens with SWAB open positions, active webhooks, or MC >= $100k
-  - **Slow-lane (4h):** Lower-priority tokens without SWAB exposure
-  - **Manual:** User-triggered via "Refresh all visible market caps" button
-- **API:** `POST /api/tokens/refresh-market-caps` (manual), background scheduler for automatic
-- **Data source:** DexScreener API (free, no Helius credits)
-- **UI:** Per-row Fast/Slow badge with countdown, global MC Refresh Schedule banner with lane statistics
-
-#### **"Watchlist"**
-- **Technical Term:** Wallet Watchlist Service
-- **What it is:** System for monitoring specific wallet addresses for new token purchases
-- **Location:** `apps/backend/src/meridinate/services/watchlist_service.py`
-- **Frontend:** `/dashboard` page
-- **Use Case:** Track "smart money" wallets to get notified when they buy new tokens
-
-#### **"Trash" / "Deleted Tokens"**
-- **Technical Term:** Soft Delete System
-- **What it is:** Tokens marked as deleted (not permanently removed)
-- **Database Column:** `deleted_at` (timestamp, NULL = not deleted)
-- **Frontend Route:** `/dashboard/trash`
-- **Functionality:** Can be restored or permanently deleted
+### Token Verdict System
+- **verified-win**: ATH >= 3x AND current >= 1x, OR ATH >= 1.5x AND current >= 1.5x
+- **verified-loss**: 90%+ loss (6h gate), 70%+ loss (72h gate), dead (<$1k after 24h), stale (14d no verdict)
+- Tier 3 (manual) verdicts never overwritten by auto-verdicts
+- Win multiplier tags computed alongside verdict (win:3x through win:100x)
 
 ---
 
-## User Terminology Guide
+## Key Database Tables (15+ total)
 
-### For Simon (Non-Technical Background)
-
-When discussing the project with AI assistants, use these precise terms:
-
-| What Simon Might Say | Correct Technical Term | Explanation |
-|----------------------|------------------------|-------------|
-| "The panel where I see wallets" / "Multi-Token Wallets" | "Multi-Token Early Wallets table/section" | Renamed to emphasize early bidder analysis - features bunny icon branding |
-| "Opening the app" | "Starting the development server" | Running `scripts/start.bat` launches 3 services |
-| "The localhost page" | "Local development environment" | Browser accessing `http://localhost:3000` |
-| "The backend thingy" | "FastAPI backend server" | Python server running on port 5003 |
-| "When I analyze a token" | "When I submit a token analysis request" | POST request to `/api/analyze/{address}` |
-| "The right-click menu" | "AutoHotkey action wheel" | Desktop automation radial menu |
-| "Saving a tag on a wallet" | "Creating a wallet tag" | POST to `/api/tags` endpoint |
-| "The database file" | "SQLite database" | `analyzed_tokens.db` file |
-| "Refreshing the data" | "Triggering a data refresh" | Calls `/api/tokens/refresh` endpoint |
-| "The token page" | "Token detail page" | Dynamic route `/dashboard/tokens/[id]` |
-| "Settings" / "Master Control" | "Settings modal" | 5-tab settings hub opened from sidebar |
-| "Scanned Tokens" / "Analyzed Tokens" | "Scanned Tokens page" | Main dashboard at `/dashboard/tokens` |
-
-### Common Misconceptions to Correct
-
-❌ **"The app crashed"**
-- ✅ Correct: "The backend/frontend service stopped" or "Port 5003/3000 is not responding"
-- Why: There are 3 separate services - be specific which one failed
-
-❌ **"I need to reinstall Node.js"**
-- ✅ Correct: "I need to reinstall frontend dependencies" → `cd apps/frontend && pnpm install`
-- Why: Node.js is the runtime; `node_modules` are project dependencies
-
-❌ **"The panel isn't loading"**
-- ✅ Correct: "The Multi-Token Early Wallets table isn't rendering" or "The API request to `/api/multitokens/wallets` is failing"
-- Why: Helps AI diagnose if it's a frontend rendering issue vs backend API issue
-
-❌ **"Can you update the panel?"**
-- ✅ Correct: "Can you modify the Multi-Token Early Wallets table component?" (if referring to UI) OR "Can you update the `/api/multitokens/wallets` endpoint?" (if referring to data)
-- Why: Clarifies whether it's a frontend or backend change
+| Table | Purpose |
+|-------|---------|
+| `analyzed_tokens` | All scanned tokens with MC data, scores, verdicts, deployer, creation events, analytics signals |
+| `early_buyer_wallets` | Wallet-token relationships from analysis (up to 100 per token) |
+| `mtew_token_positions` | Position tracking + real PnL (pnl_source: 'helius_enhanced' or 'estimated') |
+| `wallet_enrichment_cache` | Cached Helius funded-by, identity data |
+| `wallet_tags` | 3-tier wallet tag system |
+| `wallet_nametags` | User-assigned wallet names |
+| `token_tags` | Auto-verdicts + manual verdicts + win multipliers |
+| `token_ingest_queue` | Discovery queue |
+| `webhook_detections` | Real-time token detection records with conviction scores and trajectory data |
+| `intel_reports` | Persisted Housekeeper + Investigator reports for historical review and comparison |
+| `swab_settings` | Position tracker configuration |
+| `multi_token_wallet_metadata` | Recurring wallet tracking metadata |
+| `credit_transactions` | Helius API credit tracking |
+| `operation_log` | High-level operation history |
+| `analysis_runs` | Per-token analysis run history |
+| `quick_dd_runs` | Quick DD run history with full report JSON |
+| `rug_analysis_reports` | AI rug analysis reports |
 
 ---
 
-## Technical Stack
+## Key Backend Files
 
-### Backend (FastAPI + Python)
-
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Framework** | FastAPI | 0.109+ | REST API framework |
-| **Runtime** | Python | 3.11 | Programming language |
-| **Server** | Uvicorn | 0.27+ | ASGI server |
-| **Database** | SQLite | 3.x | Embedded database |
-| **DB Access** | aiosqlite | - | Async SQLite driver |
-| **API Client** | httpx | 0.26+ | Async HTTP client |
-| **WebSocket** | websockets | 12.0+ | Real-time notifications |
-| **JSON** | orjson | 3.9+ | Fast JSON serialization |
-| **Validation** | Pydantic | 2.0+ | Data validation |
-
-### Frontend (Next.js + React)
-
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Framework** | Next.js | 15.3.2 | React framework |
-| **Library** | React | 18.x | UI library |
-| **Language** | TypeScript | 5.x | Type-safe JavaScript |
-| **Bundler** | Turbopack | - | Fast build tool |
-| **Styling** | Tailwind CSS | 3.x | Utility-first CSS |
-| **UI Components** | shadcn/ui | - | Accessible component library |
-| **Package Manager** | pnpm | 10.21+ | Fast package manager |
-| **Auth** | Clerk | - | Authentication |
-| **State** | React Context | - | Global state management |
-| **Forms** | React Hook Form | - | Form validation |
-
-### Tools & Services
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Desktop Automation** | AutoHotkey v2 | Windows automation |
-| **API Provider** | Helius API | Solana blockchain data |
-| **Price Data** | DexScreener | Market cap & price |
-| **Browser Automation** | Tampermonkey | Userscript management |
-| **Monitoring** | Axiom.xyz | Log aggregation (optional) |
-
----
-
-## How to Start the Project
-
-### Prerequisites
-
-- Python 3.11+ installed
-- Node.js 20+ installed
-- pnpm installed (`npm install -g pnpm`)
-- AutoHotkey v2 (optional, Windows only)
-
-### Starting All Services (Recommended)
-
-```cmd
-cd C:\Meridinate
-scripts\start.bat
-```
-
-This launches:
-1. ✅ AutoHotkey action wheel
-2. ✅ Backend (FastAPI on port 5003)
-3. ✅ Frontend (Next.js on port 3000)
-
-**What you'll see:**
-- Launcher window stays open with clickable URLs
-- Backend window shows FastAPI startup logs
-- Frontend window shows Next.js compilation
-
-**Access:**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5003
-- API Docs: http://localhost:5003/docs
-- Health Check: http://localhost:5003/health
-
-### Starting Individual Services
-
-**Backend Only:**
-```cmd
-cd C:\Meridinate
-scripts\start-backend.bat
-```
-
-**Frontend Only:**
-```cmd
-cd C:\Meridinate
-scripts\start-frontend.bat
-```
-
-### First Time Setup
-
-If dependencies aren't installed:
-
-**Backend:**
-```cmd
-cd C:\Meridinate\apps\backend
-python -m venv .venv
-.venv\Scripts\activate.bat
-pip install -r requirements.txt
-```
-
-**Dependencies installed:**
-- Core: `fastapi`, `uvicorn`, `requests`, `aiosqlite`, `httpx`, `orjson`, `aiofiles`
-- Blockchain: `solana`, `base58`
-- Task Queue: `arq`, `redis` (disabled by default)
-- Rate Limiting: `slowapi` (disabled by default)
-
-**Frontend:**
-```cmd
-cd C:\Meridinate\apps\frontend
-pnpm install
-```
-
-**Important Notes:**
-- ✅ Startup scripts ([start.bat](scripts/start.bat), [start-backend.bat](scripts/start-backend.bat)) automatically use `.venv\Scripts\python.exe` to avoid module import errors
-- ✅ No need to manually activate virtual environment before running start scripts
-- ⚠️ If running Python directly, use `.venv\Scripts\python.exe -m meridinate.main` from backend directory
+| File | Purpose |
+|------|---------|
+| `tasks/ingest_tasks.py` | Auto-scan, deployer tagging, sniper bot detection, auto PnL computation |
+| `tasks/mc_tracker.py` | Decay-based MC polling, auto-verdicts, win multipliers, MC trajectory |
+| `tasks/token_scorer.py` | 3-score system with holder refresh and derived signals |
+| `tasks/position_tracker.py` | Position monitoring, smart money flow, hold duration, entry timing |
+| `tasks/wallet_analyzer.py` | Wallet correlation matrix, deployer network detection |
+| `tasks/feature_extractor.py` | 40+ ML feature extraction pipeline |
+| `services/realtime_listener.py` | Helius WebSocket for PumpFun token creation + conviction scoring + crime coin detection |
+| `services/followup_tracker.py` | Adaptive MC trajectory tracking post-watch-window |
+| `services/pnl_calculator_v2.py` | Real PnL via per-token-account signatures (~21 credits/pair) |
+| `services/pnl_backfill_manager.py` | Managed PnL backfill with start/stop/progress tracking |
+| `services/dexscreener_service.py` | DexScreener API client (free) |
+| `services/pumpfun_service.py` | PumpFun API (cashback, ATH, creator) |
+| `services/funding_tracer.py` | Multi-hop funding chain tracer |
+| `services/intel_precompute.py` | Intel lead generation, allowlist/denylist candidates, forensic casefiles, focus-aware context trimming |
+| `services/housekeeper_agent.py` | Wallet reliability verifier with scoped write tools, self-validating fix executors, data-reliable vs trust-quality split |
+| `services/intel_agent.py` | Bot-operator classifier: allowlist/denylist/watch/unclear with evidence discipline, forensics mode, recommended actions |
+| `services/recommendation_executor.py` | Intel recommendation lifecycle: propose → approve → apply → revert with audit logging |
+| `services/bot_probe.py` | Deep bot probe: full transaction collection, FIFO round-trips, unknown token discovery |
+| `services/bot_profile_builder.py` | Strategy profiling: performance, entry/exit behavior, sizing, infrastructure, behavioral patterns, comparison |
+| `services/wallet_shadow.py` | Real-time wallet tracking via WebSocket, preceding buyer capture, convergence detection |
+| `routers/recommendations.py` | Intel recommendation approval/rejection/reversion endpoints |
+| `routers/bot_probe.py` | Bot probe run/status/profile/compare endpoints |
+| `routers/wallet_shadow.py` | Wallet shadow tracking/feed/signals/convergence/pipeline control endpoints |
+| `routers/tokens.py` | Token endpoints, verdicts, top holders, ML features, sniper bot detection |
+| `routers/wallets.py` | Wallet endpoints, enrichment, funding trace, deployer profiles, PnL computation |
+| `routers/leaderboard.py` | Wallet + Token leaderboards with real PnL |
+| `routers/ingest.py` | Auto-scan trigger, settings, realtime listener control, lifecycle, accuracy |
+| `routers/intel.py` | Intel run/status/report endpoints and persistence |
+| `routers/stats.py` | Status bar endpoint, credit stats, scheduler jobs |
+| `routers/quick_dd.py` | Quick DD run/progress/history endpoints |
+| `routers/rug_analysis.py` | Rug analysis run/reports endpoints |
+| `services/clobr_service.py` | CLOBr API client with rate limiting and caching |
+| `services/quick_dd.py` | On-demand parallel DD pipeline |
+| `services/lp_trust_analyzer.py` | Fast LP creator trust assessment |
+| `services/rug_detector.py` | 7-signal fake chart detection |
+| `services/rug_analysis_agent.py` | AI-powered rug pattern exploration |
+| `scheduler.py` | APScheduler job management |
+| `helius_api.py` | Helius API client (RPC, Enhanced, Wallet API) |
 
 ---
 
-## Project Roadmap
+## Key Frontend Files
 
-### Completed ✅
-
-- ✅ **Phase 1: Core Analysis Engine** (2024 Q4)
-  - Token analysis via Helius API
-  - Early bidder detection algorithm
-  - Database schema design
-  - CSV export functionality
-
-- ✅ **Phase 2: Frontend Dashboard** (2025 Q1)
-  - Next.js 15 App Router implementation
-  - shadcn/ui component library integration
-  - Real-time WebSocket notifications
-  - Clerk authentication
-
-- ✅ **Phase 3: Advanced Features** (2025 Q2-Q3)
-  - Multi-Token Early Wallets analysis
-  - Wallet tagging system
-  - Market cap tracking (ATH, current, at-analysis)
-  - Watchlist service
-  - AutoHotkey desktop integration
-
-- ✅ **Phase 4: Monorepo Migration** (Nov 2025)
-  - Unified repository structure
-  - Professional directory organization
-  - Updated build system
-  - Documentation consolidation
-
-- ✅ **Phase 4.5: Critical Bug Fixes** (Nov 17-18, 2025)
-  - fixed market cap refresh functionality (route ordering, react hooks, database locking)
-  - fixed multi-token wallets nationality dropdown row highlighting
-  - enhanced start scripts with automatic process cleanup
-  - pushed unified repository to github
-
-- ✅ **Phase 5: Async Tasks & CI/CD** (Nov 19-20, 2025)
-  - Async task queue with arq + Redis (disabled by default)
-  - Rate limiting with slowapi (disabled by default)
-  - Unified monorepo CI/CD pipeline at `.github/workflows/monorepo-ci.yml`
-  - API type synchronization validation in CI
-  - Cross-platform CI fixes (PYTHONPATH, database directory, Python command)
-  - Fixed API types sync infinite loop (excluded commit SHA from comparison)
-
-- ✅ **Phase 6: UI/UX Enhancements** (Nov 20, 2025)
-  - GMGN.ai integration - replaced Solscan links across all token views
-  - Extended tagging system - added Gunslinger and Gambler tags
-  - MeridinateLogo component - reusable SVG logo with light/dark variants
-  - Header redesign - logo moved outside sidebar, sidebar toggle moved inside
-  - Enhanced status bar - detailed analysis metrics (token name, wallets found, API credits)
-  - API credits tracking - "Total API Credits Used Today" metric
-  - Settings improvements - removed wallet count cap (was 50, now unlimited)
-  - UX polish - reduced page title font sizes, horizontal pagination arrows
-
-### In Progress 🔄
-
-- 🔄 **Phase 7: Production Hardening** (Nov-Dec 2025)
-  - Production deployment setup
-  - Performance optimization
-  - Monitoring and alerting setup
-
-### Planned 📋
-
-- 📋 **Phase 8: Enhanced Analytics** (2026 Q1)
-  - Wallet performance scoring
-  - Predictive analysis using historical data
-  - Portfolio tracking
-  - Automated alerts for watchlist wallets
-
-- 📋 **Phase 9: Data Enrichment** (2026 Q2)
-  - Integration with additional data sources
-  - Social sentiment analysis
-  - Token holder distribution analysis
-  - Contract security scanning
+| File | Purpose |
+|------|---------|
+| `app/dashboard/wallets/page.tsx` | Wallet Leaderboard (home) with deployer panel |
+| `app/dashboard/wallets/[address]/page.tsx` | Wallet profile with real PnL, GMGN/Solscan links |
+| `app/dashboard/token-leaderboard/page.tsx` | Token Leaderboard with signals column and creation dates |
+| `app/dashboard/bot-tracker/page.tsx` | Command Center: RTTF + Bot Tracker + intelligence panels + pipeline controls |
+| `app/dashboard/bot-probe/page.tsx` | Bot Probe: transaction probing, strategy profiles, bot comparison |
+| `app/dashboard/intel/page.tsx` | Intel Agent: run/view reports, recommendations panel, export bundles |
+| `app/dashboard/tokens/page.tsx` | Redirects to Command Center |
+| `app/dashboard/tokens/tokens-table.tsx` | Token table with shared TokenAddressCell component |
+| `app/dashboard/tokens/token-details-modal.tsx` | Detail modal: creation timeline, analytics signals, lifecycle |
+| `components/layout/global-status-bar.tsx` | Always-visible status bar with all timers and indicators |
+| `components/layout/header.tsx` | Top header with status bar row |
+| `components/realtime-token-feed.tsx` | Real-time feed with crime coin analysis and lifecycle panel |
+| `components/realtime-history-panel.tsx` | Audit view of persisted webhook detections |
+| `components/conviction-accuracy.tsx` | Accuracy report card for conviction scoring |
+| `components/lifecycle-panel.tsx` | Birth → trajectory → analysis → verdict view |
+| `components/funding-tree-panel.tsx` | Cluster funding tree visualization |
+| `components/deployer-panel.tsx` | Deployer profile with deployed tokens and win rate |
+| `components/token-address-cell.tsx` | Shared address display with GMGN icon + copy |
+| `components/wallet-tag-labels.tsx` | Wallet tag rendering with click handlers |
+| `lib/wallet-tags.ts` | 3-tier wallet tag constants and styling |
+| `types/token.ts` | Token type extensions, label system, win badge styling |
+| `app/dashboard/quick-dd/page.tsx` | Quick DD: paste-and-analyze with progress + history |
+| `app/dashboard/rug-analysis/page.tsx` | Rug analysis: label stats, run agent, view reports |
+| `components/layout/panel-stack.tsx` | Shared slide-out panel orchestrator (WIR, TIR, Codex) |
+| `hooks/useStatusBarData.ts` | Status bar data polling with event-driven revalidation |
+| `hooks/useAnalysisNotifications.ts` | WebSocket notifications + DOM event dispatching |
 
 ---
 
-## Historical Bug Fixes & Optimizations
+## Event-Driven Revalidation
 
-For detailed historical bug fixes, performance optimizations, and technical implementation notes, see [docs/CHANGELOG.md](docs/CHANGELOG.md).
+All pages auto-refresh via DOM events when background jobs complete:
 
-**Recent Major Changes:**
-- Frontend performance optimizations (CSS transitions, memoization, virtualization)
-- WebSocket resource management with tab visibility API
-- Backend caching and HTTP session reuse
-- PWA implementation with Workbox service worker
-- Async task queue and rate limiting infrastructure (disabled by default)
+| Event | Fired by | Listened by |
+|-------|----------|-------------|
+| `meridinate:scan-complete` | WebSocket notification | Command Center, Token Leaderboard, StatusBar |
+| `meridinate:mc-refresh-complete` | WebSocket notification | Token Leaderboard, Wallet Leaderboard, StatusBar |
+| `meridinate:position-check-complete` | WebSocket notification | Wallet Leaderboard, StatusBar |
+| `meridinate:settings-changed` | Settings save, manual triggers | Global Status Bar, StatusBar |
+| `meridinate:realtime-token` | WebSocket notification | Command Center (RTTF panel) |
 
 ---
 
-## Common Operations
+## How to Start
 
-### Database Operations
-
-**View Database Tables:**
-```cmd
-cd C:\Meridinate\apps\backend
-sqlite3 data/db/analyzed_tokens.db ".tables"
+```bash
+scripts/start.bat    # Starts backend (port 5003) + frontend build + production server (port 3000)
 ```
 
-**Backup Database:**
-```cmd
-cd C:\Meridinate\apps\backend
-python scripts/backup_db.py
-```
-
-**View Table Schema:**
-```sql
-sqlite3 data/db/analyzed_tokens.db ".schema analyzed_tokens"
-```
-
-### Type Synchronization
-
-**Generate TypeScript types from backend OpenAPI:**
-```cmd
-cd C:\Meridinate\apps\frontend
-pnpm sync-types --update
-```
-
-### Testing
-
-**Run Backend Tests:**
-```cmd
-cd C:\Meridinate\apps\backend
-pytest tests/ -v --cov=meridinate
-```
-
-**Run Frontend Tests:**
-```cmd
-cd C:\Meridinate\apps\frontend
-pnpm test           # Unit tests
-pnpm test:e2e       # E2E tests
-```
-
-### Code Quality
-
-**Backend:**
-```cmd
-cd C:\Meridinate\apps\backend
-black src/meridinate/           # Format code
-flake8 src/meridinate/          # Lint
-mypy src/meridinate/            # Type check
-```
-
-**Frontend:**
-```cmd
-cd C:\Meridinate\apps\frontend
-pnpm lint           # ESLint
-pnpm format         # Prettier
-pnpm typecheck      # TypeScript
-```
-
-### Common Troubleshooting
-
-**Issue: Backend won't start**
-```cmd
-# Check if port 5003 is in use
-netstat -ano | findstr :5003
-
-# Kill process on port 5003
-taskkill /PID <PID> /F
-
-# Activate venv and run
-cd C:\Meridinate\apps\backend
-.venv\Scripts\activate.bat
-cd src
-python -m meridinate.main
-```
-
-**Issue: Frontend won't start**
-```cmd
-# Check if port 3000 is in use
-netstat -ano | findstr :3000
-
-# Reinstall dependencies
-cd C:\Meridinate\apps\frontend
-rm -rf node_modules pnpm-lock.yaml .next
-pnpm install
-pnpm dev
-```
-
-**Issue: "next" command not found**
-```cmd
-# This means node_modules is incomplete
-cd C:\Meridinate\apps\frontend
-pnpm install
+Or manually:
+```bash
+cd apps/backend && .venv/Scripts/python -m meridinate.main    # Backend
+cd apps/frontend && npx next build && npx next start           # Frontend (production)
+cd apps/frontend && npx next dev                                # Frontend (development)
 ```
 
 ---
 
-## Handoff Instructions for AI Assistants
+## New Systems (April 2026)
 
-### Context You Must Know
+### Meteora Stealth-Sell Detection
+Detects when PumpFun tokens have Meteora DLMM pools created for hidden exits.
+- Phase 1: DexScreener detects Meteora pool existence (free)
+- Phase 2: Helius RPC scans token transactions for Meteora program involvement, parses LP add/remove events
+- Phase 3: Links LP actors to deployer/insiders via funding chains, cluster overlap, coordinated funding analysis
+- Signals: `has_meteora_pool`, `meteora_creator_linked`, `meteora-stealth-sell` token tag
+- Risk score: +10 for pool existence, +35 if insider-linked
+- Key files: `services/meteora_detector.py`, `services/funding_cluster_detector.py`
 
-1. **User Background:** Simon is non-technical - always explain concepts clearly and correct imprecise terminology politely
+### Tip Infrastructure Detection
+Detects wallets using automated transaction infrastructure.
+- 17 Nozomi tip addresses (Temporal priority landing)
+- 8 Jito tip payment accounts (bundle inclusion)
+- Tags: `Automated (Nozomi)`, `Bundled (Jito)`
+- Detection runs during PnL v2 transaction parsing, zero extra credits
+- Key file: `services/tip_detector.py`
 
-2. **Project State:** 100% complete monorepo migration with unified CI/CD - legacy root `backend/` and `frontend/` folders removed
+### Bundle & Stealth Holder Detection
+- Same-block clustering: 3+ wallets buying at exact same second = coordinated bundle
+- Stealth holders: top holders with suspiciously small buys (holds 1%+ supply, spent <$200)
+- Stored per token: `bundle_cluster_count`, `bundle_cluster_size`, `stealth_holder_count`, `stealth_holder_pct`
 
-3. **Critical Files:**
-   - Database: `apps/backend/data/db/analyzed_tokens.db`
-   - Config: `apps/backend/config.json` (sensitive - never commit)
-   - API Client: `apps/frontend/src/lib/api.ts`
-   - Main Dashboard: `apps/frontend/src/app/dashboard/tokens/page.tsx`
+### Wallet Leaderboard Cache
+Pre-computed wallet statistics for instant filtered queries.
+- 3 tables: `wallet_leaderboard_cache`, `wallet_leaderboard_tags`, `wallet_leaderboard_tiers`
+- Rebuilt after MC tracker and position checker jobs (~1.7s for 7K wallets)
+- All filtering server-side via SQL JOINs: tags, tiers, hold time, home runs, starred
+- API response: <11ms per query
 
-4. **Common User Terms:**
-   - "Multi-Token Wallets panel" = Multi-Token Early Wallets table/section (renamed with bunny icon branding)
-   - "Action wheel" = AutoHotkey radial menu
-   - "The app" = Usually refers to frontend at localhost:3000
-   - "Settings" or "Master Control" = Settings modal (5-tab hub)
-   - "Scanned Tokens" or "Analyzed Tokens" = Main token dashboard
+### Starring System (Favorites)
+- `starred_items` table: star any wallet or token
+- StarButton component on all wallet/token surfaces
+- Codex panel shows all starred items with nametags
+- `starred_only` filter on both leaderboard APIs
 
-5. **Start Command:** `scripts\start.bat` launches everything
+### AI Intel Agents
+Two-agent pipeline for bot-operator intelligence.
+- **Pre-computation layer**: Python, zero cost, generates snapshot + allowlist/denylist leads + forensic casefiles. Focus-aware context trimming.
+- **Housekeeper Agent** (separate API key): Wallet reliability verifier. Scoped write tools (`fix_token_verdict`, `fix_multiplier_tag`, `update_wallet_tag`) with self-validating server-side invariant checks. Splits data-reliable from trust-quality. Structured JSON output.
+- **Investigator Agent**: Bot-operator classifier. Classifies wallets as allowlist/denylist/watch-only/unclear with evidence discipline. Forensics mode for top-PnL casefile analysis. Emits recommended_actions for downstream approval.
+- Focus modes: general, convergence, deployer, migrations, starred, forensics
+- Structured JSON output contracts on both agents, stored alongside prose
+- Reports persisted to `intel_reports` with `report_json`, `housekeeper_json`, `dialogue_json`, `precompute_json`
+- Deterministic recommendation compilation ensures every classification produces an action
+- Export bundles: `report.md` + `bundle.json` (full AI handoff package)
+- Key files: `services/intel_precompute.py`, `services/housekeeper_agent.py`, `services/intel_agent.py`
 
-### When Simon Asks About Features
+Reference docs:
+- `docs/architecture/INTEL_AGENT_BOT_OPERATOR_ALIGNMENT.md`
+- `docs/architecture/INTEL_RECOMMENDATION_ACTIVATION_AND_NOTIFICATIONS.md`
 
-1. **Map user terminology to technical components** (see Feature Mapping section)
-2. **Show file paths** using markdown links: `[file.ts](path/to/file.ts:123)`
-3. **Explain what's frontend vs backend** clearly
+Key files:
+- `services/intel_precompute.py`
+- `services/housekeeper_agent.py`
+- `services/intel_agent.py`
+- `routers/intel.py`
 
-### When Making Code Changes
+### Loss Tier System
+Granular loss categorization (mirrors win multipliers):
+- `loss:rug` — 95%+ drop within 1 hour
+- `loss:90` — 90%+ loss
+- `loss:70` — 70-90% loss
+- `loss:dead` — MC < $1K
+- `loss:stale` — No verdict after 14 days
 
-1. **Always Read before Edit** - mandatory for existing files
-2. **Test impact on both frontend and backend** if changing shared types
-3. **Update OpenAPI types** if modifying backend models: `pnpm sync-types --update`
-4. **Preserve data** - never modify database schema without migration plan
-5. **Document breaking changes** in migration docs
-6. **Backend cache:** Any mutation that changes the token list/fields should invalidate the `tokens_history` cache key (already handled for analysis save, deletes, market-cap refresh)
+### Fresh Wallet Metrics (per token)
+- `fresh_wallet_pct` — % of early buyers that were fresh wallets
+- `fresh_at_deploy_count/total` — fresh wallets entering within 60s of creation
+- `controlled_supply_score` — 0-100 combining fresh@deploy + cluster overlap + supply concentration
+- `fresh_supply_pct` — % of supply held by fresh wallets
 
-### When Troubleshooting
+### Intel Recommendation Activation System
+Structured proposal → review → approval workflow for Intel Agent recommendations.
+- `intel_recommendations` table: lifecycle (proposed → approved → active_for_bot → reverted)
+- `intel_audit_log` table: immutable audit trail
+- `intel_bot_allowlist` / `intel_bot_denylist` tables: bot override layer
+- 11 deterministic action handlers in `services/recommendation_executor.py`
+- Per-action approve/reject/revert UI in Intel Agent sidebar
+- Deterministic compilation: ensures every denylist/watch classification produces a recommendation
 
-1. **Check both frontend and backend logs**
-2. **Verify ports 3000 and 5003 are available**
-3. **Check virtual environment is activated** for backend
-4. **Verify node_modules exists** for frontend
-5. **Test API endpoints** via http://localhost:5003/docs
+### Deep Bot Probe
+Reverse-engineering system for profiling profitable Solana trading bots.
+- Full transaction history collection with FIFO round-trip matching and cost basis tracking
+- Unknown token discovery (tokens the bot traded outside Meridinate's scan set)
+- Strategy profiling: win rate, expectancy, entry timing, exit behavior, position sizing, infrastructure
+- Behavioral analysis: add-to-winner rate, partial takes, re-entry rate, multi-buy/sell patterns
+- Bot-vs-bot comparison
+- Key files: `services/bot_probe.py`, `services/bot_profile_builder.py`, `routers/bot_probe.py`
+- Tables: `bot_probe_runs`, `bot_probe_transactions`, `bot_probe_round_trips`, `bot_probe_token_aggregates`, `bot_probe_profiles`
+
+### Wallet Shadow (Real-Time Bot Tracker)
+Zero-credit real-time wallet monitoring via Helius Enhanced WebSocket.
+- Tracks multiple wallets simultaneously, captures every trade as it happens
+- Pre/post token balance diffing (works for ALL DEX types including PumpSwap)
+- Preceding buyer capture: on every BUY, identifies who bought before the tracked bot
+- Signal wallet frequency analysis: discovers the bot's private allowlist over time
+- Cross-bot convergence detection: flags when 2+ tracked wallets enter the same token
+- Copy/follow alerts, sizing anomaly detection, token heat map, open positions dashboard
+- Pipeline pause/resume: click-to-toggle in global status bar, PAUSED state visible on all pages
+- Key files: `services/wallet_shadow.py`, `routers/wallet_shadow.py`
+- Tables: `wallet_shadow_targets`, `wallet_shadow_trades`, `wallet_shadow_preceding_buyers`, `wallet_shadow_convergences`
+
+### Command Center (Combined RTTF + Bot Tracker)
+Unified real-time monitoring page at `/dashboard/bot-tracker`.
+- Left panel: RTTF token birth feed with conviction scoring, crime coin analysis, watch windows
+- Center panel: Bot trade feed with wallet filters, speed column, infrastructure badges
+- Right panel: Intelligence stack (positions, token heat, alerts, convergence) + wallet management
+- Bottom panel (toggleable): Conviction Accuracy dashboard or expanded Signal Wallets grid
+- Replaces old `/dashboard/tokens` RTTF page (redirects automatically)
+
+### CLOBr Integration
+Score enrichment during MC Tracker cycle (not at discovery — tokens too new for CLOBr).
+- Market depth for position-tracked tokens (support, resistance, S/R ratio)
+- Toggle + warning threshold in Settings
+- Status bar indicator
+- Key file: `services/clobr_service.py`
+- Columns: `clobr_score`, `clobr_support_usd`, `clobr_resistance_usd`, `clobr_sr_ratio`, `clobr_updated_at`
+
+### Quick DD (On-Demand Due Diligence)
+Paste any token address for instant full-pipeline analysis.
+- Parallel pipeline: DexScreener + CLOBr + PumpFun (free) → Helius analysis → LP Trust + deployer trace
+- Results persist to `quick_dd_runs` table with history view
+- Progress indicator with 5-step pipeline visualization
+- Key files: `services/quick_dd.py`, `routers/quick_dd.py`
+
+### LP Trust Analyzer
+Fast pool creator identification by querying pool address directly (2-3 credits vs 100+ for old Meteora scanner).
+- Supports Meteora DLMM, Raydium CLMM, Raydium Constant Product, Orca Whirlpool
+- Cross-references LP creators against deployer via funding trace
+- Produces Liquidity Trust Score (0-100): percentage of liquidity NOT controlled by deployer
+- Key file: `services/lp_trust_analyzer.py`
+- Columns: `lp_trust_score`, `lp_trust_json`
+
+### Rug Score Detector
+7-signal fake chart detection formula (0-100, higher = more likely fake).
+- Signals: vol/liq ratio, tx density, deployer dust funding, deployer funder unknown, small early buys, Meteora ghost pool, low pool count
+- Computed automatically during auto-scan and Quick DD (zero extra credits)
+- Key file: `services/rug_detector.py`
+- Columns: `rug_score`, `rug_score_json`
+
+### Rug Labeling & Analysis
+Manual FAKE/REAL/UNSURE labels on Token Leaderboard via dropdown.
+- AI analysis agent explores labeled data to discover new detection patterns
+- Agent has database query tools, early buyer stats, deployer profiling
+- Suggests weight/threshold adjustments to rug score formula
+- Key files: `services/rug_analysis_agent.py`, `routers/rug_analysis.py`
+- Tables: `rug_analysis_reports`
+- Columns: `rug_label`, `rug_label_at`
+
+### Forward Funding Trace
+Traces where a wallet SENT money (forward hops), complementing existing backward trace.
+- Reveals sybil distribution networks (single funder → multiple buyer wallets)
+- Cross-references discovered wallets against token database for cluster detection
+- Max 2 hops, 10 recipients per hop, cached permanently
+- Key file: `services/funding_tracer.py` (trace_forward_chain function)
+- WIR Funding Tree panel now has "Trace Back" / "Trace Forward" toggle
 
 ---
 
-## Summary for Quick Handoff
+## API Keys & Configuration
 
-**Project:** Solana token analysis toolkit (personal tool for investment research)
-
-**Current State:** ✅ 100% complete monorepo migration with unified CI/CD, fully functional
-
-**Structure:**
-```
-C:\Meridinate\
-├── apps/backend/      # Python FastAPI (port 5003)
-├── apps/frontend/     # Next.js React (port 3000)
-├── tools/             # AutoHotkey + browser scripts
-├── docs/              # All documentation
-└── scripts/           # start.bat launches all services
-```
-
-**Sidebar Nav:** Ingestion, Scanned Tokens, Codex, Trash, Scheduler, Settings
-
-**Start:** `scripts\start.bat` → opens 3 windows (launcher, backend, frontend)
-
-**Main Features:**
-1. Token analysis (early bidder detection)
-2. Multi-Token Early Wallets (smart money identification with bunny icon branding)
-3. Wallet tagging system
-4. Market cap tracking (with trend/last-updated)
-5. Wallet balance refresh (with trend/last-updated)
-6. Real-time WebSocket notifications
-7. Persisted operation log (Recent Operations survives restarts)
-8. Settings modal (5-tab hub for scanning, ingestion, SWAB, webhooks, system)
-9. SWAB-driven MC refresh (fast-lane 30m, slow-lane 4h based on exposure)
-10. Auto-generated token labels with filter support
-
-**CI/CD:** `.github/workflows/monorepo-ci.yml` - Backend tests, frontend lint/format/typecheck, API types sync, production builds
-
-**User:** Simon (non-technical) - explain clearly, correct terminology politely
-
-**Critical:** Never commit `config.json`, preserve database, test before changes
-**Data paths:** All writable data lives in `apps/backend/data/...` (db, analysis_results, axiom_exports). Legacy duplicates under `apps/backend/src/meridinate/` were removed.
-
----
-
-**Document Version:** 2.10
-**Last Updated:** December 4, 2025 (Frontend SWR caching pattern)
-**Next Review:** After production deployment
+- `apps/backend/config.json` — Helius API keys + Anthropic API keys + CLOBr API key (NEVER commit)
+- `apps/backend/ingest_settings.json` — Pipeline filter settings + real-time detection settings
+- `apps/backend/api_settings.json` — Analysis settings (wallet count=100, transaction limit=10000, etc.)

@@ -13,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 
 # Import routers
-from meridinate.routers import analysis, ingest, metrics, settings_debug, stats, swab, tags, tokens, wallets, watchlist, webhooks
+from meridinate.routers import analysis, ingest, leaderboard, metrics, quick_dd, settings_debug, stats, swab, tags, tokens, wallets, watchlist, webhooks
 from meridinate.utils.models import AnalysisCompleteNotification, AnalysisStartNotification
 
 # Import WebSocket manager and notification endpoints
@@ -21,7 +21,7 @@ from meridinate.websocket import get_connection_manager
 
 # Import rate limiting middleware
 from meridinate.middleware.rate_limit import setup_rate_limiting
-from meridinate.settings import RATE_LIMIT_ENABLED
+from meridinate.settings import RATE_LIMIT_ENABLED, API_PORT, FRONTEND_URL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +45,7 @@ def create_app() -> FastAPI:
     # CORS Configuration
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=[FRONTEND_URL],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -68,8 +68,18 @@ def create_app() -> FastAPI:
     app.include_router(wallets.router, tags=["Wallets"])
     app.include_router(tags.router, tags=["Tags"])
     app.include_router(webhooks.router, tags=["Webhooks"])
-    app.include_router(swab.router, tags=["SWAB"])
+    app.include_router(swab.router, tags=["Position Tracker"])
     app.include_router(ingest.router, tags=["Ingest"])
+    app.include_router(quick_dd.router, tags=["Quick DD"])
+    app.include_router(leaderboard.router, tags=["Leaderboard"])
+
+    from meridinate.routers import starred, intel, recommendations, bot_probe, wallet_shadow, rug_analysis
+    app.include_router(starred.router, tags=["Starred"])
+    app.include_router(intel.router, tags=["Intel"])
+    app.include_router(rug_analysis.router, tags=["Rug Analysis"])
+    app.include_router(recommendations.router, tags=["Intel Recommendations"])
+    app.include_router(bot_probe.router, tags=["Bot Probe"])
+    app.include_router(wallet_shadow.router, tags=["Wallet Shadow"])
 
     # WebSocket endpoint
     @app.websocket("/ws")
@@ -139,14 +149,22 @@ def create_app() -> FastAPI:
         if RATE_LIMIT_ENABLED:
             print("[OK] Rate limiting enabled (slowapi + Redis)")
 
-        # Start SWAB scheduler
+        # Start Position tracker scheduler
         from meridinate.scheduler import start_scheduler
         start_scheduler()
-        print("[OK] SWAB scheduler initialized")
+        print("[OK] Position tracker scheduler initialized")
+
+        # Build leaderboard cache on startup (warm cache)
+        try:
+            from meridinate.services.leaderboard_cache import rebuild_leaderboard_cache
+            cache_result = rebuild_leaderboard_cache()
+            print(f"[OK] Leaderboard cache warmed: {cache_result['wallets_cached']} wallets in {cache_result['duration_ms']}ms")
+        except Exception as e:
+            print(f"[WARN] Leaderboard cache warm failed: {e}")
 
         # Log ingest pipeline status
         from meridinate.settings import CURRENT_INGEST_SETTINGS
-        ingest_status = "enabled" if CURRENT_INGEST_SETTINGS.get("ingest_enabled") else "disabled"
+        ingest_status = "enabled" if CURRENT_INGEST_SETTINGS.get("discovery_enabled") else "disabled"
         print(f"[OK] Ingest pipeline initialized ({ingest_status})")
 
         print("=" * 80)
@@ -156,7 +174,7 @@ def create_app() -> FastAPI:
         print("  - Concurrent balance refresh: 10x faster than sequential")
         print("  - Heavy load: handles 100+ concurrent requests")
         print("  - WebSocket notifications: real-time analysis updates")
-        print("  - SWAB: Smart Wallet Archive Builder with scheduled position tracking")
+        print("  - Position tracker: scheduled wallet monitoring")
         print("=" * 80)
 
     # Shutdown event
@@ -164,7 +182,26 @@ def create_app() -> FastAPI:
     async def shutdown_event():
         from meridinate.scheduler import stop_scheduler
         stop_scheduler()
-        print("[OK] SWAB scheduler stopped")
+        print("[OK] Position tracker scheduler stopped")
+
+        # Stop real-time listener and follow-up tracker (saves in-progress data)
+        try:
+            from meridinate.services.realtime_listener import get_realtime_listener
+            listener = get_realtime_listener()
+            if listener.is_running:
+                await listener.stop()
+                print("[OK] Real-time listener stopped")
+        except Exception:
+            pass
+
+        try:
+            from meridinate.services.followup_tracker import get_followup_tracker
+            tracker = get_followup_tracker()
+            if tracker.is_running:
+                await tracker.stop()
+                print("[OK] Follow-up tracker stopped (trajectories saved)")
+        except Exception:
+            pass
 
     return app
 
@@ -178,4 +215,4 @@ if __name__ == "__main__":
     import uvicorn
 
     # Use import string for reload to work properly
-    uvicorn.run("meridinate.main:app", host="0.0.0.0", port=5003, reload=True)
+    uvicorn.run("meridinate.main:app", host="0.0.0.0", port=API_PORT, reload=True)
