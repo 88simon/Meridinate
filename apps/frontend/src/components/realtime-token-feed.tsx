@@ -108,11 +108,16 @@ export function RealtimeTokenFeed() {
     }
   }, []);
 
-  // Poll feed — 5s when running, 60s when stopped
+  // Poll feed — 5s when running, 60s when stopped. Skip ticks while tab is
+  // hidden — the backend listener keeps capturing; we just need fresh visuals
+  // when the user is looking.
   const isRunning = feed?.running ?? false;
   useEffect(() => {
     fetchFeed();
-    const interval = setInterval(fetchFeed, isRunning ? 5000 : 60000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchFeed();
+    }, isRunning ? 5000 : 60000);
     return () => clearInterval(interval);
   }, [fetchFeed, isRunning]);
 

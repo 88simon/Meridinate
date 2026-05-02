@@ -179,6 +179,20 @@ export const DEFAULT_INGEST_SETTINGS: IngestSettings = {
   // Bypass limits flag
   bypass_limits: false,
 
+  // Socials filter
+  require_socials: false,
+
+  // Real-time watch window (crime coin detection)
+  realtime_watch_window_seconds: 300,
+  realtime_mc_min_at_close: 5000,
+
+  // Follow-up MC trajectory tracking
+  followup_enabled: true,
+  followup_max_duration_minutes: 120,
+  followup_check_interval_seconds: 120,
+  followup_auto_extend_uptrend: true,
+  followup_auto_cut_flatline: true,
+
   // Tracking & Refresh settings (new)
   tracking_mc_threshold: 100000,
   fast_lane_interval_minutes: 30,

@@ -641,6 +641,24 @@ class CreditTracker:
 
             return entries
 
+    def get_daily_credits_from_operations(self, date: Optional[datetime] = None) -> int:
+        """
+        Get total credits for a day by summing the operation_log table.
+        More accurate than credit_daily_aggregates because all pipelines
+        call record_operation() even if individual record() calls are missing.
+        """
+        if date is None:
+            date = datetime.now()
+        date_str = date.strftime("%Y-%m-%d")
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COALESCE(SUM(credits), 0) FROM operation_log
+                WHERE date(timestamp) = ?
+            """, (date_str,))
+            return cursor.fetchone()[0]
+
 
 # Lazy singleton - initialized on first access to avoid database lock during imports
 _credit_tracker_instance = None

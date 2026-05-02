@@ -68,6 +68,27 @@ def ensure_tables():
                 notes TEXT
             );
 
+            -- Operator override → structured rule for the Investigator's next run.
+            -- Populated by override_analyst.py whenever Reclassify is used.
+            CREATE TABLE IF NOT EXISTS intel_agent_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_recommendation_id INTEGER,
+                source_report_id INTEGER,
+                target_address TEXT,
+                operator_category TEXT,
+                operator_note TEXT,
+                original_action_type TEXT,
+                corrected_action_type TEXT,
+                trigger_signal TEXT,
+                wrong_conclusion TEXT,
+                correct_conclusion TEXT,
+                rule_text TEXT,
+                example_evidence TEXT,
+                created_at TEXT,
+                times_referenced INTEGER DEFAULT 0,
+                active INTEGER DEFAULT 1
+            );
+
             CREATE TABLE IF NOT EXISTS intel_bot_allowlist (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 wallet_address TEXT NOT NULL UNIQUE,
@@ -145,10 +166,41 @@ def _exec_add_bot_allowlist(conn, rec: Dict) -> Dict:
         (target,),
     )
 
+    # Auto-add to Wallet Shadow so we accumulate trade data on every allowlisted wallet.
+    # Track whether shadow was already present so a revert only undoes what we added.
+    shadow_row = conn.execute(
+        "SELECT active FROM wallet_shadow_targets WHERE wallet_address = ?", (target,)
+    ).fetchone()
+    shadow_already_active = bool(shadow_row and shadow_row[0] == 1)
+    label = (rec.get("reason") or "Intel Allowlist")[:120]
+
+    if shadow_row is None:
+        conn.execute(
+            "INSERT INTO wallet_shadow_targets (wallet_address, label, added_at, active) VALUES (?, ?, ?, 1)",
+            (target, label, _now()),
+        )
+    elif not shadow_already_active:
+        conn.execute(
+            "UPDATE wallet_shadow_targets SET active = 1, label = ?, added_at = ? WHERE wallet_address = ?",
+            (label, _now(), target),
+        )
+
+    if not shadow_already_active:
+        conn.execute("DELETE FROM wallet_tags WHERE wallet_address = ? AND tag = 'Intel Monitor'", (target,))
+        conn.execute(
+            "INSERT INTO wallet_tags (wallet_address, tag, tier, source) VALUES (?, 'Intel Monitor', 2, 'intel')",
+            (target,),
+        )
+
+    shadow_msg = "already shadowed" if shadow_already_active else "now shadowed"
     return {
         "success": True,
-        "message": f"Added {target} to bot allowlist",
-        "revert_data": json.dumps({"action": "remove_bot_allowlist_wallet", "before": before}),
+        "message": f"Added {target} to bot allowlist ({shadow_msg})",
+        "revert_data": json.dumps({
+            "action": "remove_bot_allowlist_wallet",
+            "before": before,
+            "shadow_already_active": shadow_already_active,
+        }),
     }
 
 
@@ -164,6 +216,14 @@ def _exec_remove_bot_allowlist(conn, rec: Dict) -> Dict:
 
     conn.execute("UPDATE intel_bot_allowlist SET active = 0 WHERE wallet_address = ?", (target,))
     conn.execute("DELETE FROM wallet_tags WHERE wallet_address = ? AND tag = 'Intel Allowlist'", (target,))
+
+    # If this is a revert of an allowlist add that turned shadow on, undo the shadow too.
+    # Default True (preserve shadow) for any other invocation — operator's manual tracking is sacred.
+    payload = json.loads(rec.get("payload") or "{}")
+    shadow_already_active = payload.get("shadow_already_active", True)
+    if not shadow_already_active:
+        conn.execute("UPDATE wallet_shadow_targets SET active = 0 WHERE wallet_address = ?", (target,))
+        conn.execute("DELETE FROM wallet_tags WHERE wallet_address = ? AND tag = 'Intel Monitor'", (target,))
 
     return {
         "success": True,
@@ -347,6 +407,73 @@ def _exec_queue_refresh(conn, rec: Dict) -> Dict:
     }
 
 
+def _exec_monitor_wallet(conn, rec: Dict) -> Dict:
+    """Add a wallet to Wallet Shadow real-time tracking."""
+    target = rec["target_address"]
+    payload = json.loads(rec.get("payload") or "{}")
+    label = payload.get("label") or rec.get("reason") or "Intel Monitor"
+
+    # Check if already tracked
+    row = conn.execute(
+        "SELECT 1 FROM wallet_shadow_targets WHERE wallet_address = ?", (target,)
+    ).fetchone()
+
+    if row:
+        return {
+            "success": True,
+            "message": f"{target} is already being monitored in Wallet Shadow",
+            "revert_data": None,
+        }
+
+    conn.execute(
+        "INSERT INTO wallet_shadow_targets (wallet_address, label, added_at, active) VALUES (?, ?, ?, 1)",
+        (target, label, _now()),
+    )
+
+    # Also add an Intel Monitor tag
+    conn.execute("DELETE FROM wallet_tags WHERE wallet_address = ? AND tag = 'Intel Monitor'", (target,))
+    conn.execute(
+        "INSERT INTO wallet_tags (wallet_address, tag, tier, source) VALUES (?, 'Intel Monitor', 2, 'intel')",
+        (target,),
+    )
+
+    return {
+        "success": True,
+        "message": f"Added {target} to Wallet Shadow monitoring as '{label}'",
+        "revert_data": json.dumps({"action": "stop_monitor_wallet"}),
+    }
+
+
+def _exec_stop_monitor_wallet(conn, rec: Dict) -> Dict:
+    """Remove a wallet from Wallet Shadow tracking."""
+    target = rec["target_address"]
+    conn.execute("DELETE FROM wallet_shadow_targets WHERE wallet_address = ?", (target,))
+    conn.execute("DELETE FROM wallet_tags WHERE wallet_address = ? AND tag = 'Intel Monitor'", (target,))
+    return {
+        "success": True,
+        "message": f"Removed {target} from Wallet Shadow monitoring",
+        "revert_data": None,
+    }
+
+
+def _exec_probe_wallet(conn, rec: Dict) -> Dict:
+    """Queue a Deep Bot Probe run on a wallet. The actual probe runs async when approved."""
+    target = rec["target_address"]
+    payload = json.loads(rec.get("payload") or "{}")
+
+    # Create a bot probe run entry in queued state
+    conn.execute("""
+        INSERT INTO bot_probe_runs (wallet_address, status, requested_at, requested_by)
+        VALUES (?, 'queued', ?, 'intel_agent')
+    """, (target, _now()))
+
+    return {
+        "success": True,
+        "message": f"Queued Bot Probe for {target} — will run when started from Bot Probe page",
+        "revert_data": None,
+    }
+
+
 # Handler registry
 ACTION_HANDLERS = {
     "add_bot_allowlist_wallet": _exec_add_bot_allowlist,
@@ -360,6 +487,9 @@ ACTION_HANDLERS = {
     "add_nametag": _exec_add_nametag,
     "queue_wallet_pnl_refresh": _exec_queue_refresh,
     "queue_wallet_funding_refresh": _exec_queue_refresh,
+    "monitor_wallet": _exec_monitor_wallet,
+    "stop_monitor_wallet": _exec_stop_monitor_wallet,
+    "probe_wallet": _exec_probe_wallet,
 }
 
 
@@ -478,6 +608,136 @@ def approve_recommendation(rec_id: int) -> Dict:
             rec["status"] = "failed"
 
         return {"success": result["success"], "message": result["message"], "recommendation": rec}
+
+
+def reclassify_recommendation(
+    rec_id: int,
+    new_action_type: str,
+    reason: str = "",
+    payload: Optional[Dict] = None,
+    operator_category: str = "other",
+    operator_note: str = "",
+) -> Dict:
+    """
+    Override a misclassified recommendation. Marks the original 'overridden',
+    creates a fresh recommendation with the operator-chosen action, and
+    auto-approves it.
+
+    The operator picks a `operator_category` from a fixed list (see
+    override_analyst.OVERRIDE_CATEGORIES). After the override is applied, the
+    Override Analyst runs in-process and turns the override + wallet snapshot
+    into a structured rule, persisted in intel_agent_rules. The next Intel
+    run injects those rules into the Investigator's prompt so the same
+    mistake isn't made twice.
+    """
+    ensure_tables()
+
+    if new_action_type not in ACTION_HANDLERS:
+        return {"success": False, "message": f"Unknown action type: {new_action_type}"}
+
+    with db.get_db_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM intel_recommendations WHERE id = ?", (rec_id,)).fetchone()
+        if not row:
+            return {"success": False, "message": f"Recommendation {rec_id} not found"}
+
+        rec = dict(row)
+        if rec["status"] != "proposed":
+            return {"success": False, "message": f"Cannot reclassify — status is '{rec['status']}'"}
+
+        now = _now()
+
+        # 1. Mark the original as overridden (distinct from rejected so the feedback loop can tell them apart)
+        conn.execute(
+            "UPDATE intel_recommendations SET status = 'overridden', rejected_at = ? WHERE id = ?",
+            (now, rec_id),
+        )
+        _log_audit(
+            conn, rec_id, rec["report_id"], rec["action_type"],
+            rec["target_address"], "proposed", "overridden",
+            notes=f"Overridden -> {new_action_type}: {reason}",
+        )
+
+        # 2. Create the replacement recommendation
+        cursor = conn.execute(
+            """INSERT INTO intel_recommendations
+               (report_id, action_type, target_type, target_address,
+                payload, reason, confidence, expected_bot_effect, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'proposed', ?)""",
+            (
+                rec["report_id"],
+                new_action_type,
+                rec["target_type"],
+                rec["target_address"],
+                json.dumps(payload or {}),
+                f"[Operator override of #{rec_id}] {reason}".strip(),
+                "high",
+                rec.get("expected_bot_effect", ""),
+                now,
+            ),
+        )
+        new_rec_id = cursor.lastrowid
+        _log_audit(
+            conn, new_rec_id, rec["report_id"], new_action_type,
+            rec["target_address"], None, "proposed",
+            notes=f"Created via override of #{rec_id}",
+        )
+
+        # 3. Auto-approve the replacement so the operator gets one-click correction
+        new_rec = dict(conn.execute(
+            "SELECT * FROM intel_recommendations WHERE id = ?", (new_rec_id,)
+        ).fetchone())
+        handler = ACTION_HANDLERS[new_action_type]
+        result = handler(conn, new_rec)
+
+        if result["success"]:
+            conn.execute(
+                """UPDATE intel_recommendations
+                   SET status = 'active_for_bot', approved_at = ?, applied_at = ?, revert_data = ?
+                   WHERE id = ?""",
+                (now, now, result.get("revert_data"), new_rec_id),
+            )
+            _log_audit(
+                conn, new_rec_id, rec["report_id"], new_action_type,
+                rec["target_address"], "proposed", "active_for_bot",
+                after_state=result.get("revert_data"),
+                notes=f"Auto-approved via override: {result['message']}",
+            )
+        else:
+            conn.execute(
+                "UPDATE intel_recommendations SET status = 'failed' WHERE id = ?", (new_rec_id,)
+            )
+            _log_audit(
+                conn, new_rec_id, rec["report_id"], new_action_type,
+                rec["target_address"], "proposed", "failed",
+                notes=f"Override failed: {result['message']}",
+            )
+
+        log_info(f"[RecommendationExecutor] Reclassified #{rec_id} -> #{new_rec_id} ({new_action_type})")
+
+    # Outside the DB connection: run the Override Analyst to extract a rule.
+    # Failures are non-fatal — the override is already applied; we'd just lose
+    # the lesson for the next Intel run.
+    rule = None
+    try:
+        from meridinate.services.override_analyst import extract_rule_from_override
+        rule = extract_rule_from_override(
+            recommendation=rec,
+            new_action_type=new_action_type,
+            operator_category=operator_category,
+            operator_note=operator_note,
+        )
+    except Exception as e:
+        log_error(f"[RecommendationExecutor] Override Analyst threw: {e}")
+
+    return {
+        "success": result["success"],
+        "message": f"Reclassified to {new_action_type}: {result['message']}",
+        "original_id": rec_id,
+        "new_id": new_rec_id,
+        "rule_extracted": bool(rule),
+        "rule_text": rule.get("rule_text") if rule else None,
+    }
 
 
 def reject_recommendation(rec_id: int, reason: str = "") -> Dict:

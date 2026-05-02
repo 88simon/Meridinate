@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import AppSidebar from '@/components/layout/app-sidebar';
 import Header from '@/components/layout/header';
 import { CodexPanel } from '@/components/codex-panel';
-import { WalletIntelligencePanel } from '@/components/wallet-intelligence-panel';
-import { TokenIntelligencePanel } from '@/components/token-intelligence-panel';
 import { TagReferencePanel } from '@/components/tag-reference-panel';
 import { PanelStack } from '@/components/layout/panel-stack';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -14,6 +13,21 @@ import { ApiSettingsProvider } from '@/contexts/ApiSettingsContext';
 import { WalletIntelligenceProvider, useWalletIntelligence } from '@/contexts/wallet-intelligence-context';
 import { TokenIntelligenceProvider, useTokenIntelligence } from '@/contexts/token-intelligence-context';
 import { StarredProvider } from '@/contexts/starred-context';
+import { WalletNametagsProvider } from '@/contexts/wallet-nametags-context';
+import { TabVisibilityWatcher } from '@/components/tab-visibility-watcher';
+
+// WIR (1k LOC) and TIR (700+ LOC) only mount when the user opens an address/token.
+// Lazy-load them so the initial dashboard JS bundle is smaller — measurable win
+// on first paint and on lower-end devices. ssr: false because both panels are
+// purely client-side state machines with browser-only APIs.
+const WalletIntelligencePanel = dynamic(
+  () => import('@/components/wallet-intelligence-panel').then((m) => ({ default: m.WalletIntelligencePanel })),
+  { ssr: false }
+);
+const TokenIntelligencePanel = dynamic(
+  () => import('@/components/token-intelligence-panel').then((m) => ({ default: m.TokenIntelligencePanel })),
+  { ssr: false }
+);
 
 interface DashboardWrapperProps {
   children: React.ReactNode;
@@ -103,11 +117,16 @@ export function DashboardWrapper({
   return (
     <ApiSettingsProvider>
       <StarredProvider>
-        <WalletIntelligenceProvider>
-          <TokenIntelligenceProvider>
-            <DashboardContent defaultOpen={defaultOpen}>{children}</DashboardContent>
-          </TokenIntelligenceProvider>
-        </WalletIntelligenceProvider>
+        <WalletNametagsProvider>
+          <WalletIntelligenceProvider>
+            <TokenIntelligenceProvider>
+              {/* Toggles data-tab-hidden on <html>; CSS pauses animations + transitions
+                  while hidden so the GPU isn't churning on status pulses in the background. */}
+              <TabVisibilityWatcher />
+              <DashboardContent defaultOpen={defaultOpen}>{children}</DashboardContent>
+            </TokenIntelligenceProvider>
+          </WalletIntelligenceProvider>
+        </WalletNametagsProvider>
       </StarredProvider>
     </ApiSettingsProvider>
   );

@@ -602,87 +602,90 @@ class RealtimeListener:
         has_smart_buyers = False
 
         try:
-            import sqlite3
-            from meridinate.settings import DATABASE_FILE
-            conn = sqlite3.connect(DATABASE_FILE)
-            cursor = conn.cursor()
+            # Use the shared connection helper so we inherit the WAL/busy_timeout
+            # PRAGMAs (previously opened a raw sqlite3.connect with no tuning,
+            # which caused 'database is locked' under burst load when the
+            # WebSocket fired multiple watch-window closures in quick succession).
+            #
+            # Also collapses the two wallet_tags queries into one — both
+            # previously fetched from the same table with different WHERE clauses;
+            # we now fetch all relevant tags in one round-trip and partition in
+            # Python. Net: 4 SQL roundtrips → 3, with smaller lock window.
+            from meridinate import analyzed_tokens_db as _db
+            with _db.get_db_connection() as conn:
+                cursor = conn.cursor()
 
-            buyer_list = list(unique_buyers)
-            if buyer_list:
-                placeholders = ",".join("?" for _ in buyer_list)
+                buyer_list = list(unique_buyers)
+                if buyer_list:
+                    placeholders = ",".join("?" for _ in buyer_list)
 
-                # Fresh wallet check — record data
-                cursor.execute(
-                    f"SELECT COUNT(DISTINCT wallet_address) FROM wallet_tags "
-                    f"WHERE wallet_address IN ({placeholders}) AND tag LIKE 'Fresh%'",
-                    buyer_list
-                )
-                fresh_count = cursor.fetchone()[0]
-                detected.fresh_buyer_count = fresh_count
-                if len(unique_buyers) > 0:
-                    detected.fresh_buyer_pct = round(fresh_count / len(unique_buyers) * 100, 1)
-                    has_high_fresh_pct = detected.fresh_buyer_pct >= 60
-
-                # Check if buyers share a funder (from wallet_enrichment_cache)
-                cursor.execute(
-                    f"SELECT funded_by_json FROM wallet_enrichment_cache "
-                    f"WHERE wallet_address IN ({placeholders}) AND funded_by_json IS NOT NULL",
-                    buyer_list
-                )
-                funders = {}
-                for row in cursor.fetchall():
-                    try:
-                        fb = json.loads(row[0])
-                        funder = fb.get("funder") if isinstance(fb, dict) else None
-                        if funder:
-                            funders.setdefault(funder, 0)
-                            funders[funder] += 1
-                    except Exception:
-                        pass
-                max_shared = max(funders.values()) if funders else 0
-                detected.buyers_sharing_funder = max_shared
-                has_shared_funders = max_shared >= 3
-
-                # Check if deployer is linked to any buyer
-                if detected.deployer_address:
+                    # 1. Wallet tags — fetch Fresh*, Sniper Bot, and smart-money tags
+                    #    in a single query and bucket them in Python.
                     cursor.execute(
-                        f"SELECT funded_by_json FROM wallet_enrichment_cache WHERE wallet_address = ?",
-                        (detected.deployer_address,)
+                        f"SELECT wallet_address, tag FROM wallet_tags "
+                        f"WHERE wallet_address IN ({placeholders}) "
+                        f"AND (tag LIKE 'Fresh%' OR tag IN ('Sniper Bot', 'Consistent Winner', 'Sniper', 'High SOL Balance'))",
+                        buyer_list
                     )
-                    deployer_funder_row = cursor.fetchone()
-                    if deployer_funder_row and deployer_funder_row[0]:
+                    fresh_addrs: set = set()
+                    sniper_bot_addrs: set = set()
+                    smart_buyers: dict = {}
+                    for row in cursor.fetchall():
+                        addr_, tag_ = row[0], row[1]
+                        if tag_.startswith("Fresh"):
+                            fresh_addrs.add(addr_)
+                        if tag_ == "Sniper Bot":
+                            sniper_bot_addrs.add(addr_)
+                        if tag_ in ("Consistent Winner", "Sniper", "High SOL Balance"):
+                            smart_buyers[addr_] = tag_  # last tag wins; UI only shows one
+
+                    detected.fresh_buyer_count = len(fresh_addrs)
+                    if len(unique_buyers) > 0:
+                        detected.fresh_buyer_pct = round(len(fresh_addrs) / len(unique_buyers) * 100, 1)
+                        has_high_fresh_pct = detected.fresh_buyer_pct >= 60
+
+                    # Filter out sniper bots from the smart-buyers set after the fact.
+                    smart_buyers = {a: t for a, t in smart_buyers.items() if a not in sniper_bot_addrs}
+                    detected.smart_wallets_buying = len(smart_buyers)
+                    detected.smart_wallet_names = [f"{addr[:8]}...({tag})" for addr, tag in smart_buyers.items()]
+                    has_smart_buyers = len(smart_buyers) > 0
+
+                    # 2. Buyer funders
+                    cursor.execute(
+                        f"SELECT funded_by_json FROM wallet_enrichment_cache "
+                        f"WHERE wallet_address IN ({placeholders}) AND funded_by_json IS NOT NULL",
+                        buyer_list
+                    )
+                    funders: dict = {}
+                    for row in cursor.fetchall():
                         try:
-                            deployer_fb = json.loads(deployer_funder_row[0])
-                            deployer_funder = deployer_fb.get("funder") if isinstance(deployer_fb, dict) else None
-                            if deployer_funder and funders.get(deployer_funder, 0) > 0:
-                                detected.deployer_linked_to_buyer = True
-                                has_deployer_link = True
+                            fb = json.loads(row[0])
+                            funder = fb.get("funder") if isinstance(fb, dict) else None
+                            if funder:
+                                funders.setdefault(funder, 0)
+                                funders[funder] += 1
                         except Exception:
                             pass
+                    max_shared = max(funders.values()) if funders else 0
+                    detected.buyers_sharing_funder = max_shared
+                    has_shared_funders = max_shared >= 3
 
-                # Check if any buyers are known good wallets (excluding Sniper Bots)
-                # First get sniper bot addresses to exclude
-                cursor.execute(
-                    f"SELECT DISTINCT wallet_address FROM wallet_tags "
-                    f"WHERE wallet_address IN ({placeholders}) AND tag = 'Sniper Bot'",
-                    buyer_list
-                )
-                sniper_bot_addrs = {row[0] for row in cursor.fetchall()}
-
-                cursor.execute(
-                    f"SELECT DISTINCT wallet_address, tag FROM wallet_tags "
-                    f"WHERE wallet_address IN ({placeholders}) AND tag IN ('Consistent Winner', 'Sniper', 'High SOL Balance')",
-                    buyer_list
-                )
-                smart_buyers = {}
-                for row in cursor.fetchall():
-                    if row[0] not in sniper_bot_addrs:  # Exclude sniper bots
-                        smart_buyers[row[0]] = row[1]
-                detected.smart_wallets_buying = len(smart_buyers)
-                detected.smart_wallet_names = [f"{addr[:8]}...({tag})" for addr, tag in smart_buyers.items()]
-                has_smart_buyers = len(smart_buyers) > 0
-
-            conn.close()
+                    # 3. Deployer's funder — only one extra query, only when relevant
+                    if detected.deployer_address:
+                        cursor.execute(
+                            "SELECT funded_by_json FROM wallet_enrichment_cache WHERE wallet_address = ?",
+                            (detected.deployer_address,)
+                        )
+                        deployer_funder_row = cursor.fetchone()
+                        if deployer_funder_row and deployer_funder_row[0]:
+                            try:
+                                deployer_fb = json.loads(deployer_funder_row[0])
+                                deployer_funder = deployer_fb.get("funder") if isinstance(deployer_fb, dict) else None
+                                if deployer_funder and funders.get(deployer_funder, 0) > 0:
+                                    detected.deployer_linked_to_buyer = True
+                                    has_deployer_link = True
+                            except Exception:
+                                pass
 
         except Exception as e:
             log_error(f"[RealtimeListener] Crime coin DB analysis failed: {e}")

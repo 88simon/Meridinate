@@ -92,10 +92,11 @@ export default function QuickDDPage() {
   // Load history on mount
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
-  // Poll progress when running
+  // Poll progress when running. Skip while tab hidden — DD continues server-side.
   useEffect(() => {
     if (!progress.running) return;
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch(`${API_BASE_URL}/api/quick-dd/progress`);
         if (res.ok) {

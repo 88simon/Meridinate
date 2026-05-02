@@ -293,12 +293,22 @@ class FollowUpTracker:
                 except Exception:
                     pass
 
-                # Clean up completed tokens (keep last 50 for history)
+                # Clean up completed tokens. Two-tier eviction:
+                #  1) Hard cap: keep only the 50 most-recent stopped tokens for history
+                #     (count-based — protects against burst load).
+                #  2) Time cap: drop any stopped token older than 24h regardless of count
+                #     (time-based — protects against slow leak when a few stopped tokens
+                #     just sit in the dict forever during a quiet day).
                 stopped = [(a, t) for a, t in self._tracking.items() if t.stopped]
                 if len(stopped) > 50:
                     oldest = sorted(stopped, key=lambda x: x[1].last_check)
                     for addr, _ in oldest[:-50]:
                         del self._tracking[addr]
+
+                cutoff_24h = time.time() - 86400
+                stale = [a for a, t in self._tracking.items() if t.stopped and t.last_check < cutoff_24h]
+                for addr in stale:
+                    del self._tracking[addr]
 
             except asyncio.CancelledError:
                 break

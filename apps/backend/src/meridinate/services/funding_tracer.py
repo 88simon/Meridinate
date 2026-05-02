@@ -147,6 +147,86 @@ def trace_funding_chain(
     }
 
 
+def persist_terminal(wallet_address: str, trace: Dict[str, Any]) -> None:
+    """
+    Cache the terminal-of-funding-chain into wallet_enrichment_cache.
+
+    Stores three fields:
+      - terminal_address: the deepest funder we reached (always populated)
+      - terminal_name:    Helius's label for it (e.g. "Coinbase 12") if labeled, else None
+      - terminal_type:    'exchange', 'protocol', or None when terminal is opaque
+
+    Used by the Wallet Leaderboard "Funded By" column so the data is read
+    cheaply (no Helius calls) once a wallet has been traced.
+    """
+    chain = trace.get("chain") or []
+    terminal_address = trace.get("terminal_wallet") or wallet_address
+    terminal_name = trace.get("terminal_name")
+    terminal_type = chain[-1].get("funder_type") if chain else None
+
+    try:
+        with db.get_db_connection() as conn:
+            # Make sure a row exists for this wallet so the UPDATE has a target.
+            conn.execute(
+                "INSERT OR IGNORE INTO wallet_enrichment_cache (wallet_address) VALUES (?)",
+                (wallet_address,),
+            )
+            conn.execute(
+                """UPDATE wallet_enrichment_cache
+                   SET terminal_address = ?,
+                       terminal_name = ?,
+                       terminal_type = ?,
+                       terminal_traced_at = CURRENT_TIMESTAMP
+                   WHERE wallet_address = ?""",
+                (terminal_address, terminal_name, terminal_type, wallet_address),
+            )
+    except Exception as e:
+        log_error(f"[FundingTracer] Failed to persist terminal for {wallet_address[:12]}: {e}")
+
+
+def get_cached_terminal(wallet_address: str) -> Optional[Dict[str, Any]]:
+    """Return the cached terminal info for a wallet, or None if not yet traced."""
+    try:
+        with db.get_db_connection() as conn:
+            row = conn.execute(
+                """SELECT terminal_address, terminal_name, terminal_type, terminal_traced_at
+                   FROM wallet_enrichment_cache WHERE wallet_address = ?""",
+                (wallet_address,),
+            ).fetchone()
+            if not row or row[0] is None:
+                return None
+            return {
+                "terminal_address": row[0],
+                "terminal_name": row[1],
+                "terminal_type": row[2],
+                "terminal_traced_at": row[3],
+            }
+    except Exception:
+        return None
+
+
+def trace_and_persist_terminal(
+    wallet_address: str,
+    helius_api_key: str,
+    max_hops: int = 3,
+) -> Dict[str, Any]:
+    """
+    Run trace_funding_chain, persist the terminal info, and return the cached
+    representation. Used by the leaderboard backfill endpoint.
+    """
+    trace = trace_funding_chain(wallet_address, helius_api_key, max_hops, stop_at_exchanges=True)
+    persist_terminal(wallet_address, trace)
+    cached = get_cached_terminal(wallet_address)
+    return {
+        "wallet_address": wallet_address,
+        "terminal_address": cached.get("terminal_address") if cached else None,
+        "terminal_name": cached.get("terminal_name") if cached else None,
+        "terminal_type": cached.get("terminal_type") if cached else None,
+        "credits_used": trace.get("credits_used", 0),
+        "depth": trace.get("depth", 0),
+    }
+
+
 def trace_batch_funding_chains(
     wallet_addresses: List[str],
     helius_api_key: str,

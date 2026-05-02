@@ -139,11 +139,21 @@ def _run_pipeline(focus: str, skip_housekeeper: bool):
                     f"Casefile verification complete — {reliable} forensics-ready, {fixes} fixes")
                 _update_status("housekeeper", f"Complete — {reliable} forensics-ready", 50)
             else:
-                verified = len(housekeeper_structured.get("verified_wallets", []))
-                unreliable = len(housekeeper_structured.get("unreliable_wallets", []))
+                # Housekeeper schema: wallet_reliability[] entries with trust_quality high/medium/low
+                # plus a separate unreliable_wallets[] list for explicitly-flagged data issues.
+                reliability = housekeeper_structured.get("wallet_reliability", []) or []
+                trust_high = sum(1 for w in reliability if (w.get("trust_quality") or "").lower() == "high")
+                trust_med = sum(1 for w in reliability if (w.get("trust_quality") or "").lower() == "medium")
+                trust_low = sum(1 for w in reliability if (w.get("trust_quality") or "").lower() == "low")
+                unreliable = len(housekeeper_structured.get("unreliable_wallets", []) or [])
                 _add_dialogue("housekeeper", "conclusion",
-                    f"Verification complete — {fixes} fixes, {verified} wallets verified, {unreliable} flagged unreliable")
-                _update_status("housekeeper", f"Complete — {fixes} fixes, {verified} verified, {unreliable} unreliable", 50)
+                    f"Verification complete — {fixes} fixes, {len(reliability)} reviewed "
+                    f"({trust_high} high / {trust_med} med / {trust_low} low), {unreliable} flagged unreliable")
+                _update_status(
+                    "housekeeper",
+                    f"Complete — {fixes} fixes, {trust_high}H/{trust_med}M/{trust_low}L trust, {unreliable} unreliable",
+                    50,
+                )
         else:
             _update_status("housekeeper", "Skipped", 50)
             _add_dialogue("housekeeper", "conclusion", "Skipped")
@@ -246,39 +256,104 @@ def _run_pipeline(focus: str, skip_housekeeper: bool):
                 from meridinate.services.recommendation_executor import create_recommendations_from_report
                 structured = result["structured"]
 
-                # Deterministic compilation: ensure every classification has a matching action
+                # Deterministic compilation: ensure every classification has a matching action.
+                # Bias toward shadowing: any wallet that surfaces in classifications without a
+                # confident allowlist/denylist verdict gets a monitor_wallet recommendation, so
+                # Wallet Shadow accumulates trade data on every plausibly-interesting wallet.
                 model_actions = structured.get("recommended_actions", [])
                 model_targets = {a.get("target_address") for a in model_actions}
+                # Track wallets already getting a monitor/shadow action so we don't double-emit
+                already_monitored = {
+                    a.get("target_address") for a in model_actions
+                    if a.get("action_type") in ("monitor_wallet", "add_bot_allowlist_wallet")
+                }
 
-                compiled_actions = list(model_actions)  # start with what the model produced
+                compiled_actions = list(model_actions)
 
-                # Every denylist candidate with high/medium confidence → denylist recommendation
+                def _ensure_monitor(addr: str, label: str, reason: str, confidence: str = "medium") -> None:
+                    """Idempotently add a monitor_wallet action for an address."""
+                    if not addr or addr in already_monitored:
+                        return
+                    compiled_actions.append({
+                        "action_type": "monitor_wallet",
+                        "target_type": "wallet",
+                        "target_address": addr,
+                        "payload": {"label": label[:120]},
+                        "reason": reason,
+                        "confidence": confidence,
+                        "expected_bot_effect": "Wallet added to Wallet Shadow for live trade-by-trade observation",
+                    })
+                    already_monitored.add(addr)
+
+                # PESSIMISTIC DENYLIST: only emit a denylist rec when the model gave a non-trivial
+                # type beyond bare 'high_rug_exposure'. A wallet flagged solely on high rug exposure
+                # is most likely a profitable scalper — downgrade to monitor_wallet instead.
                 for dc in structured.get("denylist_candidates", []):
-                    if dc.get("confidence") in ("high", "medium") and dc.get("address") not in model_targets:
-                        compiled_actions.append({
-                            "action_type": "add_bot_denylist_wallet",
-                            "target_type": "wallet",
-                            "target_address": dc["address"],
-                            "payload": {"deny_type": dc.get("type", "toxic_flow")},
-                            "reason": dc.get("reason", "Classified as denylist by Investigator"),
-                            "confidence": dc.get("confidence", "medium"),
-                            "expected_bot_effect": "Wallet will be filtered from positive confluence signals",
-                        })
+                    addr = dc.get("address")
+                    if not addr:
+                        continue
+                    deny_type = (dc.get("type") or "toxic_flow").lower()
+                    is_strong_signal = deny_type not in ("high_rug_exposure",)
+                    if dc.get("confidence") in ("high", "medium") and is_strong_signal:
+                        if addr not in model_targets:
+                            compiled_actions.append({
+                                "action_type": "add_bot_denylist_wallet",
+                                "target_type": "wallet",
+                                "target_address": addr,
+                                "payload": {"deny_type": deny_type},
+                                "reason": dc.get("reason", "Classified as denylist by Investigator"),
+                                "confidence": dc.get("confidence", "medium"),
+                                "expected_bot_effect": "Wallet will be filtered from positive confluence signals",
+                            })
+                    else:
+                        # Bare high rug exposure or low confidence → shadow it instead, do not denylist.
+                        _ensure_monitor(
+                            addr,
+                            label=f"Possible scalper - {dc.get('reason', 'high rug exposure')[:60]}",
+                            reason=f"Downgraded from denylist (rug exposure alone insufficient): {dc.get('reason', '')}",
+                            confidence="low",
+                        )
 
-                # Every watch-only wallet → watch recommendation
+                # CRASH TRADER / SCALPER: high PnL + high rug exposure pattern. Always shadow.
+                for sc in structured.get("profitable_scalper_candidates", []):
+                    addr = sc.get("address")
+                    if addr and addr not in model_targets:
+                        signals = sc.get("supporting_signals", []) or []
+                        label_bits = " / ".join(s for s in signals[:2]) or "Profitable Scalper"
+                        compiled_actions.append({
+                            "action_type": "monitor_wallet",
+                            "target_type": "wallet",
+                            "target_address": addr,
+                            "payload": {"label": f"Scalper - {label_bits}"[:120]},
+                            "reason": sc.get("reason", "Profitable but high rug exposure — shadow without trusting"),
+                            "confidence": sc.get("confidence", "medium"),
+                            "expected_bot_effect": "Wallet added to Wallet Shadow; not used for anti-rug confluence",
+                        })
+                        already_monitored.add(addr)
+
+                # WATCH-ONLY: keep the watchlist tag AND auto-shadow so live trade data accumulates.
                 for wo in structured.get("watch_only", []):
-                    if wo.get("address") not in model_targets:
+                    addr = wo.get("address")
+                    if not addr:
+                        continue
+                    if addr not in model_targets:
                         compiled_actions.append({
                             "action_type": "add_watch_wallet",
                             "target_type": "wallet",
-                            "target_address": wo["address"],
+                            "target_address": addr,
                             "payload": {},
                             "reason": wo.get("reason", "Classified as watch-only by Investigator"),
                             "confidence": "medium",
                             "expected_bot_effect": wo.get("monitor_for", "Flag for manual review when seen on new tokens"),
                         })
+                    _ensure_monitor(
+                        addr,
+                        label=f"Watch - {wo.get('monitor_for', 'pending classification')[:60]}",
+                        reason=wo.get("reason", "Default-to-shadow on watch-only classification"),
+                        confidence="medium",
+                    )
 
-                # Every allowlist candidate with high confidence → allowlist recommendation
+                # ALLOWLIST: high confidence only. Auto-shadow happens in the executor on approval.
                 for ac in structured.get("allowlist_candidates", []):
                     if ac.get("confidence") == "high" and ac.get("address") not in model_targets:
                         compiled_actions.append({
@@ -288,7 +363,7 @@ def _run_pipeline(focus: str, skip_housekeeper: bool):
                             "payload": {},
                             "reason": ac.get("reason", "Classified as allowlist by Investigator"),
                             "confidence": ac.get("confidence", "high"),
-                            "expected_bot_effect": "Wallet will count as positive anti-rug confluence signal",
+                            "expected_bot_effect": "Wallet will count as positive anti-rug confluence signal (auto-shadows on approval)",
                         })
 
                 compiled_count = len(compiled_actions) - len(model_actions)

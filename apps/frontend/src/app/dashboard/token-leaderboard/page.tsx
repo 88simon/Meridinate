@@ -689,7 +689,7 @@ export default function TokenLeaderboardPage() {
                       </td>
                       {/* Aggregate Real PnL */}
                       <td className='px-2 py-2 text-right text-xs'>
-                        {token.real_pnl_wallets > 0 ? (
+                        {token.real_pnl_wallets > 0 && token.aggregate_realized_pnl != null ? (
                           <span className={token.aggregate_realized_pnl > 0 ? 'text-green-400' : token.aggregate_realized_pnl < 0 ? 'text-red-400' : 'text-muted-foreground'}>
                             {token.aggregate_realized_pnl > 0 ? '+' : ''}${Math.abs(token.aggregate_realized_pnl) >= 1000
                               ? `${(token.aggregate_realized_pnl / 1000).toFixed(1)}k`

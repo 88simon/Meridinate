@@ -1052,6 +1052,28 @@ async def refresh_market_caps(request: Request, data: RefreshMarketCapsRequest):
     }
 
 
+@router.get("/api/tokens/by-address/{token_address}")
+async def get_token_id_by_address(token_address: str):
+    """
+    Resolve a token mint address to its analyzed_tokens row id. Used by surfaces
+    that only have an address (e.g. Wallet Shadow trade rows) but need to open
+    the Token Intelligence panel, which is keyed by id.
+    """
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+        cursor = await conn.execute(
+            "SELECT id, token_address, token_name, token_symbol "
+            "FROM analyzed_tokens "
+            "WHERE token_address = ? AND (deleted_at IS NULL OR deleted_at = '') "
+            "LIMIT 1",
+            (token_address,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Token {token_address} not in analyzed_tokens")
+        return dict(row)
+
+
 @router.get("/api/tokens/{token_id}", response_model=TokenDetail)
 async def get_token_by_id(token_id: int, include_axiom: bool = False):
     """Get token details with wallets. Axiom JSON excluded by default for performance."""

@@ -103,6 +103,7 @@ export default function RugAnalysisPage() {
     const initialCount = reports.length;
     const initialId = reports[0]?.id ?? 0;
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch(`${API_BASE_URL}/api/rug-analysis/reports?limit=1`);
         if (res.ok) {

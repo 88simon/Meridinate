@@ -124,12 +124,18 @@ async def get_wallet_leaderboard(
         cursor = await conn.execute(count_sql, params)
         total_count = (await cursor.fetchone())[0]
 
-        # Data query with rank via ROW_NUMBER
-        # We need rank based on the unfiltered sort order for is_archive detection
+        # Data query with rank via ROW_NUMBER. LEFT JOIN wallet_enrichment_cache
+        # so the "Funded By" column gets the cached terminal exchange/wallet for
+        # each row in a single query. Uncached rows return NULLs and get
+        # backfilled by /api/wallets/funding-terminal/batch on the frontend.
         data_sql = f"""
             SELECT c.*,
+                   wec.terminal_address as terminal_address,
+                   wec.terminal_name as terminal_name,
+                   wec.terminal_type as terminal_type,
                    ROW_NUMBER() OVER (ORDER BY c.{sort_by} {sort_direction}) as rank
             FROM wallet_leaderboard_cache c
+            LEFT JOIN wallet_enrichment_cache wec ON wec.wallet_address = c.wallet_address
             {join_sql}
             {where_sql}
             ORDER BY c.{sort_by} {sort_direction}
@@ -175,6 +181,11 @@ async def get_wallet_leaderboard(
             "tier_score": row["tier_score"],
             "home_runs": row["home_runs"],
             "rugs": row["rugs"],
+            # Funding-chain terminal — null when not yet traced. Frontend
+            # backfills missing rows via POST /api/wallets/funding-terminal/batch.
+            "terminal_address": row.get("terminal_address") if isinstance(row, dict) else row["terminal_address"],
+            "terminal_name": row.get("terminal_name") if isinstance(row, dict) else row["terminal_name"],
+            "terminal_type": row.get("terminal_type") if isinstance(row, dict) else row["terminal_type"],
         })
 
     return {

@@ -669,6 +669,26 @@
         }
       }
     },
+    "/api/stats/status-bar": {
+      "get": {
+        "tags": [
+          "Stats"
+        ],
+        "summary": "Get Status Bar",
+        "description": "Single endpoint for the global status bar. Returns scheduler timers,\ntoken polling tier breakdown, credit usage, and relevant settings.\nAll values are live and reflect current settings.",
+        "operationId": "get_status_bar_api_stats_status_bar_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/register": {
       "post": {
         "tags": [
@@ -948,8 +968,110 @@
           "Tokens"
         ],
         "summary": "Get Tokens History",
-        "description": "Get all non-deleted tokens with wallet counts (with caching)",
+        "description": "Get non-deleted tokens with wallet counts, server-side pagination and filtering.",
         "operationId": "get_tokens_history_api_tokens_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "dex_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dex Id"
+            }
+          },
+          {
+            "name": "verdict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Verdict"
+            }
+          },
+          {
+            "name": "performance",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Performance"
+            }
+          },
+          {
+            "name": "since_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since Hours"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -957,6 +1079,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TokensResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1028,13 +1160,54 @@
         }
       }
     },
+    "/api/tokens/by-address/{token_address}": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Token Id By Address",
+        "description": "Resolve a token mint address to its analyzed_tokens row id. Used by surfaces\nthat only have an address (e.g. Wallet Shadow trade rows) but need to open\nthe Token Intelligence panel, which is keyed by id.",
+        "operationId": "get_token_id_by_address_api_tokens_by_address__token_address__get",
+        "parameters": [
+          {
+            "name": "token_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tokens/{token_id}": {
       "get": {
         "tags": [
           "Tokens"
         ],
         "summary": "Get Token By Id",
-        "description": "Get token details with wallets and axiom export",
+        "description": "Get token details with wallets. Axiom JSON excluded by default for performance.",
         "operationId": "get_token_by_id_api_tokens__token_id__get",
         "parameters": [
           {
@@ -1044,6 +1217,16 @@
             "schema": {
               "type": "integer",
               "title": "Token Id"
+            }
+          },
+          {
+            "name": "include_axiom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Axiom"
             }
           }
         ],
@@ -1241,14 +1424,14 @@
         }
       }
     },
-    "/api/tokens/{token_id}/gem-status": {
+    "/api/tokens/{token_id}/verdict": {
       "post": {
         "tags": [
           "Tokens"
         ],
-        "summary": "Update Gem Status",
-        "description": "Update the gem status of a token (gem, dud, or null to clear)",
-        "operationId": "update_gem_status_api_tokens__token_id__gem_status_post",
+        "summary": "Update Verdict",
+        "description": "Update the verdict of a token (verified-win, verified-loss, or null to clear)",
+        "operationId": "update_verdict_api_tokens__token_id__verdict_post",
         "parameters": [
           {
             "name": "token_id",
@@ -1265,7 +1448,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateGemStatusRequest"
+                "$ref": "#/components/schemas/UpdateVerdictRequest"
               }
             }
           }
@@ -1288,6 +1471,67 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/{token_id}/rug-label": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Set Rug Label",
+        "description": "Set manual rug label on a token (rug, organic, unsure, or null to clear).",
+        "operationId": "set_rug_label_api_tokens__token_id__rug_label_post",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/rug-labels": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Rug Labeled Tokens",
+        "description": "Get all tokens with rug labels (for rug analysis page).",
+        "operationId": "get_rug_labeled_tokens_api_tokens_rug_labels_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -1341,7 +1585,7 @@
           "Tokens"
         ],
         "summary": "Add Token Tag",
-        "description": "Add a tag to a token (e.g., gem, dud)",
+        "description": "Add a tag to a token (e.g., verified-win, verified-loss)",
         "operationId": "add_token_tag_api_tokens__token_id__tags_post",
         "parameters": [
           {
@@ -1630,6 +1874,110 @@
                 "schema": {
                   "$ref": "#/components/schemas/PrimeTokensResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/backfill-deployers": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Backfill Deployers",
+        "description": "Backfill deployer_address and creation_events for existing tokens that don't have them.\nRe-analyzes the earliest transactions to extract deployer info.\nCosts ~100 Helius credits per token (1 getTransactionsForAddress call).",
+        "operationId": "backfill_deployers_api_tokens_backfill_deployers_post",
+        "parameters": [
+          {
+            "name": "max_tokens",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Max Tokens"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/detect-sniper-bots": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Detect Sniper Bots Endpoint",
+        "description": "Run sniper bot detection across all wallets. Tags bots and removes false winner tags.",
+        "operationId": "detect_sniper_bots_endpoint_api_tokens_detect_sniper_bots_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/ml-features": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Get Ml Features",
+        "description": "Extract ML feature vectors for all labeled tokens.\nReturns feature data as JSON, or exports to CSV if export_csv=True.\nNo API calls \u2014 all data from database.",
+        "operationId": "get_ml_features_api_tokens_ml_features_get",
+        "parameters": [
+          {
+            "name": "export_csv",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Export Csv"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -1958,7 +2306,7 @@
           "Wallets"
         ],
         "summary": "Refresh Wallet Balances",
-        "description": "Refresh wallet balances for multiple wallets (ASYNC)",
+        "description": "Refresh wallet balances for multiple wallets using the Wallet API.\n\nUses the Helius Wallet API /v1/wallet/{addr}/balances endpoint which returns\nall token holdings with USD values in a single call (100 credits per wallet).",
         "operationId": "refresh_wallet_balances_wallets_refresh_balances_post",
         "requestBody": {
           "content": {
@@ -2053,6 +2401,614 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/cached-intel": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Cached Wallet Intel",
+        "description": "Get cached enrichment intel for all wallets. Reads from wallet_enrichment_cache\nand wallet_tags \u2014 no API calls, instant response. Used to populate the Intel\ncolumn on the Wallet Intel page without re-running Enrich Wallets.",
+        "operationId": "get_cached_wallet_intel_wallets_cached_intel_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{wallet_address}/funded-by": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Wallet Funded By",
+        "description": "Get the original funding source of a wallet.\n\nReturns the address that sent the first SOL transfer to this wallet.\nUseful for detecting wallet clusters \u2014 if multiple early bidders\nwere all funded by the same source, that's a sybil/bot signal.\n\nCosts ~100 Helius credits per call.",
+        "operationId": "get_wallet_funded_by_wallets__wallet_address__funded_by_get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/batch-funded-by": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Batch Funded By",
+        "description": "Batch lookup of funding sources for multiple wallets.\n\nReturns the funder for each wallet. Useful for grouping wallets\nby their original funding source to detect clusters.\n\nCosts ~100 Helius credits per wallet.",
+        "operationId": "get_batch_funded_by_wallets_batch_funded_by_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_get_batch_funded_by_wallets_batch_funded_by_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallets/funding-terminal/batch": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Funding Terminal Batch",
+        "description": "For each wallet, return the cached funding-chain terminal (exchange or\ndeepest opaque wallet). Wallets without a cached terminal are traced now\nand the result persisted, so subsequent calls are free.\n\nPowers the Wallet Leaderboard 'Funded By' column. Splits each batch into\ncached-only (free) and needs-trace (~100-300 credits per wallet) so the\nUI can show known terminals immediately while the rest stream in.",
+        "operationId": "funding_terminal_batch_api_wallets_funding_terminal_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_funding_terminal_batch_api_wallets_funding_terminal_batch_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/trace-funding": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Trace Wallet Funding",
+        "description": "Multi-hop funding trace for multiple wallets.\nTraces each wallet's funding chain through configurable depth (1-5 hops).\nReveals hidden clusters where wallets converge at deeper hops.\nUses caching so shared intermediary wallets are only traced once.\n\nCosts ~100 Helius credits per hop per wallet (minus cache hits).",
+        "operationId": "trace_wallet_funding_wallets_trace_funding_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_trace_wallet_funding_wallets_trace_funding_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/trace-forward": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Trace Wallet Forward",
+        "description": "Forward funding trace \u2014 where did this wallet SEND money?\n\nReveals sybil distribution networks: a single funder creating\nmultiple wallets that buy the same token.\n\nCosts ~100 credits per hop level (cached after first call).",
+        "operationId": "trace_wallet_forward_wallets_trace_forward_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_trace_wallet_forward_wallets_trace_forward_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/batch-identity": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Batch Wallet Identities",
+        "description": "Batch lookup of wallet identities (up to 100 at once).\n\nReturns known identity info (exchange, protocol, name, category, tags)\nfor each wallet address. Uses Helius's database of 5,100+ tagged accounts.\n\nCosts ~100 Helius credits per batch call.",
+        "operationId": "get_batch_wallet_identities_wallets_batch_identity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_get_batch_wallet_identities_wallets_batch_identity_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/compute-tags": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Compute Wallet Tags",
+        "description": "Compute Tier 2 tags for a batch of wallets.\n\nFor each wallet, runs compute_wallet_tier2_tags() which derives tags like\nConsistent Winner, Consistent Loser, Diversified, and Sniper from\nMeridinate's own data (no external API calls).\n\nReturns the computed tags per wallet.",
+        "operationId": "compute_wallet_tags_wallets_compute_tags_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_compute_wallet_tags_wallets_compute_tags_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{wallet_address}/transfers": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Wallet Transfers",
+        "description": "Get incoming/outgoing transfers for a wallet with counterparty info.\n\nReturns transfer events with direction (in/out), token, amount, counterparty,\nand timestamps. Useful for the Position Tracker to show actual transfer activity.\n\nCosts ~100 Helius credits per call.",
+        "operationId": "get_wallet_transfers_wallets__wallet_address__transfers_get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/intelligence/{wallet_address}": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Wallet Intelligence",
+        "description": "Comprehensive Wallet Intelligence Report.\nStitches together: identity, funding, freshness, PnL, entry timing,\ntoken history, and behavioral patterns. Zero API calls \u2014 pure database.",
+        "operationId": "get_wallet_intelligence_wallets_intelligence__wallet_address__get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/pnl-backfill/start": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Start Pnl Backfill",
+        "description": "Start PnL v2 backfill for wallets with min_tokens+ tokens.",
+        "operationId": "start_pnl_backfill_wallets_pnl_backfill_start_post",
+        "parameters": [
+          {
+            "name": "min_tokens",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 5,
+              "title": "Min Tokens"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/pnl-backfill/stop": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Stop Pnl Backfill",
+        "description": "Stop the running PnL backfill.",
+        "operationId": "stop_pnl_backfill_wallets_pnl_backfill_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/pnl-backfill/status": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Pnl Backfill Status",
+        "description": "Get PnL backfill progress.",
+        "operationId": "get_pnl_backfill_status_wallets_pnl_backfill_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/deployer-profile/{deployer_address}": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get Deployer Profile",
+        "description": "Get all tokens deployed by a wallet, with their verdicts and performance.\nNo API calls \u2014 reads directly from the database.",
+        "operationId": "get_deployer_profile_wallets_deployer_profile__deployer_address__get",
+        "parameters": [
+          {
+            "name": "deployer_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Deployer Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/compute-pnl/{wallet_address}": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Compute Wallet Pnl Endpoint",
+        "description": "Compute real PnL for a wallet using per-token-account approach (v2).\nFinds each token account, gets its signatures, parses buy/sell amounts.\nCost: ~21 credits per token this wallet traded in our database.",
+        "operationId": "compute_wallet_pnl_endpoint_wallets_compute_pnl__wallet_address__post",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/compute-pnl-batch": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Compute Batch Pnl",
+        "description": "Compute real PnL for top wallets on the leaderboard using v2 per-token-account approach.\nCost: ~21 credits per wallet-token pair.",
+        "operationId": "compute_batch_pnl_wallets_compute_pnl_batch_post",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2345,6 +3301,46 @@
         }
       }
     },
+    "/api/codex/by-category": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "summary": "Get Codex By Category",
+        "description": "Return wallets grouped by tracking category for the Codex panel.\nCategories: starred, allowlist, denylist, shadowing, watching.\nEach list contains {wallet_address, nametag, added_at} entries.",
+        "operationId": "get_codex_by_category_api_codex_by_category_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/nametags": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "summary": "Get All Wallet Nametags",
+        "description": "Return every wallet \u2192 nametag mapping as a single dict.\nUsed by the frontend nametag context so any address rendered anywhere\ncan resolve its display name in O(1) without per-wallet round-trips.",
+        "operationId": "get_all_wallet_nametags_wallets_nametags_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/wallets/{wallet_address}/nametag": {
       "get": {
         "tags": [
@@ -2626,7 +3622,7 @@
           "Webhooks"
         ],
         "summary": "Create Swab Webhook",
-        "description": "Create a Helius webhook for all active SWAB positions.\n\nThis creates a single webhook monitoring all MTEW wallets that have\nactive (still holding) positions. When any of these wallets sends\ntokens, the webhook callback will detect potential sells and update\npositions in real-time.\n\nRequest body (optional):\n- webhook_url: Custom callback URL (default: http://localhost:5003/webhooks/callback)\n\nReturns:\n- status: \"queued\" or \"error\"\n- wallets_count: Number of wallets being monitored\n- webhook_url: The callback URL configured",
+        "description": "Create a Helius webhook for all active tracked positions.\n\nThis creates a single webhook monitoring all tracked wallets that have\nactive (still holding) positions. When any of these wallets sends\ntokens, the webhook callback will detect potential sells and update\npositions in real-time.\n\nRequest body (optional):\n- webhook_url: Custom callback URL (default: {API_BASE_URL}/webhooks/callback)\n\nReturns:\n- status: \"queued\" or \"error\"\n- wallets_count: Number of wallets being monitored\n- webhook_url: The callback URL configured",
         "operationId": "create_swab_webhook_webhooks_create_swab_post",
         "responses": {
           "202": {
@@ -2646,7 +3642,7 @@
           "Webhooks"
         ],
         "summary": "Webhook Callback",
-        "description": "Receive webhook notifications from Helius.\n\nProcesses token transfers to detect SWAB position updates in real-time:\n- SELL: When tracked wallet sends tokens (fromUserAccount), capture exit price\n- BUY/DCA: When tracked wallet receives tokens (toUserAccount), update cost basis\n- RE-ENTRY: When a sold position buys again, reactivate and record buy\n\nThis webhook-first approach captures accurate prices before transactions\nscroll out of the recent signature window.",
+        "description": "Receive webhook notifications from Helius.\n\nProcesses token transfers to detect position updates in real-time:\n- SELL: When tracked wallet sends tokens (fromUserAccount), capture exit price\n- BUY/DCA: When tracked wallet receives tokens (toUserAccount), update cost basis\n- RE-ENTRY: When a sold position buys again, reactivate and record buy\n\nThis webhook-first approach captures accurate prices before transactions\nscroll out of the recent signature window.",
         "operationId": "webhook_callback_webhooks_callback_post",
         "responses": {
           "200": {
@@ -2663,11 +3659,11 @@
     "/api/swab/settings": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Settings",
-        "description": "Get SWAB configuration settings.",
+        "description": "Get position tracker configuration settings.",
         "operationId": "get_settings_api_swab_settings_get",
         "responses": {
           "200": {
@@ -2684,11 +3680,11 @@
       },
       "put": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Update Settings",
-        "description": "Update SWAB configuration settings.",
+        "description": "Update position tracker configuration settings.",
         "operationId": "update_settings_api_swab_settings_put",
         "requestBody": {
           "content": {
@@ -2727,11 +3723,11 @@
     "/api/swab/scheduler/status": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Scheduler Status",
-        "description": "Get SWAB scheduler status.",
+        "description": "Get Position tracker scheduler status.",
         "operationId": "get_scheduler_status_api_swab_scheduler_status_get",
         "responses": {
           "200": {
@@ -2748,11 +3744,11 @@
     "/api/swab/stats": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Stats",
-        "description": "Get SWAB overview statistics.",
+        "description": "Get position tracker overview statistics.",
         "operationId": "get_stats_api_swab_stats_get",
         "responses": {
           "200": {
@@ -2771,11 +3767,11 @@
     "/api/swab/positions": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Positions",
-        "description": "Get tracked positions with filters.\n\nQuery parameters:\n- min_token_count: Minimum tokens for MTEW to be included\n- status: Filter by status ('holding', 'sold', 'stale', 'all')\n- pnl_min: Minimum PnL ratio\n- pnl_max: Maximum PnL ratio\n- limit: Max positions to return (default 50, max 500)\n- offset: Pagination offset",
+        "description": "Get tracked positions with filters.\n\nQuery parameters:\n- min_token_count: Minimum tokens for recurring wallet to be included\n- status: Filter by status ('holding', 'sold', 'stale', 'all')\n- pnl_min: Minimum PnL ratio\n- pnl_max: Maximum PnL ratio\n- limit: Max positions to return (default 50, max 500)\n- offset: Pagination offset",
         "operationId": "get_positions_api_swab_positions_get",
         "parameters": [
           {
@@ -2896,11 +3892,11 @@
     "/api/swab/wallets": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Wallet Summaries",
-        "description": "Get aggregated wallet summaries for SWAB.\n\nQuery parameters:\n- min_token_count: Minimum tokens for MTEW to be included",
+        "description": "Get aggregated wallet summaries for position tracking.\n\nQuery parameters:\n- min_token_count: Minimum tokens for recurring wallet to be included",
         "operationId": "get_wallet_summaries_api_swab_wallets_get",
         "parameters": [
           {
@@ -2953,8 +3949,8 @@
     "/api/swab/positions/{position_id}/stop": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Stop Position Tracking",
         "description": "Stop tracking a specific position.",
@@ -3005,8 +4001,8 @@
     "/api/swab/positions/{position_id}/resume": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Resume Position Tracking",
         "description": "Resume tracking a previously stopped position.",
@@ -3047,8 +4043,8 @@
     "/api/swab/wallets/{wallet_address}/stop": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Stop Wallet Tracking",
         "description": "Stop tracking all positions for a wallet.",
@@ -3099,8 +4095,8 @@
     "/api/swab/positions/batch-stop": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Batch Stop Position Tracking",
         "description": "Stop tracking multiple positions at once.",
@@ -3140,8 +4136,8 @@
     "/api/swab/check": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Trigger Position Check",
         "description": "Manually trigger a position check cycle.\n\nQuery parameters:\n- max_positions: Maximum positions to check (default 50)\n- max_credits: Maximum credits to spend (defaults to remaining daily budget)",
@@ -3205,8 +4201,8 @@
     "/api/swab/update-pnl": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Trigger Pnl Update",
         "description": "Update PnL ratios for all holding positions.\n\nThis is a free operation (uses DexScreener, not Helius credits).",
@@ -3226,8 +4222,8 @@
     "/api/swab/expectancies": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Wallet Expectancies",
         "description": "Get expectancy calculations for all wallets with sufficient closed positions.\n\nThe expectancy formula is: (Win% \u00d7 Avg_Win_Size) - (Loss% \u00d7 Avg_Loss_Size)\n- Smart: Expectancy > 0.5 AND min_closed positions\n- Dumb: Expectancy < -0.2 AND min_closed positions\n\nQuery parameters:\n- min_closed: Minimum closed positions required (default 5)",
@@ -3277,8 +4273,8 @@
     "/api/swab/expectancies/{wallet_address}": {
       "get": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Get Wallet Expectancy",
         "description": "Get expectancy calculation for a specific wallet.\n\nReturns the wallet's trading expectancy and Smart/Dumb label status.",
@@ -3321,11 +4317,11 @@
     "/api/swab/labels/update": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Trigger Label Update",
-        "description": "Trigger a batch update of all Smart/Dumb labels.\n\nThis recalculates expectancy for all eligible wallets and updates their labels.",
+        "description": "Trigger a batch update of Tier 2 computed wallet tags.\n\nRecalculates Consistent Winner/Loser, Diversified, Sniper for all eligible wallets.",
         "operationId": "trigger_label_update_api_swab_labels_update_post",
         "responses": {
           "200": {
@@ -3342,11 +4338,11 @@
     "/api/swab/purge": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Purge Swab Data",
-        "description": "Purge all SWAB position tracking data for a fresh start.\n\nThis deletes:\n- All records from mtew_token_positions\n- All wallet metrics\n- Smart/Dumb labels from wallets\n\nUse this when you want to reset SWAB tracking entirely.",
+        "description": "Purge all position tracking data for a fresh start.\n\nThis deletes:\n- All records from mtew_token_positions\n- All wallet metrics\n- Smart/Dumb labels from wallets\n\nUse this when you want to reset position tracking entirely.",
         "operationId": "purge_swab_data_api_swab_purge_post",
         "responses": {
           "200": {
@@ -3363,8 +4359,8 @@
     "/api/swab/reconcile/{token_id}": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Reconcile Token Positions",
         "description": "Reconcile sold positions for a specific token using Helius transaction history.\n\nThis endpoint fixes positions where:\n- The position was marked as sold (still_holding = 0)\n- But the sell was never recorded with actual price data (total_sold_usd = 0)\n\nFor each such position, it:\n1. Fetches recent transaction history from Helius\n2. Finds the sell transaction (where wallet sent tokens)\n3. Updates the position with accurate USD received and PnL\n\nQuery parameters:\n- max_signatures: Max signatures to check per wallet (default 50, max 200)\n                  Higher = more likely to find old sells, but uses more credits\n\nReturns:\n- positions_found: Number of positions needing reconciliation\n- positions_reconciled: Successfully updated\n- positions_no_tx_found: Sell transaction not found in recent history\n- credits_used: Helius API credits consumed",
@@ -3419,8 +4415,8 @@
     "/api/swab/reconcile-all": {
       "post": {
         "tags": [
-          "SWAB",
-          "SWAB"
+          "Position Tracker",
+          "Position Tracker"
         ],
         "summary": "Reconcile All Positions",
         "description": "Reconcile all sold positions across all tokens that need reconciliation.\n\nThis is a batch operation that processes up to max_positions positions\nthat have missing sell data.\n\nQuery parameters:\n- max_signatures: Max signatures to check per wallet (default 50)\n- max_positions: Max positions to process in this batch (default 50)\n\nReturns:\n- positions_found: Number of positions needing reconciliation\n- positions_reconciled: Successfully updated\n- positions_no_tx_found: Sell transaction not found\n- credits_used: Helius API credits consumed",
@@ -3658,6 +4654,90 @@
         }
       }
     },
+    "/api/ingest/run-mc-tracker": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Run Mc Tracker Endpoint",
+        "description": "Trigger MC tracker in a background thread. Returns immediately.",
+        "operationId": "run_mc_tracker_endpoint_api_ingest_run_mc_tracker_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/run-scan": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Run Scan",
+        "description": "Trigger Auto-Scan in a background thread. Returns immediately with 202.\nThe scan runs completely off the event loop so the API stays responsive.",
+        "operationId": "run_scan_api_ingest_run_scan_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/scan-progress": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Scan Progress",
+        "description": "Get current auto-scan progress (lightweight, no DB query).\nAuto-clears stuck state if the heartbeat is stale (>10 min) so the UI\nnever lies about a scan that's actually dead.",
+        "operationId": "get_scan_progress_api_ingest_scan_progress_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/scan-progress/reset": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Reset Scan Progress Endpoint",
+        "description": "Manually clear stuck scan-progress state without restarting the backend.\nThe orphaned worker thread (if any) keeps running in background but the\nUI immediately reflects the reset, and the scheduler can fire a new scan.",
+        "operationId": "reset_scan_progress_endpoint_api_ingest_scan_progress_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ingest/run-discovery": {
       "post": {
         "tags": [
@@ -3754,54 +4834,6 @@
         }
       }
     },
-    "/api/ingest/run-tier1": {
-      "post": {
-        "tags": [
-          "Ingest",
-          "Ingest"
-        ],
-        "summary": "Run Tier1",
-        "description": "Deprecated: Tier-1 enrichment has been removed.\n\nThe simplified Discovery \u2192 Queue \u2192 Analysis flow no longer uses\na separate enrichment step. Discovered tokens can be directly\npromoted to full analysis.\n\nReturns:\n    Deprecation notice",
-        "operationId": "run_tier1_api_ingest_run_tier1_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/Tier1RunRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/ingest/promote": {
       "post": {
         "tags": [
@@ -3809,7 +4841,7 @@
           "Ingest"
         ],
         "summary": "Promote Tokens",
-        "description": "Promote tokens from Discovery Queue to full analysis.\n\nMarks tokens for full analysis (MTEW detection, SWAB tracking).\nTokens in 'ingested' or 'enriched' tier can be promoted.\nOptionally registers SWAB webhooks for tracking (default: True).\n\nArgs:\n    payload: Token addresses to promote and webhook options\n\nReturns:\n    Promotion results including tokens promoted, failed, and webhooks registered",
+        "description": "Promote tokens from Discovery Queue to full analysis.\n\nMarks tokens for full analysis (recurring wallet detection, position tracking).\nTokens in 'ingested' or 'enriched' tier can be promoted.\nOptionally registers position tracking webhooks (default: True).\n\nArgs:\n    payload: Token addresses to promote and webhook options\n\nReturns:\n    Promotion results including tokens promoted, failed, and webhooks registered",
         "operationId": "promote_tokens_api_ingest_promote_post",
         "requestBody": {
           "content": {
@@ -3939,7 +4971,7 @@
           "Ingest"
         ],
         "summary": "Trigger Auto Promote",
-        "description": "Manually trigger auto-promote for enriched tokens.\n\nPromotes enriched tokens to full analysis (tier='analyzed') and\noptionally registers SWAB webhooks for tracking.\n\nNote: This is the same logic that runs automatically after Tier-1\nenrichment when auto_promote_enabled is True.\n\nArgs:\n    payload: Optional overrides for auto-promote parameters\n\nReturns:\n    Auto-promote results including tokens promoted and webhooks registered",
+        "description": "Manually trigger auto-promote for enriched tokens.\n\nPromotes enriched tokens to full analysis (tier='analyzed') and\noptionally registers position tracking webhooks.\n\nNote: This is the same logic that runs automatically after Tier-1\nenrichment when auto_promote_enabled is True.\n\nArgs:\n    payload: Optional overrides for auto-promote parameters\n\nReturns:\n    Auto-promote results including tokens promoted and webhooks registered",
         "operationId": "trigger_auto_promote_api_ingest_auto_promote_post",
         "requestBody": {
           "content": {
@@ -4017,6 +5049,3164 @@
               "type": "integer",
               "default": 50,
               "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/start": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Start Realtime Listener",
+        "description": "Start the real-time PumpFun token detection WebSocket.",
+        "operationId": "start_realtime_listener_api_ingest_realtime_start_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/stop": {
+      "post": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Stop Realtime Listener",
+        "description": "Stop the real-time token detection WebSocket.",
+        "operationId": "stop_realtime_listener_api_ingest_realtime_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/status": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Realtime Status",
+        "description": "Get the status and stats of the real-time listener.",
+        "operationId": "get_realtime_status_api_ingest_realtime_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/feed": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Realtime Feed",
+        "description": "Get the real-time token detection feed.\nReturns recently detected tokens with conviction scores, newest first.",
+        "operationId": "get_realtime_feed_api_ingest_realtime_feed_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/followup/status": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Followup Status",
+        "description": "Get the status and tracked tokens of the follow-up tracker.",
+        "operationId": "get_followup_status_api_ingest_followup_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/lifecycle/{token_address}": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Token Lifecycle",
+        "description": "Get complete lifecycle data for a token \u2014 stitches birth (RTTF),\ntrajectory (follow-up), analysis (auto-scan), and verdict into one record.",
+        "operationId": "get_token_lifecycle_api_ingest_lifecycle__token_address__get",
+        "parameters": [
+          {
+            "name": "token_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/history": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Realtime History",
+        "description": "Get persisted webhook detection history from database.\nThis is the audit view \u2014 shows everything that was saved, with filters.",
+        "operationId": "get_realtime_history_api_ingest_realtime_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status: high_conviction, watching, weak, rejected",
+              "title": "Status"
+            },
+            "description": "Filter by status: high_conviction, watching, weak, rejected"
+          },
+          {
+            "name": "min_score",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Score"
+            }
+          },
+          {
+            "name": "max_score",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Score"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/accuracy": {
+      "get": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Get Conviction Accuracy",
+        "description": "Conviction accuracy report card.\nShows how well our birth conviction scores predicted actual outcomes.",
+        "operationId": "get_conviction_accuracy_api_ingest_realtime_accuracy_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ingest/realtime/history/{token_address}": {
+      "delete": {
+        "tags": [
+          "Ingest",
+          "Ingest"
+        ],
+        "summary": "Delete Detection",
+        "description": "Delete a specific webhook detection (for correcting bad data).",
+        "operationId": "delete_detection_api_ingest_realtime_history__token_address__delete",
+        "parameters": [
+          {
+            "name": "token_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quick-dd/run": {
+      "post": {
+        "tags": [
+          "Quick DD"
+        ],
+        "summary": "Run Quick Dd",
+        "description": "Trigger Quick DD pipeline in background. Returns immediately.",
+        "operationId": "run_quick_dd_api_quick_dd_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickDDRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quick-dd/progress": {
+      "get": {
+        "tags": [
+          "Quick DD"
+        ],
+        "summary": "Get Dd Progress",
+        "description": "Get current Quick DD progress (lightweight, no DB query).",
+        "operationId": "get_dd_progress_api_quick_dd_progress_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quick-dd/history": {
+      "get": {
+        "tags": [
+          "Quick DD"
+        ],
+        "summary": "Get Dd History",
+        "description": "Get recent Quick DD runs.",
+        "operationId": "get_dd_history_api_quick_dd_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quick-dd/run/{run_id}": {
+      "get": {
+        "tags": [
+          "Quick DD"
+        ],
+        "summary": "Get Dd Run",
+        "description": "Get full Quick DD report by run ID.",
+        "operationId": "get_dd_run_api_quick_dd_run__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leaderboard": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Get Wallet Leaderboard",
+        "description": "Wallet leaderboard \u2014 queries pre-computed cache tables.\nAll filters run server-side against the full wallet database.\nCache is rebuilt after MC tracker and position checker jobs.",
+        "operationId": "get_wallet_leaderboard_api_leaderboard_get",
+        "parameters": [
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sort field",
+              "default": "total_pnl_usd",
+              "title": "Sort By"
+            },
+            "description": "Sort field"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sort direction",
+              "default": "desc",
+              "title": "Sort Dir"
+            },
+            "description": "Sort direction"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Search wallet address (full DB)",
+              "default": "",
+              "title": "Search"
+            },
+            "description": "Search wallet address (full DB)"
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated include tags (AND)",
+              "default": "",
+              "title": "Tags"
+            },
+            "description": "Comma-separated include tags (AND)"
+          },
+          {
+            "name": "exclude_tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated exclude tags",
+              "default": "",
+              "title": "Exclude Tags"
+            },
+            "description": "Comma-separated exclude tags"
+          },
+          {
+            "name": "include_tiers",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated include tiers (AND)",
+              "default": "",
+              "title": "Include Tiers"
+            },
+            "description": "Comma-separated include tiers (AND)"
+          },
+          {
+            "name": "exclude_tiers",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated exclude tiers",
+              "default": "",
+              "title": "Exclude Tiers"
+            },
+            "description": "Comma-separated exclude tiers"
+          },
+          {
+            "name": "min_home_runs",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Min Home Runs"
+            }
+          },
+          {
+            "name": "hold_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Hold time filter: <1h, 1-4h, 4-24h, >24h",
+              "default": "",
+              "title": "Hold Time"
+            },
+            "description": "Hold time filter: <1h, 1-4h, 4-24h, >24h"
+          },
+          {
+            "name": "starred_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Show only starred wallets",
+              "default": false,
+              "title": "Starred Only"
+            },
+            "description": "Show only starred wallets"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leaderboard/rebuild": {
+      "post": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Rebuild Leaderboard",
+        "description": "Manually trigger leaderboard cache rebuild.",
+        "operationId": "rebuild_leaderboard_api_leaderboard_rebuild_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallets/{wallet_address}/profile": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Get Wallet Profile",
+        "description": "Get detailed profile for a single wallet. Computed on-the-fly from position data.",
+        "operationId": "get_wallet_profile_api_wallets__wallet_address__profile_get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/{token_id}/wallet-pnl": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Get Token Wallet Pnl",
+        "description": "Get PnL data for all wallets in a specific token. Reads from mtew_token_positions.",
+        "operationId": "get_token_wallet_pnl_api_tokens__token_id__wallet_pnl_get",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/{token_id}/compute-wallet-pnl": {
+      "post": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Compute Token Wallet Pnl",
+        "description": "Re-read PnL from position data. No Helius credits \u2014 just reads mtew_token_positions.",
+        "operationId": "compute_token_wallet_pnl_api_tokens__token_id__compute_wallet_pnl_post",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/token-leaderboard": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Get Token Leaderboard",
+        "description": "Token Leaderboard \u2014 full database search with scoring and pagination.\nSupports search by address/name/symbol and status filtering.",
+        "operationId": "get_token_leaderboard_api_token_leaderboard_get",
+        "parameters": [
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sort field",
+              "default": "score_composite",
+              "title": "Sort By"
+            },
+            "description": "Sort field"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "asc or desc",
+              "default": "desc",
+              "title": "Sort Dir"
+            },
+            "description": "asc or desc"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Search by token address, name, or symbol",
+              "default": "",
+              "title": "Search"
+            },
+            "description": "Search by token address, name, or symbol"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter: 'polled' for actively tracked tokens",
+              "default": "",
+              "title": "Status"
+            },
+            "description": "Filter: 'polled' for actively tracked tokens"
+          },
+          {
+            "name": "starred_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Show only starred tokens",
+              "default": false,
+              "title": "Starred Only"
+            },
+            "description": "Show only starred tokens"
+          },
+          {
+            "name": "w_momentum",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0,
+              "description": "Momentum weight",
+              "default": 0.4,
+              "title": "W Momentum"
+            },
+            "description": "Momentum weight"
+          },
+          {
+            "name": "w_smart",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0,
+              "description": "Smart Money weight",
+              "default": 0.35,
+              "title": "W Smart"
+            },
+            "description": "Smart Money weight"
+          },
+          {
+            "name": "w_risk",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0,
+              "description": "Risk weight",
+              "default": 0.25,
+              "title": "W Risk"
+            },
+            "description": "Risk weight"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/starred": {
+      "get": {
+        "tags": [
+          "Starred"
+        ],
+        "summary": "Get Starred",
+        "description": "Get all starred items (wallets + tokens), with token names for starred tokens.",
+        "operationId": "get_starred_api_starred_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Starred"
+        ],
+        "summary": "Star Item",
+        "description": "Star a wallet or token.",
+        "operationId": "star_item_api_starred_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StarRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Starred"
+        ],
+        "summary": "Unstar Item",
+        "description": "Unstar a wallet or token.",
+        "operationId": "unstar_item_api_starred_delete",
+        "parameters": [
+          {
+            "name": "item_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Type"
+            }
+          },
+          {
+            "name": "item_address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/starred/check": {
+      "get": {
+        "tags": [
+          "Starred"
+        ],
+        "summary": "Check Starred",
+        "description": "Check if an item is starred.",
+        "operationId": "check_starred_api_starred_check_get",
+        "parameters": [
+          {
+            "name": "item_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Type"
+            }
+          },
+          {
+            "name": "item_address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/starred/nametag": {
+      "put": {
+        "tags": [
+          "Starred"
+        ],
+        "summary": "Update Nametag",
+        "description": "Update the nametag for a starred item.",
+        "operationId": "update_nametag_api_starred_nametag_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/starred/addresses": {
+      "get": {
+        "tags": [
+          "Starred"
+        ],
+        "summary": "Get Starred Addresses",
+        "description": "Get just the addresses of all starred items (for quick lookup in frontend).",
+        "operationId": "get_starred_addresses_api_starred_addresses_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/run": {
+      "post": {
+        "tags": [
+          "Intel"
+        ],
+        "summary": "Run Intel Report Endpoint",
+        "description": "Start the intel pipeline as a background job.",
+        "operationId": "run_intel_report_endpoint_api_intel_run_post",
+        "parameters": [
+          {
+            "name": "focus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Focus: general, convergence, deployer, migrations, starred",
+              "default": "general",
+              "title": "Focus"
+            },
+            "description": "Focus: general, convergence, deployer, migrations, starred"
+          },
+          {
+            "name": "skip_housekeeper",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Skip Housekeeper verification",
+              "default": false,
+              "title": "Skip Housekeeper"
+            },
+            "description": "Skip Housekeeper verification"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/status": {
+      "get": {
+        "tags": [
+          "Intel"
+        ],
+        "summary": "Get Intel Status",
+        "description": "Get the current status of the running intel pipeline.",
+        "operationId": "get_intel_status_api_intel_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/reports": {
+      "get": {
+        "tags": [
+          "Intel"
+        ],
+        "summary": "Get Intel Reports",
+        "description": "Get recent intelligence reports.",
+        "operationId": "get_intel_reports_api_intel_reports_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/latest": {
+      "get": {
+        "tags": [
+          "Intel"
+        ],
+        "summary": "Get Latest Report",
+        "description": "Get the most recent intelligence report.",
+        "operationId": "get_latest_report_api_intel_latest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/reports/{report_id}/bundle": {
+      "get": {
+        "tags": [
+          "Intel"
+        ],
+        "summary": "Download Bundle",
+        "description": "Download a full AI handoff bundle for a report \u2014 single JSON with all artifacts.",
+        "operationId": "download_bundle_api_intel_reports__report_id__bundle_get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/reports/{report_id}/report.md": {
+      "get": {
+        "tags": [
+          "Intel"
+        ],
+        "summary": "Download Report Md",
+        "description": "Download a human-readable markdown report.",
+        "operationId": "download_report_md_api_intel_reports__report_id__report_md_get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rug-analysis/run": {
+      "post": {
+        "tags": [
+          "Rug Analysis"
+        ],
+        "summary": "Run Rug Analysis",
+        "description": "Trigger rug analysis agent in background. Returns immediately.",
+        "operationId": "run_rug_analysis_api_rug_analysis_run_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rug-analysis/reports": {
+      "get": {
+        "tags": [
+          "Rug Analysis"
+        ],
+        "summary": "Get Reports",
+        "description": "Get recent rug analysis reports.",
+        "operationId": "get_reports_api_rug_analysis_reports_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rug-analysis/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "Rug Analysis"
+        ],
+        "summary": "Get Report",
+        "description": "Get full rug analysis report by ID.",
+        "operationId": "get_report_api_rug_analysis_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/recommendations": {
+      "get": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "List Recommendations",
+        "description": "List Intel recommendations with optional filters.",
+        "operationId": "list_recommendations_api_intel_recommendations_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status: proposed, active_for_bot, rejected, reverted, failed",
+              "title": "Status"
+            },
+            "description": "Filter by status: proposed, active_for_bot, rejected, reverted, failed"
+          },
+          {
+            "name": "report_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by source report ID",
+              "title": "Report Id"
+            },
+            "description": "Filter by source report ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/recommendations/{rec_id}/approve": {
+      "post": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Approve",
+        "description": "Approve a recommendation \u2014 applies immediately and makes bot-active.",
+        "operationId": "approve_api_intel_recommendations__rec_id__approve_post",
+        "parameters": [
+          {
+            "name": "rec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rec Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/recommendations/{rec_id}/reject": {
+      "post": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Reject",
+        "description": "Reject a recommendation \u2014 no system changes.",
+        "operationId": "reject_api_intel_recommendations__rec_id__reject_post",
+        "parameters": [
+          {
+            "name": "rec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rec Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectBody",
+                "default": {
+                  "reason": ""
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/recommendations/{rec_id}/revert": {
+      "post": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Revert",
+        "description": "Revert a previously approved recommendation.",
+        "operationId": "revert_api_intel_recommendations__rec_id__revert_post",
+        "parameters": [
+          {
+            "name": "rec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rec Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/recommendations/{rec_id}/reclassify": {
+      "post": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Reclassify",
+        "description": "Override a misclassified recommendation. Marks the original 'overridden',\ncreates a replacement with the chosen action, auto-approves it, and fires\nthe Override Analyst to extract a rule for the next Intel run.",
+        "operationId": "reclassify_api_intel_recommendations__rec_id__reclassify_post",
+        "parameters": [
+          {
+            "name": "rec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rec Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReclassifyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/override-categories": {
+      "get": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Override Categories",
+        "description": "Operator-facing dropdown options for the Reclassify form.",
+        "operationId": "override_categories_api_intel_override_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/agent-rules": {
+      "get": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Agent Rules",
+        "description": "Active operator-override rules. Useful for verifying what the Investigator will see next run.",
+        "operationId": "agent_rules_api_intel_agent_rules_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallets/{wallet_address}/promote-to-allowlist": {
+      "post": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Promote To Allowlist",
+        "description": "Direct WIR action: promote a wallet to the Intel Allowlist + auto-shadow it.\nSynthesises an Intel-style recommendation row + audit entry so the action\nhas the same audit trail as Investigator-proposed allowlist additions.",
+        "operationId": "promote_to_allowlist_api_wallets__wallet_address__promote_to_allowlist_post",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletNoteBody",
+                "default": {
+                  "note": ""
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallets/{wallet_address}/queue-bot-probe": {
+      "post": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Queue Bot Probe",
+        "description": "Direct WIR action: enqueue a Bot Probe for this wallet. The probe runs when\nstarted from the Bot Probe page. Idempotent \u2014 duplicate queues are skipped.",
+        "operationId": "queue_bot_probe_api_wallets__wallet_address__queue_bot_probe_post",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/audit-log": {
+      "get": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Audit Log",
+        "description": "Get the Intel audit log.",
+        "operationId": "audit_log_api_intel_audit_log_get",
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Recommendation Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/intel/bot-lists": {
+      "get": {
+        "tags": [
+          "Intel Recommendations"
+        ],
+        "summary": "Bot Lists",
+        "description": "Get current active bot allowlist and denylist.",
+        "operationId": "bot_lists_api_intel_bot_lists_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/run": {
+      "post": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "Run Probe",
+        "description": "Start a deep bot probe as a background job.",
+        "operationId": "run_probe_api_bot_probe_run_post",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Wallet address to probe",
+              "title": "Wallet"
+            },
+            "description": "Wallet address to probe"
+          },
+          {
+            "name": "phases",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Phases to run: all, 1, 2, 3, 12, 13, 23",
+              "default": "all",
+              "title": "Phases"
+            },
+            "description": "Phases to run: all, 1, 2, 3, 12, 13, 23"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/status": {
+      "get": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "Probe Status",
+        "description": "Get current probe status.",
+        "operationId": "probe_status_api_bot_probe_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/profile/{wallet_address}": {
+      "get": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "Get Profile",
+        "description": "Get a computed bot profile.",
+        "operationId": "get_profile_api_bot_probe_profile__wallet_address__get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/compare": {
+      "post": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "Compare Bots",
+        "description": "Compare two bot profiles.",
+        "operationId": "compare_bots_api_bot_probe_compare_post",
+        "parameters": [
+          {
+            "name": "wallet_a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "First wallet address",
+              "title": "Wallet A"
+            },
+            "description": "First wallet address"
+          },
+          {
+            "name": "wallet_b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Second wallet address",
+              "title": "Wallet B"
+            },
+            "description": "Second wallet address"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/runs": {
+      "get": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "List Runs",
+        "description": "List probe runs.",
+        "operationId": "list_runs_api_bot_probe_runs_get",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wallet"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/transactions/{wallet_address}": {
+      "get": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "Get Transactions",
+        "description": "Get probe transactions for a wallet.",
+        "operationId": "get_transactions_api_bot_probe_transactions__wallet_address__get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by token address",
+              "title": "Token"
+            },
+            "description": "Filter by token address"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bot-probe/round-trips/{wallet_address}": {
+      "get": {
+        "tags": [
+          "Bot Probe"
+        ],
+        "summary": "Get Round Trips",
+        "description": "Get FIFO round-trips for a wallet.",
+        "operationId": "get_round_trips_api_bot_probe_round_trips__wallet_address__get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/pipeline/{job_id}/pause": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Pause Pipeline",
+        "description": "Pause a specific pipeline job.",
+        "operationId": "pause_pipeline_api_wallet_shadow_pipeline__job_id__pause_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/pipeline/{job_id}/resume": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Resume Pipeline",
+        "description": "Resume a specific pipeline job.",
+        "operationId": "resume_pipeline_api_wallet_shadow_pipeline__job_id__resume_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/pipelines/pause-all": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Pause All Pipelines",
+        "description": "Pause all credit-consuming pipelines.",
+        "operationId": "pause_all_pipelines_api_wallet_shadow_pipelines_pause_all_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/pipelines/resume-all": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Resume All Pipelines",
+        "description": "Resume all pipelines.",
+        "operationId": "resume_all_pipelines_api_wallet_shadow_pipelines_resume_all_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/pipeline-status": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Pipeline Status",
+        "description": "Get status of all pipelines with individual pause state.",
+        "operationId": "pipeline_status_api_wallet_shadow_pipeline_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/rename": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Rename Wallet",
+        "description": "Rename a tracked wallet.",
+        "operationId": "rename_wallet_api_wallet_shadow_rename_post",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "New label",
+              "title": "Label"
+            },
+            "description": "New label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/track": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Add Wallet",
+        "description": "Add a wallet to real-time tracking.",
+        "operationId": "add_wallet_api_wallet_shadow_track_post",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Wallet address to track",
+              "title": "Wallet"
+            },
+            "description": "Wallet address to track"
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Label for this wallet",
+              "default": "",
+              "title": "Label"
+            },
+            "description": "Label for this wallet"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/untrack": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Remove Wallet",
+        "description": "Stop tracking a wallet (keeps history).",
+        "operationId": "remove_wallet_api_wallet_shadow_untrack_post",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/targets": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "List Targets",
+        "description": "List all tracked wallets.",
+        "operationId": "list_targets_api_wallet_shadow_targets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/start": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Start Listener",
+        "description": "Start the real-time shadow listener.",
+        "operationId": "start_listener_api_wallet_shadow_start_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/stop": {
+      "post": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Stop Listener",
+        "description": "Stop the real-time shadow listener.",
+        "operationId": "stop_listener_api_wallet_shadow_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/status": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Status",
+        "description": "Get listener status and stats.",
+        "operationId": "get_status_api_wallet_shadow_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/feed": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Feed",
+        "description": "Get live trade feed from in-memory buffer.",
+        "operationId": "get_feed_api_wallet_shadow_feed_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wallet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/trades": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Trades",
+        "description": "Get stored trades from database.",
+        "operationId": "get_trades_api_wallet_shadow_trades_get",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wallet"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/signal-wallets/{wallet_address}": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Signal Wallets",
+        "description": "Signal wallet frequency analysis \u2014 find wallets that consistently\nappear before a tracked bot enters a token. These are likely the\nbot's private allowlist / signal sources.",
+        "operationId": "get_signal_wallets_api_wallet_shadow_signal_wallets__wallet_address__get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
+            }
+          },
+          {
+            "name": "min_appearances",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Minimum times a wallet appeared before the tracked bot",
+              "default": 2,
+              "title": "Min Appearances"
+            },
+            "description": "Minimum times a wallet appeared before the tracked bot"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/convergences": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Convergences",
+        "description": "Get cross-bot convergence events \u2014 tokens where 2+ tracked wallets entered.",
+        "operationId": "get_convergences_api_wallet_shadow_convergences_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/open-positions": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Open Positions",
+        "description": "Get current open positions per wallet \u2014 net buys minus sells per token.",
+        "operationId": "get_open_positions_api_wallet_shadow_open_positions_get",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wallet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/token-heat": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Token Heat",
+        "description": "Token heat map \u2014 tokens with the most entries from tracked wallets recently.",
+        "operationId": "get_token_heat_api_wallet_shadow_token_heat_get",
+        "parameters": [
+          {
+            "name": "minutes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1440,
+              "minimum": 5,
+              "default": 30,
+              "title": "Minutes"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/alerts": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Alerts",
+        "description": "Get real-time alerts: sizing anomalies, copy/follow events, convergence.\nComputed from recent trade data.",
+        "operationId": "get_alerts_api_wallet_shadow_alerts_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet-shadow/summary/{wallet_address}": {
+      "get": {
+        "tags": [
+          "Wallet Shadow"
+        ],
+        "summary": "Get Wallet Summary",
+        "description": "Get a summary of captured trades for a wallet.",
+        "operationId": "get_wallet_summary_api_wallet_shadow_summary__wallet_address__get",
+        "parameters": [
+          {
+            "name": "wallet_address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Wallet Address"
             }
           }
         ],
@@ -4640,7 +8830,7 @@
           "register_webhooks": {
             "type": "boolean",
             "title": "Register Webhooks",
-            "description": "Register SWAB webhooks on promotion",
+            "description": "Register position tracking webhooks on promotion",
             "default": true
           }
         },
@@ -4686,6 +8876,61 @@
         ],
         "title": "BatchTagsRequest"
       },
+      "Body_compute_wallet_tags_wallets_compute_tags_post": {
+        "properties": {
+          "wallet_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallet Addresses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_addresses"
+        ],
+        "title": "Body_compute_wallet_tags_wallets_compute_tags_post"
+      },
+      "Body_funding_terminal_batch_api_wallets_funding_terminal_batch_post": {
+        "properties": {
+          "wallet_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallet Addresses"
+          },
+          "max_hops": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Max Hops",
+            "default": 3
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_addresses"
+        ],
+        "title": "Body_funding_terminal_batch_api_wallets_funding_terminal_batch_post"
+      },
+      "Body_get_batch_funded_by_wallets_batch_funded_by_post": {
+        "properties": {
+          "wallet_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallet Addresses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_addresses"
+        ],
+        "title": "Body_get_batch_funded_by_wallets_batch_funded_by_post"
+      },
       "Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post": {
         "properties": {
           "wallet_addresses": {
@@ -4701,6 +8946,77 @@
           "wallet_addresses"
         ],
         "title": "Body_get_batch_top_holder_counts_wallets_batch_top_holder_counts_post"
+      },
+      "Body_get_batch_wallet_identities_wallets_batch_identity_post": {
+        "properties": {
+          "wallet_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallet Addresses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_addresses"
+        ],
+        "title": "Body_get_batch_wallet_identities_wallets_batch_identity_post"
+      },
+      "Body_trace_wallet_forward_wallets_trace_forward_post": {
+        "properties": {
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address"
+          },
+          "max_hops": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Max Hops",
+            "default": 2
+          },
+          "max_recipients": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Max Recipients",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_address"
+        ],
+        "title": "Body_trace_wallet_forward_wallets_trace_forward_post"
+      },
+      "Body_trace_wallet_funding_wallets_trace_funding_post": {
+        "properties": {
+          "wallet_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallet Addresses"
+          },
+          "max_hops": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Max Hops",
+            "default": 3
+          },
+          "stop_at_exchanges": {
+            "type": "boolean",
+            "title": "Stop At Exchanges",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_addresses"
+        ],
+        "title": "Body_trace_wallet_funding_wallets_trace_funding_post"
       },
       "CheckResultResponse": {
         "properties": {
@@ -5499,6 +9815,18 @@
             "description": "Minimum market cap in USD",
             "default": 10000
           },
+          "mc_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Max",
+            "description": "Maximum market cap in USD (None = no limit)"
+          },
           "volume_min": {
             "type": "number",
             "minimum": 0.0,
@@ -5519,6 +9847,108 @@
             "title": "Age Max Hours",
             "description": "Maximum token age in hours",
             "default": 48
+          },
+          "launchpad_include": {
+            "items": {},
+            "type": "array",
+            "title": "Launchpad Include",
+            "description": "Only include these DEX IDs (empty = all)"
+          },
+          "launchpad_exclude": {
+            "items": {},
+            "type": "array",
+            "title": "Launchpad Exclude",
+            "description": "Exclude these DEX IDs"
+          },
+          "quote_token_include": {
+            "items": {},
+            "type": "array",
+            "title": "Quote Token Include",
+            "description": "Only include these quote tokens (empty = all)"
+          },
+          "address_suffix_include": {
+            "items": {},
+            "type": "array",
+            "title": "Address Suffix Include",
+            "description": "Include tokens with these address suffixes (e.g., bonk for BONK.fun)"
+          },
+          "buys_24h_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buys 24H Min",
+            "description": "Minimum buy transactions in 24h"
+          },
+          "sells_24h_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sells 24H Max",
+            "description": "Maximum sell transactions in 24h"
+          },
+          "net_buys_24h_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Buys 24H Min",
+            "description": "Minimum net buys in 24h"
+          },
+          "txs_24h_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Txs 24H Min",
+            "description": "Minimum total transactions in 24h"
+          },
+          "price_change_h1_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Change H1 Min",
+            "description": "Minimum 1h price change %"
+          },
+          "keyword_include": {
+            "items": {},
+            "type": "array",
+            "title": "Keyword Include",
+            "description": "Token name must contain one of these"
+          },
+          "keyword_exclude": {
+            "items": {},
+            "type": "array",
+            "title": "Keyword Exclude",
+            "description": "Token name must NOT contain any of these"
+          },
+          "require_socials": {
+            "type": "boolean",
+            "title": "Require Socials",
+            "description": "Only include tokens with social links",
+            "default": false
           },
           "discovery_enabled": {
             "type": "boolean",
@@ -5559,6 +9989,55 @@
             "description": "Bypass UI/backend validation caps",
             "default": false
           },
+          "realtime_watch_window_seconds": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 60.0,
+            "title": "Realtime Watch Window Seconds",
+            "description": "Watch window duration for crime coin detection (seconds)",
+            "default": 300
+          },
+          "realtime_mc_min_at_close": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Realtime Mc Min At Close",
+            "description": "Minimum MC at watch window close for HIGH CONVICTION (USD)",
+            "default": 5000
+          },
+          "followup_enabled": {
+            "type": "boolean",
+            "title": "Followup Enabled",
+            "description": "Enable follow-up MC trajectory tracking after watch window",
+            "default": true
+          },
+          "followup_max_duration_minutes": {
+            "type": "integer",
+            "maximum": 480.0,
+            "minimum": 30.0,
+            "title": "Followup Max Duration Minutes",
+            "description": "Max follow-up tracking duration (minutes)",
+            "default": 120
+          },
+          "followup_check_interval_seconds": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 30.0,
+            "title": "Followup Check Interval Seconds",
+            "description": "How often to check MC during follow-up (seconds)",
+            "default": 120
+          },
+          "followup_auto_extend_uptrend": {
+            "type": "boolean",
+            "title": "Followup Auto Extend Uptrend",
+            "description": "Keep tracking if MC is trending up",
+            "default": true
+          },
+          "followup_auto_cut_flatline": {
+            "type": "boolean",
+            "title": "Followup Auto Cut Flatline",
+            "description": "Stop tracking if MC is flat or dead",
+            "default": true
+          },
           "tracking_mc_threshold": {
             "type": "number",
             "minimum": 0.0,
@@ -5595,7 +10074,7 @@
           "drop_if_no_swab_positions": {
             "type": "boolean",
             "title": "Drop If No Swab Positions",
-            "description": "Drop from refresh if no SWAB positions",
+            "description": "Drop from refresh if no tracked positions",
             "default": false
           },
           "drop_condition_mode": {
@@ -5667,6 +10146,20 @@
             "title": "Score Weights",
             "description": "Configurable score weights"
           },
+          "clobr_enabled": {
+            "type": "boolean",
+            "title": "Clobr Enabled",
+            "description": "Enable CLOBr score pre-filter",
+            "default": false
+          },
+          "clobr_min_score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Clobr Min Score",
+            "description": "Skip tokens with CLOBr score below this",
+            "default": 30
+          },
           "last_discovery_run_at": {
             "anyOf": [
               {
@@ -5710,170 +10203,6 @@
               }
             ],
             "title": "Last Control Cohort Run At"
-          },
-          "ingest_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ingest Enabled",
-            "description": "Deprecated: use discovery_enabled"
-          },
-          "tier0_interval_minutes": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier0 Interval Minutes",
-            "description": "Deprecated: use discovery_interval_minutes"
-          },
-          "tier0_max_tokens_per_run": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier0 Max Tokens Per Run",
-            "description": "Deprecated: use discovery_max_per_run"
-          },
-          "enrich_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Enrich Enabled",
-            "description": "Deprecated: tier-1 removed"
-          },
-          "tier1_batch_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Batch Size",
-            "description": "Deprecated: tier-1 removed"
-          },
-          "tier1_credit_budget_per_run": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Credit Budget Per Run",
-            "description": "Deprecated: tier-1 removed"
-          },
-          "hot_refresh_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Enabled",
-            "description": "Deprecated: use tracking settings"
-          },
-          "hot_refresh_age_hours": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Age Hours",
-            "description": "Deprecated"
-          },
-          "hot_refresh_max_tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Max Tokens",
-            "description": "Deprecated"
-          },
-          "fast_lane_mc_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fast Lane Mc Threshold",
-            "description": "Deprecated: use tracking_mc_threshold"
-          },
-          "last_tier0_run_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Tier0 Run At"
-          },
-          "last_tier1_run_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Tier1 Run At"
-          },
-          "last_tier1_credits_used": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Tier1 Credits Used"
-          },
-          "last_hot_refresh_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Hot Refresh At"
           }
         },
         "type": "object",
@@ -5893,6 +10222,17 @@
               }
             ],
             "title": "Mc Min"
+          },
+          "mc_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Max"
           },
           "volume_min": {
             "anyOf": [
@@ -5929,6 +10269,144 @@
               }
             ],
             "title": "Age Max Hours"
+          },
+          "launchpad_include": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launchpad Include"
+          },
+          "launchpad_exclude": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launchpad Exclude"
+          },
+          "quote_token_include": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote Token Include"
+          },
+          "address_suffix_include": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Suffix Include"
+          },
+          "buys_24h_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buys 24H Min"
+          },
+          "sells_24h_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sells 24H Max"
+          },
+          "net_buys_24h_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Buys 24H Min"
+          },
+          "txs_24h_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Txs 24H Min"
+          },
+          "price_change_h1_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Change H1 Min"
+          },
+          "keyword_include": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keyword Include"
+          },
+          "keyword_exclude": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keyword Exclude"
+          },
+          "require_socials": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Require Socials"
           },
           "discovery_enabled": {
             "anyOf": [
@@ -6176,112 +10654,20 @@
             ],
             "title": "Score Weights"
           },
-          "ingest_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ingest Enabled"
-          },
-          "tier0_interval_minutes": {
+          "realtime_watch_window_seconds": {
             "anyOf": [
               {
                 "type": "integer",
-                "minimum": 5.0
+                "maximum": 600.0,
+                "minimum": 60.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Tier0 Interval Minutes"
+            "title": "Realtime Watch Window Seconds"
           },
-          "tier0_max_tokens_per_run": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier0 Max Tokens Per Run"
-          },
-          "enrich_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Enrich Enabled"
-          },
-          "tier1_batch_size": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Batch Size"
-          },
-          "tier1_credit_budget_per_run": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier1 Credit Budget Per Run"
-          },
-          "hot_refresh_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Enabled"
-          },
-          "hot_refresh_age_hours": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Age Hours"
-          },
-          "hot_refresh_max_tokens": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hot Refresh Max Tokens"
-          },
-          "fast_lane_mc_threshold": {
+          "realtime_mc_min_at_close": {
             "anyOf": [
               {
                 "type": "number",
@@ -6291,7 +10677,90 @@
                 "type": "null"
               }
             ],
-            "title": "Fast Lane Mc Threshold"
+            "title": "Realtime Mc Min At Close"
+          },
+          "followup_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followup Enabled"
+          },
+          "followup_max_duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 480.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followup Max Duration Minutes"
+          },
+          "followup_check_interval_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 600.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followup Check Interval Seconds"
+          },
+          "followup_auto_extend_uptrend": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followup Auto Extend Uptrend"
+          },
+          "followup_auto_cut_flatline": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followup Auto Cut Flatline"
+          },
+          "clobr_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clobr Enabled"
+          },
+          "clobr_min_score": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clobr Min Score"
           }
         },
         "type": "object",
@@ -6416,7 +10885,7 @@
             "type": "array",
             "title": "Token Ids"
           },
-          "gem_statuses": {
+          "verdicts": {
             "items": {
               "anyOf": [
                 {
@@ -6428,7 +10897,22 @@
               ]
             },
             "type": "array",
-            "title": "Gem Statuses"
+            "title": "Verdicts"
+          },
+          "win_multipliers": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Win Multipliers",
+            "default": []
           },
           "wallet_balance_usd": {
             "anyOf": [
@@ -6487,7 +10971,7 @@
           "token_names",
           "token_addresses",
           "token_ids",
-          "gem_statuses",
+          "verdicts",
           "wallet_balance_usd"
         ],
         "title": "MultiTokenWallet"
@@ -7050,7 +11534,7 @@
           "register_webhooks": {
             "type": "boolean",
             "title": "Register Webhooks",
-            "description": "Register SWAB webhooks on promotion",
+            "description": "Register position tracking webhooks on promotion",
             "default": true
           }
         },
@@ -7095,6 +11579,53 @@
         ],
         "title": "QueueTokenResponse",
         "description": "Response when queuing a token for analysis"
+      },
+      "QuickDDRequest": {
+        "properties": {
+          "token_address": {
+            "type": "string",
+            "title": "Token Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token_address"
+        ],
+        "title": "QuickDDRequest"
+      },
+      "ReclassifyBody": {
+        "properties": {
+          "action_type": {
+            "type": "string",
+            "title": "Action Type"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "default": {}
+          },
+          "operator_category": {
+            "type": "string",
+            "title": "Operator Category",
+            "default": "other"
+          },
+          "operator_note": {
+            "type": "string",
+            "title": "Operator Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_type"
+        ],
+        "title": "ReclassifyBody"
       },
       "ReconciliationResponse": {
         "properties": {
@@ -7490,6 +12021,17 @@
         ],
         "title": "RegisterAddressRequest"
       },
+      "RejectBody": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "RejectBody"
+      },
       "RemoveTagRequest": {
         "properties": {
           "tag": {
@@ -7693,6 +12235,35 @@
         ],
         "title": "SetNametagRequest"
       },
+      "StarRequest": {
+        "properties": {
+          "item_type": {
+            "type": "string",
+            "title": "Item Type"
+          },
+          "item_address": {
+            "type": "string",
+            "title": "Item Address"
+          },
+          "nametag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nametag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_type",
+          "item_address"
+        ],
+        "title": "StarRequest"
+      },
       "StopTrackingRequest": {
         "properties": {
           "reason": {
@@ -7775,7 +12346,7 @@
           "credits_used_today"
         ],
         "title": "SwabSettingsResponse",
-        "description": "SWAB settings response model."
+        "description": "Position tracker settings response model."
       },
       "SwabSettingsUpdate": {
         "properties": {
@@ -7807,7 +12378,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 100000.0,
+                "maximum": 10000000.0,
                 "minimum": 0.0
               },
               {
@@ -7845,7 +12416,7 @@
         },
         "type": "object",
         "title": "SwabSettingsUpdate",
-        "description": "SWAB settings update request model."
+        "description": "Position tracker settings update request model."
       },
       "SwabStatsResponse": {
         "properties": {
@@ -7936,7 +12507,7 @@
           "credits_remaining"
         ],
         "title": "SwabStatsResponse",
-        "description": "SWAB overview statistics response model."
+        "description": "Position tracker overview statistics response model."
       },
       "TagsResponse": {
         "properties": {
@@ -7953,93 +12524,6 @@
           "tags"
         ],
         "title": "TagsResponse"
-      },
-      "Tier1RunRequest": {
-        "properties": {
-          "batch_size": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 100.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Size",
-            "description": "Deprecated"
-          },
-          "credit_budget": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 1000.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Credit Budget",
-            "description": "Deprecated"
-          },
-          "mc_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mc Min",
-            "description": "Deprecated"
-          },
-          "volume_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Volume Min",
-            "description": "Deprecated"
-          },
-          "liquidity_min": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Liquidity Min",
-            "description": "Deprecated"
-          },
-          "age_max_hours": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age Max Hours",
-            "description": "Deprecated"
-          }
-        },
-        "type": "object",
-        "title": "Tier1RunRequest",
-        "description": "Deprecated: Tier-1 enrichment has been removed"
       },
       "Token": {
         "properties": {
@@ -8209,7 +12693,7 @@
             ],
             "title": "Market Cap Ath Timestamp"
           },
-          "gem_status": {
+          "verdict": {
             "anyOf": [
               {
                 "type": "string"
@@ -8218,7 +12702,7 @@
                 "type": "null"
               }
             ],
-            "title": "Gem Status"
+            "title": "Verdict"
           },
           "state_version": {
             "type": "integer",
@@ -8258,6 +12742,17 @@
             ],
             "title": "Top Holders Updated At"
           },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
           "ingest_source": {
             "anyOf": [
               {
@@ -8268,6 +12763,28 @@
               }
             ],
             "title": "Ingest Source"
+          },
+          "dex_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dex Id"
+          },
+          "is_cashback": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Cashback"
           },
           "swab_open_positions": {
             "type": "integer",
@@ -8509,7 +13026,7 @@
             ],
             "title": "Market Cap Ath Timestamp"
           },
-          "gem_status": {
+          "verdict": {
             "anyOf": [
               {
                 "type": "string"
@@ -8518,7 +13035,7 @@
                 "type": "null"
               }
             ],
-            "title": "Gem Status"
+            "title": "Verdict"
           },
           "state_version": {
             "type": "integer",
@@ -8558,6 +13075,17 @@
             ],
             "title": "Top Holders Updated At"
           },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
           "ingest_source": {
             "anyOf": [
               {
@@ -8568,6 +13096,28 @@
               }
             ],
             "title": "Ingest Source"
+          },
+          "dex_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dex Id"
+          },
+          "is_cashback": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Cashback"
           },
           "swab_open_positions": {
             "type": "integer",
@@ -8640,6 +13190,248 @@
             "type": "boolean",
             "title": "Tracking Dropped",
             "default": false
+          },
+          "deployer_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployer Address"
+          },
+          "creation_events_json": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creation Events Json"
+          },
+          "holder_velocity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Velocity"
+          },
+          "deployer_is_top_holder": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployer Is Top Holder"
+          },
+          "early_buyer_holder_overlap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Buyer Holder Overlap"
+          },
+          "fresh_wallet_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fresh Wallet Pct"
+          },
+          "mc_volatility": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Volatility"
+          },
+          "mc_recovery_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Recovery Count"
+          },
+          "smart_money_flow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Money Flow"
+          },
+          "avg_hold_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hold Hours"
+          },
+          "webhook_detected_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Detected At"
+          },
+          "webhook_conviction_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Conviction Score"
+          },
+          "time_to_migration_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To Migration Minutes"
+          },
+          "score_momentum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Momentum"
+          },
+          "score_smart_money": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Smart Money"
+          },
+          "score_risk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Risk"
+          },
+          "score_composite": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Composite"
+          },
+          "mint_authority_revoked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mint Authority Revoked"
+          },
+          "freeze_authority_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freeze Authority Active"
+          },
+          "holder_top1_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Top1 Pct"
+          },
+          "holder_top10_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Top10 Pct"
+          },
+          "holder_count_latest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Count Latest"
           },
           "wallets": {
             "items": {
@@ -8891,24 +13683,6 @@
         "title": "TopHoldersResponse",
         "description": "Response containing top token holders"
       },
-      "UpdateGemStatusRequest": {
-        "properties": {
-          "gem_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Gem Status"
-          }
-        },
-        "type": "object",
-        "title": "UpdateGemStatusRequest",
-        "description": "Request to update gem status of a token"
-      },
       "UpdateSettingsRequest": {
         "properties": {
           "transactionLimit": {
@@ -9084,6 +13858,24 @@
         "title": "UpdateSolscanSettingsRequest",
         "description": "Request model for updating Solscan settings"
       },
+      "UpdateVerdictRequest": {
+        "properties": {
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "type": "object",
+        "title": "UpdateVerdictRequest",
+        "description": "Request to update verdict of a token"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -9196,6 +13988,39 @@
               }
             ],
             "title": "Wallet Balance Updated At"
+          },
+          "still_holding": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Still Holding"
+          },
+          "realized_pnl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Realized Pnl"
+          },
+          "pnl_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl Source"
           }
         },
         "type": "object",
@@ -9269,6 +14094,17 @@
         ],
         "title": "WalletExpectancyResponse",
         "description": "Wallet expectancy calculation response model."
+      },
+      "WalletNoteBody": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "WalletNoteBody"
       },
       "WalletSummaryResponse": {
         "properties": {

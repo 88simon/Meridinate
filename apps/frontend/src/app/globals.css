@@ -163,3 +163,17 @@
   /* Apply the reveal animation */
   animation: reveal 0.4s ease-in-out forwards;
 }
+
+/* ============================================================================
+ * Pause all animations + transitions while the tab is hidden.
+ * The <html> element gets data-tab-hidden="true" via the TabVisibilityWatcher
+ * client component. This stops indefinite animate-pulse / animate-spin /
+ * skeleton shimmer from burning GPU cycles when the user is in another app
+ * (game, trading terminal, etc.).
+ * ============================================================================ */
+html[data-tab-hidden="true"] *,
+html[data-tab-hidden="true"] *::before,
+html[data-tab-hidden="true"] *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}

@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useWalletIntelligence } from '@/contexts/wallet-intelligence-context';
+import { useTokenIntelligence } from '@/contexts/token-intelligence-context';
 
 // Lazy load heavy RTTF components
 const RealtimeTokenFeed = dynamic(
@@ -37,6 +38,24 @@ interface ShadowStatus { connected: boolean; trades_captured: number; wallets_tr
 // ============================================================================
 export default function CommandCenterPage() {
   const { openWIR } = useWalletIntelligence();
+  const { openTIP } = useTokenIntelligence();
+
+  // Token addresses on this page only carry the mint, not the analyzed_tokens id.
+  // This helper resolves address → id via /api/tokens/by-address and opens the TIP.
+  // Falls back to a toast if the token isn't in our analyzed set yet.
+  const openTokenByAddress = useCallback(async (address: string) => {
+    if (!address) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tokens/by-address/${address}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.id) { openTIP({ id: data.id }); return; }
+      }
+      toast.info('Token not yet analyzed — no Token Intelligence available');
+    } catch {
+      toast.error('Failed to open token details');
+    }
+  }, [openTIP]);
 
   // Shadow state
   const [status, setStatus] = useState<ShadowStatus | null>(null);
@@ -73,7 +92,18 @@ export default function CommandCenterPage() {
   const loadStatus = useCallback(async () => { try { const r = await fetch(`${API_BASE_URL}/api/wallet-shadow/status`); if (r.ok) setStatus(await r.json()); } catch {} }, []);
   const loadTargets = useCallback(async () => { try { const r = await fetch(`${API_BASE_URL}/api/wallet-shadow/targets`); if (r.ok) { const d = await r.json(); setTargets(d.targets || []); } } catch {} }, []);
   const loadFeed = useCallback(async () => {
-    try { const p = new URLSearchParams({ limit: '100' }); if (filterWallet) p.set('wallet', filterWallet); const r = await fetch(`${API_BASE_URL}/api/wallet-shadow/feed?${p}`); if (r.ok) { const d = await r.json(); setFeed(d.trades || []); } } catch {}
+    try {
+      const p = new URLSearchParams({ limit: '100' });
+      if (filterWallet) p.set('wallet', filterWallet);
+      const r = await fetch(`${API_BASE_URL}/api/wallet-shadow/feed?${p}`);
+      if (r.ok) {
+        const d = await r.json();
+        // Defensive client cap — even if the API ever returns more rows, never
+        // hold more than 100 trades in memory or render more than 100 <tr> nodes.
+        const trades = (d.trades || []).slice(0, 100);
+        setFeed(trades);
+      }
+    } catch {}
   }, [filterWallet]);
   const loadPositions = useCallback(async () => { try { const r = await fetch(`${API_BASE_URL}/api/wallet-shadow/open-positions`); if (r.ok) setPositions(await r.json()); } catch {} }, []);
   const loadTokenHeat = useCallback(async () => { try { const r = await fetch(`${API_BASE_URL}/api/wallet-shadow/token-heat?minutes=60`); if (r.ok) { const d = await r.json(); setTokenHeat(d.tokens || []); } } catch {} }, []);
@@ -209,7 +239,7 @@ export default function CommandCenterPage() {
                             </span>
                           </td>
                           <td className='px-2 py-1'>
-                            <button onClick={() => openWIR(t.token_address)} className='text-muted-foreground hover:text-primary hover:underline font-mono text-[10px]'>
+                            <button onClick={() => openTokenByAddress(t.token_address)} className='text-muted-foreground hover:text-primary hover:underline font-mono text-[10px]'>
                               {t.token_name || t.token_address}
                             </button>
                           </td>
@@ -261,11 +291,16 @@ export default function CommandCenterPage() {
             {tokenHeat.length > 0 ? (
               <div className='space-y-1'>
                 {tokenHeat.slice(0, 6).map((t: any) => (
-                  <div key={t.token_address} className='flex items-center justify-between text-[10px]'>
-                    <button onClick={() => openWIR(t.token_address)} className='text-muted-foreground hover:text-primary truncate'>
+                  <div key={t.token_address} className='flex items-center justify-between gap-2 text-[10px]'>
+                    <button onClick={() => openTokenByAddress(t.token_address)} className='text-muted-foreground hover:text-primary truncate'>
                       {t.token_name || t.token_address}
                     </button>
-                    <span className='px-1 py-0.5 rounded bg-orange-500/20 text-orange-400 text-[9px] font-bold shrink-0 ml-1'>{t.unique_wallets}w</span>
+                    <span
+                      className='px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 text-[9px] font-medium shrink-0 whitespace-nowrap'
+                      title='Number of YOUR tracked wallets that touched this token in the last hour'
+                    >
+                      {t.unique_wallets} wallet{t.unique_wallets === 1 ? '' : 's'}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -294,9 +329,14 @@ export default function CommandCenterPage() {
             <Panel title='Convergence' icon={Users}>
               <div className='space-y-1'>
                 {convergences.slice(0, 4).map((c: any) => (
-                  <div key={c.id} className='flex justify-between text-[10px]'>
-                    <button onClick={() => openWIR(c.token_address)} className='text-primary hover:underline truncate'>{c.token_name || c.token_address}</button>
-                    <span className='text-yellow-400 font-bold shrink-0 ml-1'>{c.wallet_count}b</span>
+                  <div key={c.id} className='flex items-center justify-between gap-2 text-[10px]'>
+                    <button onClick={() => openTokenByAddress(c.token_address)} className='text-primary hover:underline truncate'>{c.token_name || c.token_address}</button>
+                    <span
+                      className='px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400 text-[9px] font-medium shrink-0 whitespace-nowrap'
+                      title='Number of your tracked wallets that bought this token within the convergence window'
+                    >
+                      {c.wallet_count} buyer{c.wallet_count === 1 ? '' : 's'}
+                    </span>
                   </div>
                 ))}
               </div>

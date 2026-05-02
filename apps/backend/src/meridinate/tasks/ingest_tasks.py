@@ -6,7 +6,8 @@ Hot Refresh: Update MC/volume for analyzed tokens (free).
 Legacy: Discovery/Promote flow kept for backward compatibility but no longer primary.
 """
 
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from meridinate import analyzed_tokens_db as db
@@ -18,6 +19,13 @@ from meridinate.settings import CURRENT_INGEST_SETTINGS, CURRENT_API_SETTINGS, s
 # ============================================================================
 # Scan Progress — lightweight state for progress polling during auto-scan
 # ============================================================================
+#
+# `last_progress_at` is the heartbeat — bumped every time a token finishes
+# (success/fail/timeout). If it's stale by STALE_THRESHOLD_SECONDS while
+# `running` is True, the public reader treats the scan as dead and clears it.
+# This guarantees the UI never sticks on "running" forever again.
+
+STALE_THRESHOLD_SECONDS = 600  # 10 minutes without a token finishing = scan is dead
 
 _scan_progress: Dict[str, Any] = {
     "running": False,
@@ -26,12 +34,55 @@ _scan_progress: Dict[str, Any] = {
     "credits_used": 0,
     "current_token": None,
     "started_at": None,
+    "last_progress_at": None,  # ISO timestamp; bumped after each token attempt
 }
 
 
+def _bump_heartbeat() -> None:
+    _scan_progress["last_progress_at"] = datetime.now().isoformat()
+
+
+def _clear_progress() -> None:
+    """Reset all scan-progress fields. Called when scan completes or is detected stale."""
+    _scan_progress["running"] = False
+    _scan_progress["current_token"] = None
+    _scan_progress["last_progress_at"] = None
+
+
+def reset_scan_progress(reason: str = "manual") -> Dict[str, Any]:
+    """
+    Forcibly clear stuck scan-progress state without restarting the backend.
+    Used by the /api/ingest/scan-progress/reset endpoint when the scan visibly
+    hangs. The underlying thread (if any) continues running in the background,
+    but the UI immediately reflects the reset.
+    """
+    snapshot = _scan_progress.copy()
+    _clear_progress()
+    log_info(f"[Auto-Scan] Scan-progress state forcibly reset ({reason}); was: {snapshot}")
+    return {"reset": True, "previous_state": snapshot}
+
+
 def get_scan_progress() -> Dict[str, Any]:
-    """Get current scan progress (thread-safe read of simple dict)."""
-    return _scan_progress.copy()
+    """
+    Thread-safe read of scan progress.
+    Auto-clears stuck state: if running=True but the heartbeat is stale, treat
+    the scan as dead and return running=False so the UI doesn't lie.
+    """
+    snap = _scan_progress.copy()
+    if snap.get("running") and snap.get("last_progress_at"):
+        try:
+            last = datetime.fromisoformat(snap["last_progress_at"])
+            if datetime.now() - last > timedelta(seconds=STALE_THRESHOLD_SECONDS):
+                log_error(
+                    f"[Auto-Scan] Stale scan detected — no progress in "
+                    f"{int((datetime.now() - last).total_seconds())}s; auto-clearing state."
+                )
+                _clear_progress()
+                snap = _scan_progress.copy()
+                snap["stale_cleared"] = True
+        except Exception:
+            pass
+    return snap
 
 
 def tag_deployer_wallet(deployer_address: Optional[str]) -> None:
@@ -189,9 +240,16 @@ def _compute_pnl_for_new_recurring_wallets() -> Dict[str, Any]:
     Find recurring wallets that don't have real PnL data yet and compute it.
     Called after each auto-scan cycle.
 
-    Only processes wallets where pnl_source != 'helius_enhanced' for any of their positions.
+    Caps:
+      - Process at most `auto_scan_pnl_backfill_max_wallets` per run (default 10)
+      - Per-wallet wall-clock deadline `auto_scan_pnl_backfill_per_wallet_seconds` (default 60)
+
+    Without these caps, this post-step could itself hang for hours when a wallet's
+    Helius transaction history is huge or when one call times out.
     """
     result = {"wallets_computed": 0, "credits_used": 0}
+    max_wallets = CURRENT_INGEST_SETTINGS.get("auto_scan_pnl_backfill_max_wallets", 10)
+    per_wallet_timeout = CURRENT_INGEST_SETTINGS.get("auto_scan_pnl_backfill_per_wallet_seconds", 60)
 
     try:
         with db.get_db_connection() as conn:
@@ -210,22 +268,27 @@ def _compute_pnl_for_new_recurring_wallets() -> Dict[str, Any]:
                     WHERE pnl_source = 'helius_enhanced'
                 )
                 ORDER BY token_count DESC
-            """)
+                LIMIT ?
+            """, (max_wallets,))
             wallets_needing_pnl = [row[0] for row in cursor.fetchall()]
 
         if not wallets_needing_pnl:
             log_info("[PnL Auto] No new recurring wallets need PnL computation")
             return result
 
-        log_info(f"[PnL Auto] {len(wallets_needing_pnl)} recurring wallets need real PnL")
+        log_info(f"[PnL Auto] {len(wallets_needing_pnl)} recurring wallets need real PnL (capped at {max_wallets})")
 
         from meridinate.services.pnl_calculator_v2 import compute_and_store_wallet_pnl_v2
 
         for addr in wallets_needing_pnl:
             try:
-                pnl = compute_and_store_wallet_pnl_v2(addr, HELIUS_API_KEY)
+                with ThreadPoolExecutor(max_workers=1, thread_name_prefix="pnl-backfill") as exec_:
+                    fut = exec_.submit(compute_and_store_wallet_pnl_v2, addr, HELIUS_API_KEY)
+                    pnl = fut.result(timeout=per_wallet_timeout)
                 result["wallets_computed"] += 1
                 result["credits_used"] += pnl.get("credits_used", 0)
+            except FuturesTimeoutError:
+                log_error(f"[PnL Auto] TIMEOUT after {per_wallet_timeout}s for {addr[:12]}... — skipping")
             except Exception as e:
                 log_error(f"[PnL Auto] Failed for {addr[:12]}...: {e}")
 
@@ -326,13 +389,20 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
         "errors": [], "started_at": datetime.now().isoformat(), "completed_at": None,
     }
 
-    # Initialize scan progress
+    # Initialize scan progress (heartbeat starts now so stale detection has a baseline)
     _scan_progress["running"] = True
     _scan_progress["current"] = 0
     _scan_progress["total"] = 0
     _scan_progress["credits_used"] = 0
     _scan_progress["current_token"] = None
     _scan_progress["started_at"] = result["started_at"]
+    _bump_heartbeat()
+
+    # Per-token wall-clock deadline. Without this, one stuck Helius call can
+    # freeze the entire scan for hours. ThreadPoolExecutor.result(timeout=) raises
+    # FuturesTimeoutError after N seconds; the orphaned worker thread keeps running
+    # in the background but the main scan moves on to the next token.
+    per_token_timeout = CURRENT_INGEST_SETTINGS.get("auto_scan_per_token_timeout_seconds", 90)
 
     try:
         existing_addresses = db.get_existing_token_addresses()
@@ -416,8 +486,10 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
             # Update progress: about to analyze this token
             _scan_progress["current_token"] = token.get("token_name") or address[:12]
 
-            # Run Helius analysis (synchronous — we're in a thread)
-            try:
+            # Per-token analysis is wrapped in a worker function so we can enforce
+            # a wall-clock deadline. Returns (status, credits_used) where status is
+            # one of: "scanned", "failed", "no_data".
+            def _analyze_one_token() -> tuple[str, int]:
                 log_info(f"[Auto-Scan] Analyzing {address}")
                 analyzer = TokenAnalyzer(HELIUS_API_KEY)
                 analysis_result = analyzer.analyze_token(
@@ -429,8 +501,7 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                     max_wallets_to_store=CURRENT_API_SETTINGS.get("walletCount", 10),
                     top_holders_limit=CURRENT_API_SETTINGS.get("topHoldersLimit", 10),
                 )
-                credits_used = analysis_result.get("api_credits_used", 0)
-                result["credits_used"] += credits_used
+                local_credits = analysis_result.get("api_credits_used", 0)
 
                 token_info = analysis_result.get("token_info")
                 token_name = token.get("token_name") or "Unknown"
@@ -442,7 +513,7 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
 
                 early_bidders = analysis_result.get("early_bidders", [])
                 if not early_bidders and not token_info:
-                    result["tokens_failed"] += 1; continue
+                    return ("no_data", local_credits)
 
                 acronym = generate_token_acronym(token_name, token_symbol)
                 for bidder in early_bidders:
@@ -456,7 +527,7 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                     token_address=address, token_name=token_name, token_symbol=token_symbol,
                     acronym=acronym, early_bidders=early_bidders, axiom_json=axiom_export,
                     first_buy_timestamp=analysis_result.get("first_transaction_time"),
-                    credits_used=credits_used, max_wallets=max_wallets,
+                    credits_used=local_credits, max_wallets=max_wallets,
                     market_cap_usd=analysis_result.get("market_cap_usd"),
                     liquidity_usd=token.get("liquidity_usd"),
                     top_holders=analysis_result.get("top_holders"), ingest_source="auto-scan",
@@ -471,7 +542,6 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                     try:
                         webhook_detected_at = webhook_data["detected_at"]
                         now = datetime.now()
-                        # Compute time to migration (webhook detection → auto-scan pickup)
                         try:
                             if "T" in str(webhook_detected_at):
                                 wh_time = datetime.fromisoformat(str(webhook_detected_at).replace("Z", "+00:00")).replace(tzinfo=None)
@@ -483,7 +553,6 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
 
                         with db.get_db_connection() as cross_conn:
                             cross_cursor = cross_conn.cursor()
-                            # Update analyzed_tokens with webhook data
                             cross_cursor.execute("""
                                 UPDATE analyzed_tokens SET
                                     webhook_detected_at = ?,
@@ -491,7 +560,6 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                                     time_to_migration_minutes = ?
                                 WHERE id = ?
                             """, (webhook_detected_at, webhook_data["conviction_score"], time_to_migration, token_id))
-                            # Update webhook_detections with auto-scan linkage
                             cross_cursor.execute("""
                                 UPDATE webhook_detections SET
                                     auto_scan_picked_up_at = CURRENT_TIMESTAMP,
@@ -503,10 +571,8 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                     except Exception as e:
                         log_error(f"[Auto-Scan] Cross-system linkage failed: {e}")
 
-                # Tag deployer wallet and detect serial deployers
                 tag_deployer_wallet(analysis_result.get("deployer_address"))
 
-                # Fetch PumpFun metadata (cashback status + true ATH) — free API call
                 try:
                     from meridinate.services.pumpfun_service import get_pumpfun_token_data
                     pf_data = get_pumpfun_token_data(address)
@@ -517,14 +583,12 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                                 "UPDATE analyzed_tokens SET is_cashback = ? WHERE id = ?",
                                 (1 if pf_data.get("is_cashback_enabled") else 0, token_id)
                             )
-                            # Update ATH from PumpFun if higher than what we have
                             pf_ath = pf_data.get("ath_market_cap")
                             if pf_ath and pf_ath > 0:
                                 pf_cursor.execute(
                                     "UPDATE analyzed_tokens SET market_cap_ath = MAX(COALESCE(market_cap_ath, 0), ?) WHERE id = ?",
                                     (pf_ath, token_id)
                                 )
-                            # Cross-reference deployer with PumpFun's canonical creator
                             pf_creator = pf_data.get("creator")
                             if pf_creator and pf_creator != analysis_result.get("deployer_address"):
                                 pf_cursor.execute(
@@ -545,7 +609,6 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                 except Exception as e:
                     log_error(f"[Auto-Scan] Failed to record positions for token {token_id}: {e}")
 
-                # Compute rug score (zero credits — uses data already fetched)
                 try:
                     from meridinate.services.rug_detector import compute_rug_score_for_token
                     rug_result = compute_rug_score_for_token(
@@ -555,7 +618,7 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                             "liquidity_usd": token.get("liquidity_usd", 0),
                             "txs_24h": token.get("txs_24h", 0),
                             "market_cap_usd": token.get("market_cap_usd", 0),
-                            "pool_count": 1,  # DexScreener discovery returns single pool context
+                            "pool_count": 1,
                         },
                         early_buyers=early_bidders,
                     )
@@ -569,15 +632,45 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
                 except Exception as e:
                     log_error(f"[Auto-Scan] Rug score failed for {token_id}: {e}")
 
+                return ("scanned", local_credits)
+
+            # Run the worker with a hard wall-clock deadline. The orphaned thread
+            # (if it times out) will keep running in the background but the main
+            # scan thread is unblocked. This is the single most important fix —
+            # it's what stops a stuck Helius call from freezing the whole scan.
+            status = "failed"
+            credits_used = 0
+            try:
+                with ThreadPoolExecutor(max_workers=1, thread_name_prefix="auto-scan-token") as exec_:
+                    future = exec_.submit(_analyze_one_token)
+                    status, credits_used = future.result(timeout=per_token_timeout)
+            except FuturesTimeoutError:
+                log_error(
+                    f"[Auto-Scan] TIMEOUT after {per_token_timeout}s on {address} "
+                    f"({token.get('token_name') or '?'}) — abandoning, scan continues"
+                )
+                status = "timeout"
+                # Cannot kill the orphaned thread, but it'll eventually exit on its own
+                # when the underlying HTTP call returns/errors.
+            except Exception as e:
+                log_error(f"[Auto-Scan] Failed {address}: {e}")
+                status = "failed"
+
+            # Always advance counters + heartbeat exactly once per token attempt,
+            # regardless of success/failure/timeout. Prevents the progress display
+            # from sticking on a single token forever.
+            result["credits_used"] += credits_used
+            if status == "scanned":
                 existing_addresses.add(address)
                 scanned += 1
                 result["tokens_scanned"] += 1
-                _scan_progress["current"] = scanned
-                _scan_progress["credits_used"] = result["credits_used"]
-            except Exception as e:
-                log_error(f"[Auto-Scan] Failed {address}: {e}")
+            elif status == "no_data":
                 result["tokens_failed"] += 1
-                _scan_progress["current"] += 1
+            else:  # "failed" or "timeout"
+                result["tokens_failed"] += 1
+            _scan_progress["current"] = scanned + result["tokens_failed"]
+            _scan_progress["credits_used"] = result["credits_used"]
+            _bump_heartbeat()
 
         from meridinate.credit_tracker import get_credit_tracker
         get_credit_tracker().record_operation(
@@ -603,8 +696,7 @@ def run_auto_scan_sync(max_tokens: Optional[int] = None) -> Dict[str, Any]:
         result["errors"].append(str(e))
         result["completed_at"] = datetime.now().isoformat()
     finally:
-        _scan_progress["running"] = False
-        _scan_progress["current_token"] = None
+        _clear_progress()
     return result
 
 

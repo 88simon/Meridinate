@@ -52,10 +52,14 @@ export function PnLBackfillPanel() {
     } catch { /* silent */ }
   }, []);
 
-  // Poll every 3 seconds when running
+  // Poll every 3 seconds when running. Skip ticks while tab hidden — backfill
+  // continues server-side; we only need fresh data when the user is looking.
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, state?.running ? 3000 : 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchStatus();
+    }, state?.running ? 3000 : 30000);
     return () => clearInterval(interval);
   }, [fetchStatus, state?.running]);
 

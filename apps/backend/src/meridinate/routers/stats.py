@@ -131,9 +131,10 @@ async def get_credits_today(request: Request):
     """
     tracker = get_credit_tracker()
     stats = tracker.get_daily_usage()
+    ops_total = tracker.get_daily_credits_from_operations()
 
     return CreditUsageStatsResponse(
-        total_credits=stats.total_credits,
+        total_credits=max(ops_total, stats.total_credits),
         period_start=stats.period_start.isoformat(),
         period_end=stats.period_end.isoformat(),
         by_operation=stats.by_operation,
@@ -668,9 +669,10 @@ async def get_status_bar(request: Request):
         else:
             tiers["old"] += 1
 
-    # Credit usage today
+    # Credit usage today — use operation_log sum for accuracy
     tracker = get_credit_tracker()
     daily_stats = tracker.get_daily_usage()
+    credits_today_actual = tracker.get_daily_credits_from_operations()
 
     # Per-job credit breakdown: daily totals + last run cost + last run time + status
     job_names = ["auto_scan", "mc_tracker", "position_check"]
@@ -722,7 +724,7 @@ async def get_status_bar(request: Request):
             "avg_return": round(avg_return, 1) if avg_return else None,
         },
         "credits": {
-            "used_today": daily_stats.total_credits,
+            "used_today": max(credits_today_actual, daily_stats.total_credits),
             "position_daily_budget": position_daily_budget,
             "by_job": job_credits,
         },

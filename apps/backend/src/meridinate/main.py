@@ -28,6 +28,69 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# ============================================================================
+# Uvicorn access-log noise filter
+# ============================================================================
+#
+# The frontend polls a handful of status endpoints every 2-3 seconds. Without
+# filtering, those drown out actually-useful log lines (errors, agent dialogue,
+# scan progress) at the rate of ~1000 lines/min per open tab.
+#
+# This filter drops 2xx access logs for known polling routes, while keeping:
+#   - All 4xx/5xx on those same routes (so errors are visible)
+#   - All requests to any other route
+#
+# Net result: ~30 lines/min instead of ~1000, with full visibility on anything
+# unusual. Reversible by removing the addFilter call below.
+
+_NOISY_POLLING_ROUTES = (
+    "/api/ingest/scan-progress",
+    "/api/wallet-shadow/status",
+    "/api/wallet-shadow/feed",
+    "/api/wallet-shadow/open-positions",
+    "/api/wallet-shadow/token-heat",
+    "/api/wallet-shadow/alerts",
+    "/api/wallet-shadow/convergences",
+    "/api/wallet-shadow/signal-wallets",
+    "/api/stats/credits/today",
+    "/api/stats/credits/operation-log",
+    "/api/stats/status-bar",
+    "/api/tokens/latest",
+    "/api/intel/status",
+    "/api/intel/recommendations",
+)
+
+
+class _PollingNoiseFilter(logging.Filter):
+    """Drop 2xx access-log lines for known high-frequency polling endpoints."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Uvicorn access record format: args = (client_addr, method, path, http_version, status_code)
+        # Keep the line if we can't parse it — never silently swallow unknown formats.
+        try:
+            args = record.args
+            if not isinstance(args, tuple) or len(args) < 5:
+                return True
+            path = args[2] if isinstance(args[2], str) else ""
+            status = args[4]
+            status_code = int(status) if not isinstance(status, int) else status
+        except (ValueError, IndexError, TypeError):
+            return True
+
+        # Always keep errors so problems on noisy routes are still visible.
+        if status_code >= 400:
+            return True
+
+        # Drop if the path starts with any noisy route (handles query strings + path params).
+        for noisy in _NOISY_POLLING_ROUTES:
+            if path.startswith(noisy):
+                return False
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_PollingNoiseFilter())
+
+
 def create_app() -> FastAPI:
     """
     FastAPI application factory
@@ -212,7 +275,12 @@ app = create_app()
 
 # For development/testing
 if __name__ == "__main__":
+    import os
     import uvicorn
 
-    # Use import string for reload to work properly
-    uvicorn.run("meridinate.main:app", host="0.0.0.0", port=API_PORT, reload=True)
+    # reload=True spawns a file watcher and re-imports the entire app on any
+    # source change — that's a 50-200% CPU spike per save AND keeps a second
+    # Python process alive permanently. Default OFF for production-style runs.
+    # Opt in via env var only when actively iterating on backend code.
+    reload_enabled = os.getenv("MERIDINATE_RELOAD", "").lower() in ("1", "true", "yes")
+    uvicorn.run("meridinate.main:app", host="0.0.0.0", port=API_PORT, reload=reload_enabled)

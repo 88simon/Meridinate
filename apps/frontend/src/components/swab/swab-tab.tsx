@@ -127,6 +127,7 @@ export function SwabTab({ isActive }: SwabTabProps) {
     if (!isActive) return;
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchData();
     }, 30000);
 

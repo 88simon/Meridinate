@@ -114,11 +114,15 @@ export function useStatusBarData(options: UseStatusBarDataOptions = {}) {
     };
   }, [fetchData]);
 
-  // Polling
+  // Polling — skip ticks while the tab is hidden so we don't keep poking the
+  // backend while the user is in another app.
   useEffect(() => {
     if (!enablePolling) return;
 
-    pollTimerRef.current = setInterval(fetchData, pollInterval);
+    pollTimerRef.current = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchData();
+    }, pollInterval);
 
     return () => {
       if (pollTimerRef.current) {

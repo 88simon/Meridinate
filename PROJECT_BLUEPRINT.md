@@ -1,8 +1,10 @@
 # Meridinate - Project Blueprint
 
-**Updated:** April 28, 2026
+**Updated:** May 2, 2026
 **User:** Simon (non-technical background, vibecoder)
-**Purpose:** Solana token intelligence platform with AI-powered analysis, Meteora stealth-sell detection, automated wallet/token investigation, and an evolving bot-operator intelligence layer
+**Purpose:** Solana token intelligence platform with AI-powered analysis, Meteora stealth-sell detection, automated wallet/token investigation, and a fully-wired bot-operator intelligence layer with operator feedback loop.
+
+> **For session handoff + recent work, see `docs/STRATEGIC_DIRECTION_HANDOFF.md`** — that doc supersedes this blueprint for the latest state. This file is the durable architecture reference.
 
 ---
 
@@ -39,7 +41,7 @@ Meridinate is a comprehensive Solana token intelligence platform. It scans newly
 |------|-----|---------|
 | Wallet Leaderboard | `/dashboard/wallets` (HOME) | Full-DB wallet search with faceted filters, pagination, tag/tier filtering, leaderboard cache |
 | Token Leaderboard | `/dashboard/token-leaderboard` | Full-DB token search with scoring, Meteora detection, bundle/stealth columns, TIR side panel |
-| Command Center | `/dashboard/bot-tracker` | Combined RTTF token births + Bot Tracker live trade feed + intelligence panels (positions, heat map, signals, alerts, convergence) + pipeline controls |
+| Wallet Shadow | `/dashboard/bot-tracker` | Combined RTTF token births + Bot Tracker live trade feed + intelligence panels (positions, heat map, signals, alerts, convergence) + pipeline controls |
 | Intel Agent | `/dashboard/intel` | Bot-operator intelligence: Housekeeper (wallet reliability) + Investigator (allowlist/denylist/watch classification) + per-action recommendations + Forensics mode + export bundles |
 | Bot Probe | `/dashboard/bot-probe` | Deep bot reverse engineering: full transaction history, FIFO round-trips, strategy profiling, bot comparison |
 | Wallet Profile | `/dashboard/wallets/[address]` | Per-wallet drill-down with per-token PnL and external links |
@@ -157,7 +159,7 @@ Monitors recurring wallet positions across all tokens.
 - Auto-computes for new recurring wallets after each auto-scan cycle
 - Position tracker triggers v2 recompute after balance change detection
 - SOL price from CoinGecko (reliable), dust filter skips trades < 0.01 SOL
-- PnL Backfill Manager: start/stop/progress UI on Command Center page
+- PnL Backfill Manager: start/stop/progress UI on Wallet Shadow page
 - Recomputes behavioral tags (Consistent Winner/Loser) from real PnL data
 
 ---
@@ -265,10 +267,10 @@ Monitors recurring wallet positions across all tokens.
 | `app/dashboard/wallets/page.tsx` | Wallet Leaderboard (home) with deployer panel |
 | `app/dashboard/wallets/[address]/page.tsx` | Wallet profile with real PnL, GMGN/Solscan links |
 | `app/dashboard/token-leaderboard/page.tsx` | Token Leaderboard with signals column and creation dates |
-| `app/dashboard/bot-tracker/page.tsx` | Command Center: RTTF + Bot Tracker + intelligence panels + pipeline controls |
+| `app/dashboard/bot-tracker/page.tsx` | Wallet Shadow: RTTF + Bot Tracker + intelligence panels + pipeline controls |
 | `app/dashboard/bot-probe/page.tsx` | Bot Probe: transaction probing, strategy profiles, bot comparison |
 | `app/dashboard/intel/page.tsx` | Intel Agent: run/view reports, recommendations panel, export bundles |
-| `app/dashboard/tokens/page.tsx` | Redirects to Command Center |
+| `app/dashboard/tokens/page.tsx` | Redirects to Wallet Shadow |
 | `app/dashboard/tokens/tokens-table.tsx` | Token table with shared TokenAddressCell component |
 | `app/dashboard/tokens/token-details-modal.tsx` | Detail modal: creation timeline, analytics signals, lifecycle |
 | `components/layout/global-status-bar.tsx` | Always-visible status bar with all timers and indicators |
@@ -297,11 +299,11 @@ All pages auto-refresh via DOM events when background jobs complete:
 
 | Event | Fired by | Listened by |
 |-------|----------|-------------|
-| `meridinate:scan-complete` | WebSocket notification | Command Center, Token Leaderboard, StatusBar |
+| `meridinate:scan-complete` | WebSocket notification | Wallet Shadow, Token Leaderboard, StatusBar |
 | `meridinate:mc-refresh-complete` | WebSocket notification | Token Leaderboard, Wallet Leaderboard, StatusBar |
 | `meridinate:position-check-complete` | WebSocket notification | Wallet Leaderboard, StatusBar |
 | `meridinate:settings-changed` | Settings save, manual triggers | Global Status Bar, StatusBar |
-| `meridinate:realtime-token` | WebSocket notification | Command Center (RTTF panel) |
+| `meridinate:realtime-token` | WebSocket notification | Wallet Shadow (RTTF panel) |
 
 ---
 
@@ -424,7 +426,7 @@ Zero-credit real-time wallet monitoring via Helius Enhanced WebSocket.
 - Key files: `services/wallet_shadow.py`, `routers/wallet_shadow.py`
 - Tables: `wallet_shadow_targets`, `wallet_shadow_trades`, `wallet_shadow_preceding_buyers`, `wallet_shadow_convergences`
 
-### Command Center (Combined RTTF + Bot Tracker)
+### Wallet Shadow (Combined RTTF + Bot Tracker)
 Unified real-time monitoring page at `/dashboard/bot-tracker`.
 - Left panel: RTTF token birth feed with conviction scoring, crime coin analysis, watch windows
 - Center panel: Bot trade feed with wallet filters, speed column, infrastructure badges

@@ -265,6 +265,7 @@ export function DiscoverySection({
     if (!isOpen) return;
 
     const pollInterval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const jobsData = await getScheduledJobs();
         const currentRunningIds = new Set(

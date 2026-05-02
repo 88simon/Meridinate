@@ -47,14 +47,6 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
-    title: 'Command Center',
-    url: '/dashboard/bot-tracker',
-    icon: 'product',
-    shortcut: ['t', 't'],
-    isActive: false,
-    items: []
-  },
-  {
     title: 'Trash',
     url: '/dashboard/trash',
     icon: 'trash',

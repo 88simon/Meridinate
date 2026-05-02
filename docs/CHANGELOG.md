@@ -6,6 +6,74 @@
 
 ---
 
+## May 1-2, 2026 — Intel Feedback Loop, Funded By Column, Tier 1-3 Performance Fixes
+
+### Intel Recommendations — Track / Toxic / Skip + Override Analyst
+- Replaced 5-action × 7-reason Reclassify form with 3-button (Track / Toxic / Skip) card. Allowlist promotion + Bot Probe queueing moved to WIR (post-observation decisions, not triage).
+- Override Analyst (`services/override_analyst.py`) — Sonnet 4 via Anthropic Console key. On each Reclassify it pulls the wallet snapshot + operator's category choice and extracts a structured rule (trigger_signal, wrong/correct conclusion, rule_text, example_evidence). Persists to new `intel_agent_rules` table.
+- Investigator system prompt now appends the last 50 active operator-override rules at run start so the same mistake isn't made twice.
+- "NEW" badge on rec cards from the highest report_id.
+- Allowlist approval auto-shadows (one click adds to allowlist + wallet_shadow_targets).
+- New Crash Trader / Profitable Scalper category — high rug exposure + high realized PnL routes to monitor_wallet, not denylist. Pessimistic denylist rule downgrades bare "high_rug_exposure" type to monitor_wallet automatically.
+- Saved-report transcript replay in the Intel page (parses dialogue_json column).
+
+### Wallet tracking
+- **Wallet nametags** — global `WalletNametagsProvider` context, optimistic updates, cross-component sync. Inline rename in WIR header. New `GET /wallets/nametags` bulk endpoint.
+- **WIR additions** — Promote-to-Allowlist + Queue-Bot-Probe buttons. New endpoints `POST /api/wallets/{addr}/promote-to-allowlist` and `POST /api/wallets/{addr}/queue-bot-probe`.
+- **Wallet Leaderboard "Funded By" column** — shows labeled CEX (Coinbase 12, Binance, etc.) at funding-chain terminal, or full untruncated address if opaque. Backend: 4 new columns on wallet_enrichment_cache (terminal_address, terminal_name, terminal_type, terminal_traced_at), `funding_tracer.persist_terminal()` + `trace_and_persist_terminal()` helpers, `POST /api/wallets/funding-terminal/batch` endpoint. Frontend auto-backfills 25 missing rows per page render.
+
+### Codex
+- New endpoint `GET /api/codex/by-category` returns wallets grouped by Starred / Allowlist / Denylist / Shadowing / Watching with nametags hydrated.
+- Codex panel: 5 chips switch view, defensive fallback to /api/starred for Starred so wallets always populate.
+
+### Sidebar
+- "Command Center" → "Wallet Shadow", moved above the gray-line partition next to Intel Agent + Bot Probe + Tag Reference. Uses IconRadar.
+
+### Wallet Shadow polish
+- "2w" / "2b" badges replaced with "2 wallets" / "2 buyers" with tooltips.
+- Token clicks now open TIP (was incorrectly opening WIR).
+- New `GET /api/tokens/by-address/{address}` endpoint resolves mint → token id.
+- Defensive client cap of 100 trades on the live feed.
+
+### Auto-Scan reliability (the big fix)
+A scan ran 7 hours stuck on token 5/8 — root cause was no per-token deadline.
+- Per-token wall-clock deadline (90s default) via `ThreadPoolExecutor.submit().result(timeout=)`. Orphaned worker thread keeps running but the main scan loop continues.
+- Heartbeat field in `_scan_progress` + auto-clear in `get_scan_progress()` after 10 min staleness.
+- `POST /api/ingest/scan-progress/reset` for manual reset.
+- PnL backfill capped at 10 wallets / 60s per wallet (was unbounded).
+- Counter always advances per token attempt.
+- Configurable: `auto_scan_per_token_timeout_seconds`, `auto_scan_pnl_backfill_max_wallets`, `auto_scan_pnl_backfill_per_wallet_seconds`.
+
+### Performance — Tier 1 (stops impacting BG3 / trading terminal)
+- `reload=True` gated behind `MERIDINATE_RELOAD` env var (was always on).
+- `document.hidden` guards added to 9 polling sites (pnl-backfill, intel, intel-recs, realtime-token-feed, useStatusBarData, swab-tab, bot-probe, rug-analysis, quick-dd, discovery-section, global-status-bar's 30s/2s/1s ticks).
+- Global CSS rule pauses animations + transitions while `data-tab-hidden="true"`. `TabVisibilityWatcher` toggles the attribute.
+- New `useVisibleInterval` hook for future polling code.
+- Backend uvicorn access log filter suppresses 2xx on 13 known polling routes (errors still log).
+
+### Performance — Tier 2 (snappier active use)
+- WIR + TIR lazy-loaded via `dynamic()` in dashboard wrapper.
+- Bot-tracker live feed defensively client-capped at 100 trades.
+
+### Performance — Tier 3 (backend hygiene)
+- SQLite WAL + busy_timeout(5s) + cache_size(64MB) + connect timeout via PRAGMAs in `get_db_connection()`.
+- Wallet Shadow's preceding-buyer capture: raw `threading.Thread` → 4-worker `ThreadPoolExecutor` (was unbounded).
+- FollowUp tracker: time-based eviction of stopped tokens older than 24h (in addition to existing 50-item count cap).
+- Crime-coin analysis uses shared `get_db_connection()` (inherits PRAGMAs); collapses 2 wallet_tags queries → 1 (4 SQL roundtrips → 3, smaller lock window).
+
+### Bug fixes
+- Token Intelligence Panel `clobr_sr_ratio !== null` was missing undefined check — crashed TIP open on tokens without CLOBr enrichment.
+- Early-buyer total_usd null guard in TIP — crashed TIP open on certain tokens.
+- Wallet leaderboard aggregate_realized_pnl null guard — crashed leaderboard.
+- ingest-settings.ts DEFAULT_INGEST_SETTINGS was missing 8 fields after backend evolution (require_socials + realtime watch + followup tracking) — added.
+- Codex by-category endpoint was using wallet_tags.added_at (column doesn't exist) — fixed to created_at.
+
+### Documentation
+- New STRATEGIC_DIRECTION_HANDOFF.md (May 2 supersedes April 30 version).
+- Deleted obsolete docs: INTEL_RECOMMENDATION_ACTIVATION_AND_NOTIFICATIONS.md, INTEL_PIPELINE_OPTIMIZATION_AUDIT.md, HOUSEKEEPER_EXECUTION_AUDIT_AND_SAFETY_GAPS.md, RESPONSE_TO_*.md, token-tags migration + summary docs (Nov 2025 work, long live).
+
+---
+
 ## April 14-28, 2026 — Full-Stack Optimization + New Intelligence Systems
 
 ### Backend Optimization

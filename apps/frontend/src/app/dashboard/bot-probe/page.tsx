@@ -51,10 +51,11 @@ export default function BotProbePage() {
   const [compareB, setCompareB] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Poll status when running
+  // Poll status when running. Skip while tab hidden — probe runs server-side.
   useEffect(() => {
     if (!status.running) return;
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch(`${API_BASE_URL}/api/bot-probe/status`);
         if (res.ok) {

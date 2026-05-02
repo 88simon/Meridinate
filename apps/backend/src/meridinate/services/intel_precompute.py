@@ -85,6 +85,176 @@ def generate_snapshot_and_leads() -> Dict[str, Any]:
         raw["top_wallets"] = top_wallets
 
         # ================================================================
+        # PNL BACKFILL for top wallets with insufficient real data
+        # ================================================================
+        # Top wallets often appear on only 2-3 of our tokens. Backfill their
+        # PnL data so the behavior profiler has enough to classify them.
+        wallets_needing_backfill = []
+        for tw in top_wallets:
+            addr = tw["wallet_address"]
+            cursor.execute("""
+                SELECT COUNT(*) FROM mtew_token_positions
+                WHERE wallet_address = ? AND pnl_source = 'helius_enhanced'
+            """, (addr,))
+            real_count = cursor.fetchone()[0]
+            tokens_traded = tw.get("tokens_traded", 0)
+            if real_count < 5 and tokens_traded >= 3:
+                wallets_needing_backfill.append(addr)
+
+        if wallets_needing_backfill:
+            try:
+                from meridinate.services.pnl_calculator_v2 import compute_and_store_wallet_pnl_v2
+                from meridinate.settings import HELIUS_API_KEY
+                backfill_credits = 0
+                for addr in wallets_needing_backfill[:10]:  # Cap at 10 wallets per run
+                    try:
+                        pnl_result = compute_and_store_wallet_pnl_v2(addr, HELIUS_API_KEY)
+                        backfill_credits += pnl_result.get("credits_used", 0)
+                    except Exception as e:
+                        log_error(f"[IntelPrecompute] PnL backfill failed for {addr[:12]}: {e}")
+                if backfill_credits > 0:
+                    log_info(f"[IntelPrecompute] Backfilled PnL for {len(wallets_needing_backfill)} wallets ({backfill_credits} credits)")
+                raw["pnl_backfill"] = {
+                    "wallets_backfilled": len(wallets_needing_backfill),
+                    "credits_used": backfill_credits,
+                }
+            except Exception as e:
+                log_error(f"[IntelPrecompute] PnL backfill step failed: {e}")
+
+        # ================================================================
+        # BOT BEHAVIOR PROFILES (computed from trade-level position data)
+        # ================================================================
+        # For wallets with real PnL data, compute trading behavior
+        # to classify bot strategy: Sniper, Copy Bot, Scalper, Accumulator, Runner, Spray Bot
+        top_wallet_addrs = [w["wallet_address"] for w in top_wallets]
+        if top_wallet_addrs:
+            placeholders = ",".join("?" * len(top_wallet_addrs))
+            cursor.execute(f"""
+                SELECT
+                    mtp.wallet_address,
+                    COUNT(DISTINCT mtp.token_id) as tokens_traded,
+                    AVG(CASE WHEN mtp.pnl_source = 'helius_enhanced' AND mtp.total_sold_usd > 0 AND mtp.total_bought_usd > 0
+                        THEN mtp.total_sold_usd / mtp.total_bought_usd END) as avg_return_ratio,
+                    AVG(CASE WHEN mtp.pnl_source = 'helius_enhanced' AND mtp.realized_pnl > 0
+                        THEN mtp.total_sold_usd / NULLIF(mtp.total_bought_usd, 0) END) as avg_win_multiple,
+                    AVG(CASE WHEN mtp.pnl_source = 'helius_enhanced' AND mtp.realized_pnl < 0 AND mtp.still_holding = 0
+                        THEN mtp.total_sold_usd / NULLIF(mtp.total_bought_usd, 0) END) as avg_loss_ratio,
+                    AVG(mtp.buy_count) as avg_buys_per_token,
+                    AVG(mtp.sell_count) as avg_sells_per_token,
+                    AVG(CASE WHEN mtp.still_holding = 0 AND mtp.entry_timestamp IS NOT NULL
+                            AND COALESCE(mtp.last_sell_timestamp, mtp.exit_detected_at) IS NOT NULL
+                        THEN (julianday(COALESCE(mtp.last_sell_timestamp, mtp.exit_detected_at)) - julianday(mtp.entry_timestamp)) * 24 * 60
+                        END) as avg_hold_minutes,
+                    SUM(CASE WHEN mtp.pnl_source = 'helius_enhanced' AND mtp.realized_pnl > 0 THEN 1 ELSE 0 END) as win_count,
+                    SUM(CASE WHEN mtp.pnl_source = 'helius_enhanced' AND mtp.realized_pnl <= 0 AND mtp.still_holding = 0 THEN 1 ELSE 0 END) as loss_count,
+                    AVG(mtp.total_bought_usd) as avg_position_size,
+                    SUM(mtp.total_bought_usd) as total_volume
+                FROM mtew_token_positions mtp
+                WHERE mtp.wallet_address IN ({placeholders})
+                AND mtp.pnl_source = 'helius_enhanced'
+                GROUP BY mtp.wallet_address
+                HAVING tokens_traded >= 3
+            """, top_wallet_addrs)
+            behavior_rows = [dict(r) for r in cursor.fetchall()]
+
+            # Also get entry timing from early_buyer_wallets
+            cursor.execute(f"""
+                SELECT wallet_address, AVG(avg_entry_seconds) as avg_entry_seconds,
+                       COUNT(CASE WHEN avg_entry_seconds < 5 THEN 1 END) as block0_entries,
+                       COUNT(CASE WHEN avg_entry_seconds < 30 THEN 1 END) as fast_entries,
+                       COUNT(*) as total_entries
+                FROM early_buyer_wallets
+                WHERE wallet_address IN ({placeholders})
+                AND avg_entry_seconds IS NOT NULL
+                GROUP BY wallet_address
+            """, top_wallet_addrs)
+            entry_map = {r[0]: dict(zip(["wallet_address", "avg_entry_seconds", "block0_entries", "fast_entries", "total_entries"], r)) for r in cursor.fetchall()}
+
+            # Also get infrastructure tags
+            cursor.execute(f"""
+                SELECT wallet_address, GROUP_CONCAT(tag) as tags
+                FROM wallet_tags
+                WHERE wallet_address IN ({placeholders})
+                AND tag IN ('Sniper Bot', 'Automated (Nozomi)', 'Bundled (Jito)', 'Lightning Buyer')
+                GROUP BY wallet_address
+            """, top_wallet_addrs)
+            infra_map = {r[0]: r[1] for r in cursor.fetchall()}
+
+            # Classify each wallet's bot strategy
+            bot_profiles = []
+            for bw in behavior_rows:
+                addr = bw["wallet_address"]
+                entry = entry_map.get(addr, {})
+                infra_tags = infra_map.get(addr, "")
+
+                avg_entry = entry.get("avg_entry_seconds")
+                block0_pct = (entry.get("block0_entries", 0) / entry.get("total_entries", 1) * 100) if entry.get("total_entries") else 0
+                fast_pct = (entry.get("fast_entries", 0) / entry.get("total_entries", 1) * 100) if entry.get("total_entries") else 0
+                avg_hold = bw.get("avg_hold_minutes")
+                avg_buys = bw.get("avg_buys_per_token") or 1
+                avg_win_mult = bw.get("avg_win_multiple")
+                avg_loss_ratio = bw.get("avg_loss_ratio")
+                tokens = bw.get("tokens_traded", 0)
+                wins = bw.get("win_count", 0)
+                losses = bw.get("loss_count", 0)
+                win_rate = wins / (wins + losses) * 100 if (wins + losses) > 0 else 0
+
+                # Strategy classification — confident tier first, small-sample fallback after.
+                # Confident tier requires enough tokens to be statistically meaningful.
+                strategy = "Unknown"
+                confidence = "low"
+                if block0_pct > 50:
+                    strategy, confidence = "Sniper", "high"
+                elif avg_buys > 2.5:
+                    strategy, confidence = "Accumulator", "high"
+                elif avg_win_mult and avg_win_mult > 8:
+                    strategy, confidence = "Runner", "high"
+                elif avg_hold and avg_hold < 30 and tokens > 15:
+                    strategy, confidence = "Scalper", "high"
+                elif tokens > 30 and win_rate < 35:
+                    strategy, confidence = "Spray Bot", "high"
+                elif fast_pct > 60 and win_rate > 40:
+                    strategy, confidence = "Sniper", "medium"
+                elif tokens > 10 and win_rate > 40:
+                    strategy, confidence = "Scalper", "medium"
+                else:
+                    # Small-sample tentative tier (3 <= tokens <= 10).
+                    # Lean on win-rate + entry timing + hold time so the Investigator
+                    # gets a hint instead of "Unknown" and a re-investigation.
+                    if tokens >= 3:
+                        if avg_hold and avg_hold < 30 and win_rate >= 50:
+                            strategy, confidence = "Scalper", "tentative"
+                        elif avg_win_mult and avg_win_mult >= 5:
+                            strategy, confidence = "Runner", "tentative"
+                        elif fast_pct >= 50:
+                            strategy, confidence = "Sniper", "tentative"
+                        elif win_rate <= 30:
+                            strategy, confidence = "Spray Bot", "tentative"
+                        elif win_rate >= 50:
+                            strategy, confidence = "Scalper", "tentative"
+
+                profile = {
+                    "wallet_address": addr,
+                    "strategy": strategy,
+                    "strategy_confidence": confidence,
+                    "tokens_traded": tokens,
+                    "win_rate": round(win_rate, 1),
+                    "avg_entry_seconds": round(avg_entry, 1) if avg_entry else None,
+                    "block0_entry_pct": round(block0_pct, 1),
+                    "avg_hold_minutes": round(avg_hold, 1) if avg_hold else None,
+                    "avg_buys_per_token": round(avg_buys, 1),
+                    "avg_win_multiple": round(avg_win_mult, 2) if avg_win_mult else None,
+                    "avg_loss_cut": round(avg_loss_ratio, 2) if avg_loss_ratio else None,
+                    "avg_position_size_usd": round(bw.get("avg_position_size") or 0, 2),
+                    "infra_tags": infra_tags,
+                }
+                bot_profiles.append(profile)
+
+            raw["bot_profiles"] = bot_profiles
+        else:
+            raw["bot_profiles"] = []
+
+        # ================================================================
         # RECENTLY ACTIVE WALLETS (appeared in tokens scanned in last 48h)
         # ================================================================
         two_days_ago = (now - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S")
@@ -261,6 +431,51 @@ def generate_snapshot_and_leads() -> Dict[str, Any]:
                 # Relaxed: mark them but let Housekeeper know they're borderline
                 ac["_borderline"] = True
                 ac["_filter_note"] = f"Below strict threshold: real_pnl={real_coverage:.0%}, rug={rug_rate:.0%}"
+                allowlist_candidates.append(ac)
+
+        # Last-resort fallback: if even the relaxed pool was empty (allowlist_raw=[]),
+        # take top wallets by PnL with at least 1 resolved token. Housekeeper still
+        # gets *something* to verify, even if the verdict is "none of these qualify."
+        # Without this, Housekeeper's user prompt has no candidate_data block and
+        # produces an empty wallet_reliability array — which looks like a broken run.
+        if not allowlist_candidates:
+            cursor.execute("""
+                SELECT wlc.wallet_address, wlc.total_pnl_usd, wlc.realized_pnl_usd,
+                       wlc.tokens_traded, wlc.tokens_won, wlc.tokens_lost, wlc.win_rate,
+                       wlc.home_runs, wlc.rugs, wlc.avg_entry_seconds, wlc.tags_json,
+                       wlc.wallet_balance_usd,
+                       (SELECT COUNT(*) FROM mtew_token_positions mp
+                        WHERE mp.wallet_address = wlc.wallet_address AND mp.pnl_source = 'helius_enhanced') as real_pnl_count,
+                       (SELECT COUNT(*) FROM mtew_token_positions mp
+                        WHERE mp.wallet_address = wlc.wallet_address) as total_positions,
+                       (SELECT COUNT(*) FROM early_buyer_wallets eb
+                        JOIN token_tags tt ON tt.token_id = eb.token_id AND tt.tag = 'verified-loss'
+                        WHERE eb.wallet_address = wlc.wallet_address) as loss_tokens,
+                       (SELECT COUNT(*) FROM early_buyer_wallets eb
+                        JOIN token_tags tt ON tt.token_id = eb.token_id AND tt.tag IN ('verified-win', 'verified-loss')
+                        WHERE eb.wallet_address = wlc.wallet_address) as resolved_tokens
+                FROM wallet_leaderboard_cache wlc
+                WHERE wlc.total_pnl_usd > 0
+                AND EXISTS (
+                    SELECT 1 FROM early_buyer_wallets eb
+                    JOIN token_tags tt ON tt.token_id = eb.token_id AND tt.tag IN ('verified-win', 'verified-loss')
+                    WHERE eb.wallet_address = wlc.wallet_address
+                )
+                ORDER BY wlc.total_pnl_usd DESC
+                LIMIT 5
+            """)
+            for ac in (dict(r) for r in cursor.fetchall()):
+                real_pnl = ac.get("real_pnl_count", 0) or 0
+                total_pos = ac.get("total_positions", 0) or 1
+                loss = ac.get("loss_tokens", 0) or 0
+                resolved = ac.get("resolved_tokens", 0) or 1
+                real_coverage = real_pnl / max(total_pos, 1)
+                rug_rate = loss / max(resolved, 1)
+                ac["_borderline"] = True
+                ac["_filter_note"] = (
+                    f"Last-resort sample (no wallets met allowlist thresholds): "
+                    f"real_pnl={real_coverage:.0%}, rug={rug_rate:.0%}, resolved={resolved}"
+                )
                 allowlist_candidates.append(ac)
 
         # Enrich allowlist candidates with fields Housekeeper needs
@@ -471,24 +686,43 @@ def generate_snapshot_and_leads() -> Dict[str, Any]:
     # ================================================================
     leads_parts = []
 
+    if raw.get("bot_profiles"):
+        leads_parts.append("=== BOT BEHAVIOR PROFILES (computed from trade data — DO NOT RE-QUERY) ===")
+        leads_parts.append("Strategy types: Sniper (block-0 entries), Scalper (fast exits, small targets),")
+        leads_parts.append("  Accumulator (multiple buys per token), Runner (holds for big multiples),")
+        leads_parts.append("  Spray Bot (high volume, low win rate), Copy Bot (follows other wallets)")
+        leads_parts.append("Confidence tiers: HIGH = strong rule fired on >10 tokens, MEDIUM = secondary rule,")
+        leads_parts.append("  TENTATIVE = small-sample (3-10 tokens) hint, LOW = Unknown (insufficient signal).")
+        for bp in raw["bot_profiles"]:
+            loss_cut = f"cuts at {bp['avg_loss_cut']:.0%}" if bp.get("avg_loss_cut") else "?"
+            win_target = f"sells at {bp['avg_win_multiple']:.1f}x" if bp.get("avg_win_multiple") else "?"
+            hold = f"{bp['avg_hold_minutes']:.0f}min avg hold" if bp.get("avg_hold_minutes") else "?"
+            entry = f"{bp['avg_entry_seconds']:.0f}s avg entry" if bp.get("avg_entry_seconds") else "?"
+            infra = f" | Infra: {bp['infra_tags']}" if bp.get("infra_tags") else ""
+            conf = (bp.get("strategy_confidence") or "low").upper()
+            leads_parts.append(
+                f"  {bp['wallet_address']} | {bp['strategy']} [{conf}] | "
+                f"{bp['win_rate']:.0f}% WR ({bp['tokens_traded']} tokens) | "
+                f"{entry} | {hold} | {win_target} | {loss_cut} | "
+                f"avg size ${bp['avg_position_size_usd']:,.0f}{infra}"
+            )
+        leads_parts.append("  USE THESE PROFILES when classifying wallets — a Scalper with 45% WR and $5K/day is NOT toxic flow.")
+        leads_parts.append("  TENTATIVE profiles are hints from small samples — treat as signal, not verdict.")
+        leads_parts.append("")
+
     if convergence:
-        leads_parts.append("=== CONVERGENCE ALERTS (compact — query specific wallets if needed) ===")
+        leads_parts.append("=== CONVERGENCE ALERTS (DO NOT RE-QUERY — all converging wallets listed inline) ===")
         for c in convergence[:5]:
-            winner_addrs = (c.get('winner_wallets') or '').split(',')
+            winner_addrs = [a.strip() for a in (c.get('winner_wallets') or '').split(',') if a.strip()]
             leads_parts.append(f"\nToken: {c['token_name']} | {c['token_address']}")
             leads_parts.append(f"  MC: ${c.get('market_cap_usd_current', 0):,.0f} | Score: {c.get('score_composite', '?')} | Winners: {c['winner_count']}")
-            # Show only top 3 addresses + count of remaining
-            shown = [a.strip() for a in winner_addrs[:3] if a.strip()]
-            remaining = len([a for a in winner_addrs if a.strip()]) - len(shown)
-            for waddr in shown:
+            for waddr in winner_addrs:
                 leads_parts.append(f"    - {waddr}")
-            if remaining > 0:
-                leads_parts.append(f"    + {remaining} more (query early_buyer_wallets for token_id {c['id']} if needed)")
             leads_parts.append(f"  CLASSIFY: organic smart money or adversarial convergence?")
 
     if cold_wallets:
-        leads_parts.append("\n=== COLD WALLET MIGRATIONS (DO NOT RE-QUERY — data below is complete) ===")
-        leads_parts.append("These wallets were profitable but have been inactive 14+ days. Trace where their SOL went.")
+        leads_parts.append("\n=== COLD WALLET MIGRATIONS (DO NOT RE-QUERY — funding data inlined) ===")
+        leads_parts.append("These wallets were profitable but have been inactive 14+ days. Funder shown inline.")
         for cw in cold_wallets[:8]:
             funded_by = ""
             if cw.get('funded_by_json'):
@@ -500,8 +734,10 @@ def generate_snapshot_and_leads() -> Dict[str, Any]:
                             funded_by += f" ({fb['funderName']})"
                 except Exception:
                     pass
+            if not funded_by:
+                funded_by = " | Funded by: unknown (no enrichment cache hit)"
             leads_parts.append(f"  {cw['wallet_address']} | PnL: +${cw['total_pnl_usd']:,.0f} | Home runs: {cw.get('home_runs', 0)} | Tokens: {cw.get('tokens_traded', 0)}{funded_by}")
-        leads_parts.append("  INVESTIGATE: Use trace_wallet_funding on each to find where their SOL went. Check if recipients are active.")
+        leads_parts.append("  CLASSIFY: shared funders across cold wallets = same operator. Forward-trace only if classification is ambiguous.")
 
     if deployer_watch:
         leads_parts.append("\n=== DEPLOYER WATCH (DO NOT RE-QUERY — data below is complete) ===")

@@ -67,6 +67,13 @@ interface WalletRow {
   tier_score: number;
   home_runs: number;
   rugs: number;
+  // Funding-chain terminal — null until backfill runs.
+  // terminal_name is the labeled CEX/protocol (e.g. "Coinbase 12") if known.
+  // terminal_address is the deepest funder we reached (always populated post-trace).
+  // terminal_type is "exchange", "protocol", or null/unknown.
+  terminal_address: string | null;
+  terminal_name: string | null;
+  terminal_type: string | null;
 }
 
 interface LeaderboardResponse {
@@ -316,6 +323,51 @@ export default function WalletLeaderboardPage() {
     };
   }, [fetchLeaderboard]);
 
+  // Funding-chain terminal backfill — runs once per page render. For wallets
+  // missing terminal_address, POST a batch to /api/wallets/funding-terminal/batch
+  // which traces them via Helius and persists. Cap at 25/render to avoid huge
+  // credit bursts on the first page load. Already-cached wallets are free.
+  useEffect(() => {
+    if (!data?.wallets) return;
+    const missing = data.wallets
+      .filter((w) => !w.terminal_address)
+      .map((w) => w.wallet_address)
+      .slice(0, 25);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/wallets/funding-terminal/batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_addresses: missing, max_hops: 3 }),
+        });
+        if (!res.ok || cancelled) return;
+        const json = await res.json();
+        const terminals: Record<string, { terminal_address: string | null; terminal_name: string | null; terminal_type: string | null }> = json.terminals || {};
+        // Merge terminal info into the current state without refetching the whole page.
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            wallets: prev.wallets.map((w) => {
+              const t = terminals[w.wallet_address];
+              if (!t) return w;
+              return {
+                ...w,
+                terminal_address: t.terminal_address ?? w.terminal_address,
+                terminal_name: t.terminal_name ?? w.terminal_name,
+                terminal_type: t.terminal_type ?? w.terminal_type,
+              };
+            }),
+          };
+        });
+      } catch { /* silent — column shows "—" until next render */ }
+    })();
+    return () => { cancelled = true; };
+  }, [data?.wallets]);
+
   const handleSort = (field: SortField) => {
     if (sortBy === field) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -361,7 +413,7 @@ export default function WalletLeaderboardPage() {
   // All filtering is server-side — no client-side filtering needed
   const wallets = data?.wallets ?? [];
 
-  const colCount = 16;
+  const colCount = 17;
 
   return (
     <TooltipProvider>
@@ -683,6 +735,9 @@ export default function WalletLeaderboardPage() {
                   <th className='px-2 py-2 text-right text-xs font-medium'>
                     <SortHeader field='best_trade_pnl' label='Best Trade' sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </th>
+                  <th className='px-2 py-2 text-left text-xs font-medium' title='Terminal of the wallet funding chain. Exchange names like "Coinbase 12" indicate a CEX off-ramp; raw addresses indicate an opaque source.'>
+                    Funded By
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -842,6 +897,31 @@ export default function WalletLeaderboardPage() {
                           <span className={pnlColor(wallet.best_trade_pnl)}>{formatPnl(wallet.best_trade_pnl)}</span>
                           {wallet.best_trade_token && <span className='text-muted-foreground ml-1 text-[10px]'>{wallet.best_trade_token}</span>}
                         </div>
+                      </td>
+                      {/* Funded By — terminal of the funding chain.
+                          - Labeled exchange/protocol → show the name in cyan
+                          - Opaque terminal wallet → show the full address (per Simon's preference)
+                          - Not yet traced → "—" placeholder; backfill batch refreshes this. */}
+                      <td className='px-2 py-2 text-left text-[11px]'>
+                        {wallet.terminal_name ? (
+                          <span
+                            className={cn(
+                              'font-medium',
+                              wallet.terminal_type === 'exchange' ? 'text-cyan-400' :
+                              wallet.terminal_type === 'protocol' ? 'text-purple-400' :
+                              'text-foreground'
+                            )}
+                            title={`${wallet.terminal_type || 'labeled'} · ${wallet.terminal_address || ''}`}
+                          >
+                            {wallet.terminal_name}
+                          </span>
+                        ) : wallet.terminal_address ? (
+                          <code className='font-mono text-[10px] text-muted-foreground break-all' title='Opaque terminal — chain ended at an unlabeled wallet'>
+                            {wallet.terminal_address}
+                          </code>
+                        ) : (
+                          <span className='text-muted-foreground/50' title='Not yet traced — backfill in progress'>—</span>
+                        )}
                       </td>
                     </tr>
                   ))

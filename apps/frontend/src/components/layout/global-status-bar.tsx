@@ -115,7 +115,13 @@ function formatCredits(n: number): string {
 function formatLastRun(isoStr: string | null): string {
   if (!isoStr) return 'never';
   const d = new Date(isoStr);
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) {
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+    d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
 function isJobSuccess(job: JobCreditInfo): boolean | null {
@@ -166,16 +172,23 @@ export function GlobalStatusBar() {
     }
   }, []);
 
-  // Initial fetch + polling every 30s
+  // Initial fetch + polling every 30s. Skip ticks while tab is hidden so the
+  // status bar doesn't keep poking the backend while the user is in another app.
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchData();
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Tick countdowns every second
+  // Tick countdowns every second. The 1s tick was the single biggest source of
+  // background CPU/GPU drain — fires constantly even when the user is in another
+  // app. Skip when hidden; visibility handler below re-syncs on focus.
   useEffect(() => {
     const tick = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       const d = dataRef.current;
       if (!d) return;
 
@@ -269,6 +282,7 @@ export function GlobalStatusBar() {
     }
 
     const pollProgress = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch(`${API_BASE_URL}/api/ingest/scan-progress`);
         if (res.ok) {
@@ -468,7 +482,7 @@ export function GlobalStatusBar() {
               <div className='flex items-center gap-1 cursor-help'>
                 <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                 <span className='text-muted-foreground text-[10px]'>
-                  CLOBr: ON ({clobr.calls_today})
+                  CLOBr: ON · {clobr.calls_today} calls today
                 </span>
               </div>
             </TooltipTrigger>

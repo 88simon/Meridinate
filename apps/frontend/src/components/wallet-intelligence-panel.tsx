@@ -7,7 +7,8 @@ import { API_BASE_URL, traceFundingChains, traceForward, type FundingTrace, type
 import { useWalletIntelligence } from '@/contexts/wallet-intelligence-context';
 import { Button } from '@/components/ui/button';
 import { TokenAddressCell } from '@/components/token-address-cell';
-import { X, Copy, ChevronDown, ChevronRight, Loader2, ExternalLink } from 'lucide-react';
+import { X, Copy, ChevronDown, ChevronRight, Loader2, ExternalLink, Pencil, Check, Trash2, Shield, Search } from 'lucide-react';
+import { useWalletNametag, useWalletNametags } from '@/contexts/wallet-nametags-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { getTagStyle } from '@/lib/wallet-tags';
@@ -197,6 +198,10 @@ function FundingNodeRow({ node, depth, isLast }: { node: FundingNode; depth: num
             className='text-muted-foreground hover:text-foreground rounded p-0.5' title='Copy'>
             <Copy className='h-2.5 w-2.5' />
           </button>
+          <a href={`https://gmgn.ai/sol/address/${node.address}`} target='_blank' rel='noopener noreferrer'
+            className='rounded p-0.5 opacity-70 hover:opacity-100' title='GMGN' onClick={(e) => e.stopPropagation()}>
+            <img src='/gmgn-logo.png' alt='GMGN' className='h-2.5 w-2.5' />
+          </a>
           <a href={`https://solscan.io/account/${node.address}`} target='_blank' rel='noopener noreferrer'
             className='text-muted-foreground hover:text-foreground rounded p-0.5' title='Solscan'>
             <ExternalLink className='h-2.5 w-2.5' />
@@ -298,6 +303,10 @@ function ForwardNodeRow({
             className='text-muted-foreground hover:text-foreground rounded p-0.5' title='Copy'>
             <Copy className='h-2.5 w-2.5' />
           </button>
+          <a href={`https://gmgn.ai/sol/address/${node.address}`} target='_blank' rel='noopener noreferrer'
+            className='rounded p-0.5 opacity-70 hover:opacity-100' title='GMGN' onClick={(e) => e.stopPropagation()}>
+            <img src='/gmgn-logo.png' alt='GMGN' className='h-2.5 w-2.5' />
+          </a>
           <a href={`https://solscan.io/account/${node.address}`} target='_blank' rel='noopener noreferrer'
             className='text-muted-foreground hover:text-foreground rounded p-0.5' title='Solscan'>
             <ExternalLink className='h-2.5 w-2.5' />
@@ -541,6 +550,76 @@ export function WalletIntelligencePanel({ open, onClose, walletAddress }: Props)
   const { openTIP } = useTokenIntelligence();
   const [data, setData] = useState<WalletIntelligence | null>(null);
   const [loading, setLoading] = useState(false);
+  const nametag = useWalletNametag(walletAddress);
+  const { setNametag, clearNametag } = useWalletNametags();
+  const [renaming, setRenaming] = useState(false);
+  const [draftNametag, setDraftNametag] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Reset rename UI whenever the panel switches to a different wallet.
+  useEffect(() => {
+    setRenaming(false);
+    setDraftNametag(nametag || '');
+  }, [walletAddress, nametag]);
+
+  const startRename = () => { setDraftNametag(nametag || ''); setRenaming(true); };
+  const cancelRename = () => { setRenaming(false); setDraftNametag(nametag || ''); };
+  const saveNametag = async () => {
+    if (!walletAddress) return;
+    const trimmed = draftNametag.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    const ok = await setNametag(walletAddress, trimmed);
+    setSaving(false);
+    if (ok) { setRenaming(false); toast.success(`Saved as "${trimmed}"`); }
+    else { toast.error('Failed to save nametag'); }
+  };
+  const removeNametag = async () => {
+    if (!walletAddress) return;
+    setSaving(true);
+    const ok = await clearNametag(walletAddress);
+    setSaving(false);
+    if (ok) { setRenaming(false); setDraftNametag(''); toast.success('Nametag cleared'); }
+    else { toast.error('Failed to clear nametag'); }
+  };
+
+  // Direct WIR actions — surfaced here because Allowlist promotion and Bot Probe
+  // are deliberate decisions the operator makes after observing shadow data,
+  // not triage-time choices on Intel recommendations.
+  const [promoting, setPromoting] = useState(false);
+  const [probing, setProbing] = useState(false);
+  const promoteToAllowlist = async () => {
+    if (!walletAddress) return;
+    setPromoting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/wallets/${walletAddress}/promote-to-allowlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: '' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) toast.success('Promoted to allowlist (auto-shadowed)');
+      else toast.error(data.message || 'Promote failed');
+    } catch {
+      toast.error('Promote failed');
+    } finally {
+      setPromoting(false);
+    }
+  };
+  const queueBotProbe = async () => {
+    if (!walletAddress) return;
+    setProbing(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/wallets/${walletAddress}/queue-bot-probe`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) toast.success(data.message || 'Bot Probe queued');
+      else toast.error(data.message || 'Queue failed');
+    } catch {
+      toast.error('Queue failed');
+    } finally {
+      setProbing(false);
+    }
+  };
 
   useEffect(() => {
     if (!open || !walletAddress) { setData(null); return; }
@@ -564,11 +643,72 @@ export function WalletIntelligencePanel({ open, onClose, walletAddress }: Props)
         >
           {/* Header */}
           <div className='flex items-center justify-between border-b px-4 py-3'>
-            <div>
+            <div className='min-w-0 flex-1'>
               <div className='flex items-center gap-2'>
                 <h3 className='text-sm font-semibold'>Wallet Intelligence Report</h3>
                 {walletAddress && <StarButton type='wallet' address={walletAddress} size='md' />}
               </div>
+              {walletAddress && (
+                <div className='mt-1 flex items-center gap-1.5'>
+                  {renaming ? (
+                    <>
+                      <input
+                        type='text'
+                        autoFocus
+                        value={draftNametag}
+                        onChange={(e) => setDraftNametag(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveNametag();
+                          if (e.key === 'Escape') cancelRename();
+                        }}
+                        placeholder='Nametag (e.g. profitable scalper #1)'
+                        maxLength={64}
+                        disabled={saving}
+                        className='flex-1 rounded border border-border bg-background px-2 py-0.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-primary'
+                      />
+                      <button
+                        onClick={saveNametag}
+                        disabled={saving || !draftNametag.trim()}
+                        title='Save (Enter)'
+                        className='rounded bg-green-500/20 px-1.5 py-1 text-green-400 hover:bg-green-500/30 disabled:opacity-40'
+                      >
+                        <Check className='h-3 w-3' />
+                      </button>
+                      {nametag && (
+                        <button
+                          onClick={removeNametag}
+                          disabled={saving}
+                          title='Clear nametag'
+                          className='rounded bg-red-500/10 px-1.5 py-1 text-red-400 hover:bg-red-500/20 disabled:opacity-40'
+                        >
+                          <Trash2 className='h-3 w-3' />
+                        </button>
+                      )}
+                      <button
+                        onClick={cancelRename}
+                        disabled={saving}
+                        title='Cancel (Esc)'
+                        className='rounded px-1.5 py-1 text-muted-foreground hover:text-foreground'
+                      >
+                        <X className='h-3 w-3' />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={startRename}
+                      title={nametag ? 'Edit nametag' : 'Add nametag'}
+                      className='group flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] hover:bg-muted/50'
+                    >
+                      {nametag ? (
+                        <span className='font-medium text-cyan-400'>{nametag}</span>
+                      ) : (
+                        <span className='text-muted-foreground italic'>+ add nametag</span>
+                      )}
+                      <Pencil className='h-3 w-3 text-muted-foreground opacity-50 group-hover:opacity-100' />
+                    </button>
+                  )}
+                </div>
+              )}
               {walletAddress && (
                 <div className='flex items-center gap-2 mt-0.5'>
                   <code className='text-muted-foreground text-[10px]'>{walletAddress}</code>
@@ -584,6 +724,30 @@ export function WalletIntelligencePanel({ open, onClose, walletAddress }: Props)
                     className='opacity-50 hover:opacity-100'>
                     <img src='/solscan-logo.svg' alt='Solscan' className='h-3.5 w-3.5' />
                   </a>
+                </div>
+              )}
+              {/* Direct actions — Promote to Allowlist + Bot Probe live here, not on the
+                  Intel rec card, because they are deliberate post-observation decisions. */}
+              {walletAddress && (
+                <div className='mt-2 flex flex-wrap gap-1.5'>
+                  <button
+                    onClick={promoteToAllowlist}
+                    disabled={promoting}
+                    title='Add to Intel Allowlist (counts as anti-rug confluence + auto-shadowed)'
+                    className='flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40 transition-colors'
+                  >
+                    <Shield className='h-3 w-3' />
+                    {promoting ? 'Promoting…' : 'Promote to Allowlist'}
+                  </button>
+                  <button
+                    onClick={queueBotProbe}
+                    disabled={probing}
+                    title='Queue a deep historical Helius probe — costs credits, runs from Bot Probe page'
+                    className='flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 disabled:opacity-40 transition-colors'
+                  >
+                    <Search className='h-3 w-3' />
+                    {probing ? 'Queuing…' : 'Queue Bot Probe'}
+                  </button>
                 </div>
               )}
             </div>

@@ -363,9 +363,24 @@ async def run_scan():
 
 @router.get("/scan-progress")
 async def get_scan_progress():
-    """Get current auto-scan progress (lightweight, no DB query)."""
+    """
+    Get current auto-scan progress (lightweight, no DB query).
+    Auto-clears stuck state if the heartbeat is stale (>10 min) so the UI
+    never lies about a scan that's actually dead.
+    """
     from meridinate.tasks.ingest_tasks import get_scan_progress
     return get_scan_progress()
+
+
+@router.post("/scan-progress/reset")
+async def reset_scan_progress_endpoint():
+    """
+    Manually clear stuck scan-progress state without restarting the backend.
+    The orphaned worker thread (if any) keeps running in background but the
+    UI immediately reflects the reset, and the scheduler can fire a new scan.
+    """
+    from meridinate.tasks.ingest_tasks import reset_scan_progress
+    return reset_scan_progress(reason="manual_endpoint")
 
 
 @router.post("/run-discovery")

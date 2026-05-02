@@ -675,6 +675,79 @@ async def get_batch_funded_by(request: Request, wallet_addresses: list[str] = Bo
     }
 
 
+@router.post("/api/wallets/funding-terminal/batch")
+@conditional_rate_limit(READ_RATE_LIMIT)
+async def funding_terminal_batch(
+    request: Request,
+    wallet_addresses: list[str] = Body(embed=True),
+    max_hops: int = Body(default=3, ge=1, le=5),
+):
+    """
+    For each wallet, return the cached funding-chain terminal (exchange or
+    deepest opaque wallet). Wallets without a cached terminal are traced now
+    and the result persisted, so subsequent calls are free.
+
+    Powers the Wallet Leaderboard 'Funded By' column. Splits each batch into
+    cached-only (free) and needs-trace (~100-300 credits per wallet) so the
+    UI can show known terminals immediately while the rest stream in.
+    """
+    from meridinate.services.funding_tracer import (
+        get_cached_terminal,
+        trace_and_persist_terminal,
+    )
+
+    cached: dict[str, dict] = {}
+    to_trace: list[str] = []
+
+    for addr in wallet_addresses:
+        existing = get_cached_terminal(addr)
+        if existing and existing.get("terminal_address"):
+            cached[addr] = existing
+        else:
+            to_trace.append(addr)
+
+    # Trace the missing ones in a thread (one at a time to avoid hammering
+    # Helius — the call sequence inside trace_funding_chain itself is fast).
+    traced_results: dict[str, dict] = {}
+    total_credits = 0
+    if to_trace:
+        loop = asyncio.get_event_loop()
+
+        def _do_traces() -> tuple[dict[str, dict], int]:
+            out: dict[str, dict] = {}
+            credits = 0
+            for addr in to_trace:
+                res = trace_and_persist_terminal(addr, settings.HELIUS_API_KEY, max_hops)
+                out[addr] = {
+                    "terminal_address": res.get("terminal_address"),
+                    "terminal_name": res.get("terminal_name"),
+                    "terminal_type": res.get("terminal_type"),
+                }
+                credits += res.get("credits_used", 0)
+            return out, credits
+
+        traced_results, total_credits = await loop.run_in_executor(None, _do_traces)
+
+        if total_credits > 0:
+            from meridinate.credit_tracker import get_credit_tracker
+            get_credit_tracker().record_operation(
+                operation="funding_terminal_backfill",
+                label="Funding-Chain Terminal Backfill",
+                credits=total_credits,
+                call_count=len(to_trace),
+                context={"wallets_backfilled": len(to_trace)},
+            )
+
+    # Merge cached + freshly-traced into a single response map.
+    terminals = {**cached, **traced_results}
+    return {
+        "terminals": terminals,
+        "cached_count": len(cached),
+        "traced_count": len(traced_results),
+        "total_credits": total_credits,
+    }
+
+
 @router.post("/wallets/trace-funding")
 @conditional_rate_limit(READ_RATE_LIMIT)
 async def trace_wallet_funding(

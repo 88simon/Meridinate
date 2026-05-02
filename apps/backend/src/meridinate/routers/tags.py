@@ -178,6 +178,91 @@ async def get_wallets_by_tag(tag: str):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@router.get("/api/codex/by-category")
+async def get_codex_by_category():
+    """
+    Return wallets grouped by tracking category for the Codex panel.
+    Categories: starred, allowlist, denylist, shadowing, watching.
+    Each list contains {wallet_address, nametag, added_at} entries.
+    """
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        # Pull nametags up front so each entry can be hydrated in one pass.
+        nametag_cursor = await conn.execute(
+            "SELECT wallet_address, nametag FROM wallet_nametags WHERE nametag IS NOT NULL AND nametag != ''"
+        )
+        nametag_map = {row[0]: row[1] for row in await nametag_cursor.fetchall()}
+
+        async def _wallets_with_tag(tag: str):
+            # wallet_tags stores `created_at` (not `added_at`); the response key stays
+            # `added_at` so the frontend treats it the same as starred/shadow rows.
+            cursor = await conn.execute(
+                "SELECT wallet_address, created_at FROM wallet_tags WHERE tag = ? ORDER BY created_at DESC",
+                (tag,),
+            )
+            rows = await cursor.fetchall()
+            return [
+                {
+                    "wallet_address": row[0],
+                    "nametag": nametag_map.get(row[0]),
+                    "added_at": row[1],
+                }
+                for row in rows
+            ]
+
+        # Starred wallets — separate table.
+        starred_cursor = await conn.execute(
+            "SELECT item_address, starred_at FROM starred_items WHERE item_type = 'wallet' ORDER BY starred_at DESC"
+        )
+        starred = [
+            {
+                "wallet_address": row[0],
+                "nametag": nametag_map.get(row[0]),
+                "added_at": row[1],
+            }
+            for row in await starred_cursor.fetchall()
+        ]
+
+        # Live shadow targets — separate table; pulls active rows only.
+        shadow_cursor = await conn.execute(
+            "SELECT wallet_address, label, added_at FROM wallet_shadow_targets WHERE active = 1 ORDER BY added_at DESC"
+        )
+        shadowing = [
+            {
+                "wallet_address": row[0],
+                # Prefer user-set nametag, fall back to the shadow label so the operator
+                # always sees a human-readable string.
+                "nametag": nametag_map.get(row[0]) or row[1],
+                "added_at": row[2],
+            }
+            for row in await shadow_cursor.fetchall()
+        ]
+
+        return {
+            "starred": starred,
+            "allowlist": await _wallets_with_tag("Intel Allowlist"),
+            "denylist": await _wallets_with_tag("Intel Denylist"),
+            "shadowing": shadowing,
+            "watching": await _wallets_with_tag("Watchlist"),
+        }
+
+
+@router.get("/wallets/nametags")
+async def get_all_wallet_nametags():
+    """
+    Return every wallet → nametag mapping as a single dict.
+    Used by the frontend nametag context so any address rendered anywhere
+    can resolve its display name in O(1) without per-wallet round-trips.
+    """
+    async with aiosqlite.connect(settings.DATABASE_FILE) as conn:
+        cursor = await conn.execute(
+            "SELECT wallet_address, nametag FROM wallet_nametags WHERE nametag IS NOT NULL AND nametag != ''"
+        )
+        rows = await cursor.fetchall()
+        return {"nametags": {row[0]: row[1] for row in rows}}
+
+
 @router.get("/wallets/{wallet_address}/nametag", response_model=NametagResponse)
 async def get_wallet_nametag(wallet_address: str):
     """Get the nametag (display name) for a wallet"""

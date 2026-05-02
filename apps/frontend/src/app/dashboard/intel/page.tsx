@@ -20,12 +20,22 @@ interface IntelReport {
   output_tokens: number;
   duration_seconds: number;
   generated_at: string;
+  // Saved transcript of agent dialogue from when this report was generated.
+  // Backend stores it as a JSON string in the dialogue_json column.
+  dialogue_json?: string | null;
   housekeeper?: {
     report: string;
     fixes_applied: number;
     tool_calls: number;
     skipped: boolean;
   };
+}
+
+interface DialogueEntry {
+  agent: string;
+  type: string;
+  content: string;
+  timestamp: string;
 }
 
 const FOCUS_OPTIONS = [
@@ -49,10 +59,12 @@ export default function IntelPage() {
   // Track whether we need to select latest after loading
   const [selectLatestOnLoad, setSelectLatestOnLoad] = useState(false);
 
-  // Poll status when running
+  // Poll status when running. Skip ticks while the tab is hidden — the run
+  // continues server-side either way; we just resync visually on tab focus.
   useEffect(() => {
     if (!running) return;
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch(`${API_BASE_URL}/api/intel/status`);
         if (res.ok) {
@@ -350,6 +362,51 @@ export default function IntelPage() {
                 )}
               </div>
               <div className='p-5 max-h-[70vh] overflow-y-auto'>
+                {/* Saved transcript — same renderer as the live dialogue feed.
+                    Lets us replay what the agents said for past reports without
+                    re-running them. */}
+                {(() => {
+                  let entries: DialogueEntry[] = [];
+                  if (activeReport.dialogue_json) {
+                    try {
+                      const parsed = JSON.parse(activeReport.dialogue_json);
+                      if (Array.isArray(parsed)) entries = parsed as DialogueEntry[];
+                    } catch { /* leave empty */ }
+                  }
+                  if (entries.length === 0) return null;
+                  return (
+                    <details className='mb-4 rounded-lg border border-purple-500/20 bg-purple-500/5'>
+                      <summary className='cursor-pointer px-3 py-2 text-xs font-semibold text-purple-300 hover:text-purple-200'>
+                        Transcript ({entries.length} entries)
+                      </summary>
+                      <div className='max-h-[400px] overflow-y-auto rounded-b-lg border-t border-purple-500/20 bg-black/30 p-2 space-y-1 font-mono text-[11px]'>
+                        {entries.map((d, i) => (
+                          <div key={i} className='flex gap-2'>
+                            <span className='text-muted-foreground shrink-0 w-16'>{d.timestamp}</span>
+                            <span className={cn('shrink-0 w-20 font-medium',
+                              d.agent === 'housekeeper' ? 'text-blue-400' :
+                              d.agent === 'investigator' ? 'text-green-400' :
+                              'text-muted-foreground'
+                            )}>
+                              {d.agent}
+                            </span>
+                            <span className={cn('shrink-0 w-16',
+                              d.type === 'thinking' ? 'text-yellow-400/70' :
+                              d.type === 'tool_call' ? 'text-cyan-400/70' :
+                              d.type === 'fix' ? 'text-red-400/70' :
+                              d.type === 'conclusion' ? 'text-green-400/70' :
+                              'text-muted-foreground'
+                            )}>
+                              [{d.type}]
+                            </span>
+                            <span className='text-foreground/80 break-all'>{d.content}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  );
+                })()}
+
                 {/* Housekeeper summary */}
                 {activeReport.housekeeper && !activeReport.housekeeper.skipped && (
                   <div className='rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 mb-4'>

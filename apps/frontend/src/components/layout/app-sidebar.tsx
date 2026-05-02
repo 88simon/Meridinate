@@ -27,7 +27,8 @@ import { useApiSettings } from '@/contexts/ApiSettingsContext';
 import {
   IconChevronRight,
   IconTags,
-  IconAdjustments
+  IconAdjustments,
+  IconRadar
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -75,6 +76,16 @@ export default function AppSidebar({
                   <Link href='/dashboard/intel'>
                     <Icons.help className='h-4 w-4' />
                     <span>Intel Agent</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* Wallet Shadow — live tracking hub. Promoted above the partition because
+                  shadowing is the primary Phase-1 action; everything else feeds into it. */}
+              <SidebarMenuItem key='wallet-shadow-top'>
+                <SidebarMenuButton asChild tooltip='Wallet Shadow — live trade tracking + signals'>
+                  <Link href='/dashboard/bot-tracker'>
+                    <IconRadar className='h-4 w-4' />
+                    <span>Wallet Shadow</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

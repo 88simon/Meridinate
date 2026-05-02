@@ -32,14 +32,39 @@ DATABASE_FILE = settings.DATABASE_FILE
 
 @contextmanager
 def get_db_connection():
-    """Context manager for database connections"""
+    """Context manager for database connections.
+
+    Per-connection PRAGMAs applied here are the single biggest SQLite perf win
+    for an app with concurrent readers + writers (RTTF + Wallet Shadow + scheduler
+    + ad-hoc API calls all hitting the same .db file):
+
+      - journal_mode=WAL: readers don't block writers, writer doesn't block readers.
+        Default rollback journal would serialize everything.
+      - synchronous=NORMAL: skip fsync between every write. Safe under WAL — at
+        worst we lose the last few transactions on hard power loss, which is
+        acceptable for analysis data (recoverable from re-scan).
+      - busy_timeout=5000: when another connection holds a lock, wait up to 5s
+        before raising 'database is locked' — eliminates the bulk of those errors
+        that show up under burst load (e.g. mid-scan + WebSocket trade arrives).
+      - cache_size=-65536: 64MB per-connection page cache. Default 2MB is tiny;
+        64MB lets common queries serve entirely from cache.
+    """
     # Ensure database directory exists
     db_dir = os.path.dirname(DATABASE_FILE)
     os.makedirs(db_dir, exist_ok=True)
 
-    conn = sqlite3.connect(DATABASE_FILE)
+    # timeout parameter at connect-time also helps short-lived connections
+    # avoid 'database is locked' on startup races.
+    conn = sqlite3.connect(DATABASE_FILE, timeout=5.0)
     conn.row_factory = sqlite3.Row  # Enable dict-like access
     try:
+        # Apply PRAGMAs once per connection. These are not persisted in the .db file
+        # for journal_mode (well, WAL flag actually IS persisted); the others are
+        # connection-scoped and need to be re-set every connect.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA cache_size=-65536")
         yield conn
         conn.commit()
     except Exception as e:
@@ -1009,6 +1034,17 @@ def init_database():
         wec_cols = {row[1] for row in cursor.fetchall()}
         if "forward_transfers_json" not in wec_cols:
             cursor.execute("ALTER TABLE wallet_enrichment_cache ADD COLUMN forward_transfers_json TEXT")
+
+        # Funding-chain terminal columns (populated by funding_tracer.persist_terminal()).
+        # These let the Wallet Leaderboard show "Funded By" without re-running the trace.
+        if "terminal_address" not in wec_cols:
+            cursor.execute("ALTER TABLE wallet_enrichment_cache ADD COLUMN terminal_address TEXT")
+        if "terminal_name" not in wec_cols:
+            cursor.execute("ALTER TABLE wallet_enrichment_cache ADD COLUMN terminal_name TEXT")
+        if "terminal_type" not in wec_cols:
+            cursor.execute("ALTER TABLE wallet_enrichment_cache ADD COLUMN terminal_type TEXT")
+        if "terminal_traced_at" not in wec_cols:
+            cursor.execute("ALTER TABLE wallet_enrichment_cache ADD COLUMN terminal_traced_at TIMESTAMP")
 
         # ================================================================
         # Quick DD Runs

@@ -17,6 +17,7 @@ import asyncio
 import json
 import sqlite3
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from typing import Any, Dict, List, Optional, Set
@@ -30,6 +31,17 @@ CHICAGO_TZ = ZoneInfo("America/Chicago")
 PING_INTERVAL = 30
 DUST_THRESHOLD_SOL = 0.005
 MAX_FEED_SIZE = 200
+
+# Bounded executor for the preceding-buyer capture work fired on each BUY.
+# Previously each BUY spawned a raw daemon thread via threading.Thread() with no
+# upper bound — under burst load (popular token, many tracked wallets) this
+# would queue dozens of threads simultaneously, all hitting Helius + the DB.
+# A 4-thread pool serializes the work so the system stays responsive while the
+# excess capture work waits its turn rather than competing for CPU/locks.
+_PRECEDING_BUYER_POOL = ThreadPoolExecutor(
+    max_workers=4,
+    thread_name_prefix="shadow-preceding-buyers",
+)
 
 # System addresses to exclude from signal wallet analysis
 # These are protocol infrastructure, not real traders
@@ -795,14 +807,14 @@ class WalletShadowListener:
                 if trade_id is None:
                     continue  # Deduped
 
-                # On BUY: capture preceding buyers + check convergence (background thread)
+                # On BUY: capture preceding buyers + check convergence in the bounded pool.
+                # The pool's max_workers cap prevents a popular token from spawning
+                # dozens of concurrent capture threads.
                 if trade.direction == "buy":
-                    import threading
-                    threading.Thread(
-                        target=_capture_preceding_buyers,
-                        args=(trade_id, wallet_addr, mint, timestamp_unix),
-                        daemon=True,
-                    ).start()
+                    _PRECEDING_BUYER_POOL.submit(
+                        _capture_preceding_buyers,
+                        trade_id, wallet_addr, mint, timestamp_unix,
+                    )
                     _check_convergence(mint, token_name)
 
                 # Add to in-memory feed

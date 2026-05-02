@@ -336,7 +336,7 @@ export function TokenIntelligencePanel({ open, onClose, token }: Props) {
                         (token.clobr_sr_ratio ?? 0) > 1.5 ? 'text-green-400' :
                         (token.clobr_sr_ratio ?? 0) >= 0.7 ? 'text-yellow-400' : 'text-red-400'
                       )}>
-                        {token.clobr_sr_ratio !== null ? `${token.clobr_sr_ratio.toFixed(1)}x` : '—'}
+                        {token.clobr_sr_ratio !== null && token.clobr_sr_ratio !== undefined ? `${token.clobr_sr_ratio.toFixed(1)}x` : '—'}
                       </div>
                       <div className='text-[9px]'><TipLabel label='S/R Ratio' tip='Support-to-Resistance ratio. >1.5x = strong buy support (green). 0.7-1.5x = balanced (yellow). <0.7x = sell-heavy (red).' /></div>
                     </div>
@@ -703,7 +703,12 @@ export function TokenIntelligencePanel({ open, onClose, token }: Props) {
                         </span>
                       )}
                       <span className='text-muted-foreground'>
-                        ${buyer.total_usd >= 1000 ? `${(buyer.total_usd / 1000).toFixed(1)}k` : buyer.total_usd.toFixed(0)}
+                        {(() => {
+                          // total_usd can be undefined for buyers we haven't enriched yet.
+                          // Without this guard, toFixed throws and unmounts the whole panel.
+                          const v = buyer.total_usd ?? 0;
+                          return `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`;
+                        })()}
                       </span>
                     </div>
                   </div>
